@@ -1,5 +1,5 @@
 import { isValidTaxCode, newId, normalizeEmail, isValidEmail, ROLE_LABELS, formatVnd, permissionsOf, type Role, type RoleBinding } from '@argolet/core';
-import { AppCore, actor, requireFound, requireText } from '../core';
+import { type AppCore, actor, requireFound, requireText } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { Tx } from '../store';
 import { GLOBAL, type IntegrationRow, type LegalEntityRow, type MembershipRow, type TenantRow } from '../types';

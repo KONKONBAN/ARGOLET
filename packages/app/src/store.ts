@@ -101,7 +101,12 @@ export class MemoryStore implements Store {
     const allRows = (col: CollectionName): unknown[] => {
       const base = new Map(this.table(col));
       const w = writes?.get(col);
-      if (w) for (const [k, v] of w) v === null ? base.delete(k) : base.set(k, v);
+      if (w) {
+        for (const [k, v] of w) {
+          if (v === null) base.delete(k);
+          else base.set(k, v);
+        }
+      }
       return [...base.values()];
     };
     const tx: Tx = {
@@ -139,7 +144,10 @@ export class MemoryStore implements Store {
       const result = await fn(this.makeTx(writes));
       for (const [col, rows] of writes) {
         const t = this.table(col);
-        for (const [k, v] of rows) v === null ? t.delete(k) : t.set(k, v);
+        for (const [k, v] of rows) {
+          if (v === null) t.delete(k);
+          else t.set(k, v);
+        }
       }
       if (writes.size && this.persist) this.persist(this.dump());
       return result;

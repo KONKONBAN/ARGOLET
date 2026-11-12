@@ -2,7 +2,7 @@ import {
   anchorBatch, buildEvidenceBatch, formatTimeDate, newId, sha256Hex, verifyEvidence, nextCode, EVIDENCE_SCHEMA_VERSION, shortHash,
   type DocumentVersionPayload, type DomainEvent,
 } from '@argolet/core';
-import { AppCore, actor, requireFound } from '../core';
+import { type AppCore, actor, requireFound } from '../core';
 import { AppError, StoredLedger, type CallContext, type Emitter } from '../runtime';
 import type { Tx } from '../store';
 import type { DocumentRow, DocumentVersionRow, EvidenceBatchRow } from '../types';

@@ -137,7 +137,7 @@ export function AppShell() {
               <button role="menuitem" onClick={() => navigate('/workspaces')}>
                 <ArrowLeftRight size={16} /> Đổi không gian làm việc
               </button>
-              {backend.info.mode === 'browser' && (
+              {backend.info.mode === 'device' && (
                 <button
                   role="menuitem"
                   onClick={async () => {
@@ -157,7 +157,7 @@ export function AppShell() {
         </div>
       </aside>
       <div className="main">
-        {backend.info.mode === 'browser' && (
+        {backend.info.mode === 'device' && (
           <div className="demo-banner" role="note">
             <Sparkles size={14} /> Bản trải nghiệm chạy trên trình duyệt · dữ liệu mẫu Minh An Commerce · thời điểm mô phỏng 31/10/2026
           </div>

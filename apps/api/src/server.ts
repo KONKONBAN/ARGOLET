@@ -128,12 +128,15 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
         const result = (await def.handler(app, call, params)) as Record<string, unknown> | null;
         if (def.session === 'issue' && result && typeof result.token === 'string') {
           const session = result.session as { expiresAt: string } | undefined;
+          // Session expiry is in application time (which may be the shifted demo clock), so the
+          // cookie gets a relative Max-Age instead of an absolute Expires in that timeline.
+          const maxAge = session ? Math.max(0, Math.floor((Date.parse(session.expiresAt) - app.core.deps.clock().getTime()) / 1000)) : undefined;
           reply.setCookie(SESSION_COOKIE, result.token, {
             httpOnly: true,
             secure: config.cookieSecure,
             sameSite: 'lax',
             path: '/',
-            expires: session ? new Date(session.expiresAt) : undefined,
+            maxAge,
           });
           if (call.channel !== 'mobile') {
             const { token: _omit, ...rest } = result;

@@ -1,5 +1,5 @@
 import { appraiseProject, compareScenarios, D, formatMillions, formatPercent, formatNumber, makeCalcRun, newId, npvSensitivity, type ProjectAssumptions } from '@argolet/core';
-import { AppCore, actor, requireFound } from '../core';
+import { type AppCore, actor, requireFound } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { Tx } from '../store';
 import type { FinanceProjectRow } from '../types';

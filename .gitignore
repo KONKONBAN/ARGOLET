@@ -19,3 +19,5 @@ blob-report/
 .vite/
 *.tsbuildinfo
 apps/api/data/
+dist-web/
+dist-native/

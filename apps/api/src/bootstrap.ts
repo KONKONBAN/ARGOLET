@@ -9,7 +9,7 @@ export interface Runtime {
   store: PgStore;
 }
 
-export async function createRuntime(config: ApiConfig, log: (msg: string) => void = console.log): Promise<Runtime> {
+export async function createRuntime(config: ApiConfig, log: (msg: string) => void = console.info): Promise<Runtime> {
   const clock = config.demoClock ? demoClock() : () => new Date();
   const driver = config.databaseUrl.startsWith('pglite:')
     ? await pgliteDriver(config.databaseUrl === 'pglite:memory' ? undefined : config.databaseUrl.slice('pglite:'.length))

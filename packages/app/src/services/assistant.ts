@@ -1,5 +1,5 @@
 import { D, formatVnd, newId, ToolGateway, formatPercent, formatMillions, type AccessContext, type ToolDefinition } from '@argolet/core';
-import { AppCore, requireFound, requireText } from '../core';
+import { type AppCore, requireFound, requireText } from '../core';
 import { AppError, type CallContext, type LlmClient, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { AssistantAnswer, ChatMessage, ConversationRow } from '../types';

@@ -68,6 +68,17 @@ describe('HTTP API', () => {
     expect((await server.inject({ method: 'GET', url: '/v1/auth/me', headers: { cookie } })).json()).toBeNull();
   });
 
+  it('gives the session cookie a relative lifetime, valid even when the demo clock lags real time', async () => {
+    for (const [remember, maxHours] of [[false, 13], [true, 24 * 31]] as const) {
+      const res = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: H, payload: { contact: 'ketoan@minhan.example', password: 'Argolet@2026', remember } });
+      const raw = String(res.headers['set-cookie']);
+      expect(raw).not.toMatch(/Expires=/i);
+      const maxAge = Number(/Max-Age=(\d+)/i.exec(raw)?.[1]);
+      expect(maxAge).toBeGreaterThan(3600);
+      expect(maxAge).toBeLessThanOrEqual(maxHours * 3600);
+    }
+  });
+
   it('issues a bearer token for the mobile app', async () => {
     const res = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: { ...H, 'x-argolet-client': 'mobile' }, payload: { contact: 'thanhha@minhan.example', password: 'Argolet@2026' } });
     const token = res.json().token as string;

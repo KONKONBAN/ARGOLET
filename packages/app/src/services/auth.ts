@@ -2,7 +2,7 @@ import {
   checkVerificationToken, generateOtp, hashSecret, newId, newSessionToken, newTotpSecret, normalizeContact, otpauthUrl, validatePassword,
   verifyTotp, MAX_OTP_ATTEMPTS,
 } from '@argolet/core';
-import { AppCore, requireFound, requireText } from '../core';
+import { type AppCore, requireFound, requireText } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { Tx } from '../store';
 import { GLOBAL, type SessionRow, type UserRow, type VerificationTokenRow } from '../types';

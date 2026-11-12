@@ -165,7 +165,7 @@ export function AssistantPage() {
               <SendHorizontal size={18} />
             </button>
           </form>
-          {backend.info.mode === 'browser' && <p className="small muted mt-8">Bản trên trình duyệt dùng bộ trả lời quy tắc; khi chạy cùng máy chủ có khóa Claude, trợ lý dùng mô hình ngôn ngữ qua cổng công cụ.</p>}
+          {backend.info.mode === 'device' && <p className="small muted mt-8">Bản trên trình duyệt dùng bộ trả lời quy tắc; khi chạy cùng máy chủ có khóa Claude, trợ lý dùng mô hình ngôn ngữ qua cổng công cụ.</p>}
         </Card>
       </div>
       <PageFoot />

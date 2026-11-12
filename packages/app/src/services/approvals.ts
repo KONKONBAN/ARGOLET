@@ -1,10 +1,10 @@
 import { decide, formatDate, formatVnd, ApprovalError, sum, D, type ApprovalRequest } from '@argolet/core';
-import { AppCore, actor, requireFound } from '../core';
+import { type AppCore, actor, requireFound } from '../core';
 import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { ApprovalRow } from '../types';
 import { scoped } from './documents';
-import { findGroup, groupDigest, ReconService } from './recon';
+import { findGroup, groupDigest, type ReconService } from './recon';
 
 export const APPROVAL_STATUS_LABEL: Record<ApprovalRow['status'], string> = {
   PENDING: 'Chờ duyệt',

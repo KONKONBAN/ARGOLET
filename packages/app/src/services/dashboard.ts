@@ -1,5 +1,5 @@
-import { D, formatCompactVnd, formatPeriod, formatSignedVnd, formatVnd, newId, sum, type DomainEvent } from '@argolet/core';
-import { AppCore, requireFound } from '../core';
+import { D, formatPeriod, formatSignedVnd, formatVnd, newId, sum, type DomainEvent } from '@argolet/core';
+import { type AppCore, requireFound } from '../core';
 import type { CallContext, Emitter, WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import { scoped } from './documents';

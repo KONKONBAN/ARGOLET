@@ -2,7 +2,7 @@ import {
   allocateByDriver, chargeAfterFreeTime, D, dec, dueWithin, energySavings, formatDate, formatNumber, formatPercent, formatPeriod, formatVnd, freeTimeEnd,
   matchIntercompany, movingAverage, newId, nextCode, recipeCost, sum, targetDigest, APPROVAL_POLICY_VERSION, formatShortDateTime,
 } from '@argolet/core';
-import { AppCore, actor, requireAmount, requireFound, requireText } from '../core';
+import { type AppCore, actor, requireAmount, requireFound, requireText } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { DealRow, PurchaseOrderRow, WbsTask } from '../types';
 import { defaultSite, scoped } from './documents';

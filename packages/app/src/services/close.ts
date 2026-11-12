@@ -2,7 +2,7 @@ import {
   buildSnapshotManifest, closeChecklist, formatPeriod, formatVnd, manifestDigest, newId, sum, targetDigest, APPROVAL_POLICY_VERSION, DEFAULT_RULES,
   formatSignedVnd, D,
 } from '@argolet/core';
-import { AppCore, actor, requireFound } from '../core';
+import { type AppCore, actor, requireFound } from '../core';
 import { AppError, type CallContext, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { PeriodRow } from '../types';

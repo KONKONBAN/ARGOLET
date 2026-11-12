@@ -1,0 +1,302 @@
+import { Children, cloneElement, isValidElement, useRef, useState, type ComponentRef, type ReactElement, type ReactNode } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Check, ChevronRight, CircleAlert, Eye, EyeOff, Info, TriangleAlert, X } from 'lucide-react-native';
+import { C, G, R, font } from './theme';
+
+export const T = StyleSheet.create({
+  eyebrow: { fontSize: 11, fontWeight: '700', color: C.muted, textTransform: 'uppercase', fontFamily: font },
+  title: { fontSize: 26, fontWeight: '700', color: C.text, fontFamily: font, letterSpacing: -0.2 },
+  h2: { fontSize: 16, fontWeight: '700', color: C.text, fontFamily: font },
+  body: { fontSize: 14, color: C.text, fontFamily: font },
+  muted: { fontSize: 13, color: C.muted, fontFamily: font },
+  small: { fontSize: 12, color: C.muted, fontFamily: font },
+  strong: { fontWeight: '700' },
+});
+
+export function Screen({ children, footer, scroll = true }: { children: ReactNode; footer?: ReactNode; scroll?: boolean }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      {scroll ? (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: footer ? 110 : 32 }} keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1, padding: 16 }}>{children}</View>
+      )}
+      {footer && <View style={[st.footer, { paddingBottom: 12 + (insets.bottom > 0 ? 0 : 0) }]}>{footer}</View>}
+    </View>
+  );
+}
+
+export function Title({ eyebrow, title, subtitle, right }: { eyebrow?: string; title: string; subtitle?: string; right?: ReactNode }) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      {eyebrow && <Text style={T.eyebrow}>{eyebrow}</Text>}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: eyebrow ? 6 : 0 }}>
+        <Text style={[T.title, { flex: 1 }]} accessibilityRole="header">
+          {title}
+        </Text>
+        {right}
+      </View>
+      {subtitle && <Text style={[T.muted, { marginTop: 8 }]}>{subtitle}</Text>}
+    </View>
+  );
+}
+
+export function Card({ children, title, subtitle, style, right }: { children?: ReactNode; title?: string; subtitle?: string; style?: StyleProp<ViewStyle>; right?: ReactNode }) {
+  return (
+    <View style={[st.card, style]}>
+      {(title || right) && (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            {title && <Text style={T.h2}>{title}</Text>}
+            {subtitle && <Text style={[T.small, { marginTop: 4 }]}>{subtitle}</Text>}
+          </View>
+          {right}
+        </View>
+      )}
+      {markLastRow(children)}
+    </View>
+  );
+}
+
+/** Drops the divider under the final Row of a card so cards don't end on a stray line. */
+function markLastRow(children: ReactNode): ReactNode {
+  const items = Children.toArray(children);
+  const last = items[items.length - 1];
+  if (!isValidElement(last) || last.type !== Row) return items.length ? items : children;
+  return [...items.slice(0, -1), cloneElement(last as ReactElement<RowProps>, { last: true })];
+}
+
+export function Hero({ label, value, note, children }: { label: string; value: string; note?: string; children?: ReactNode }) {
+  return (
+    <LinearGradient colors={G.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.hero}>
+      <Text style={{ color: C.heroMuted, fontSize: 13, fontFamily: font }}>{label}</Text>
+      <Text style={{ color: C.heroStrong, fontSize: 30, fontWeight: '700', marginTop: 6, fontFamily: font }}>{value}</Text>
+      {note && <Text style={{ color: C.heroMuted, fontSize: 12, marginTop: 6, fontFamily: font }}>{note}</Text>}
+      {children}
+    </LinearGradient>
+  );
+}
+
+export function Kpi({ label, value, note, highlight }: { label: string; value: string | number; note?: string | undefined; highlight?: boolean | undefined }) {
+  const content = (
+    <>
+      <Text style={{ fontSize: 12, color: highlight ? C.heroMuted : C.muted, fontFamily: font }}>{label}</Text>
+      <Text style={{ fontSize: 22, fontWeight: '700', color: highlight ? '#fff' : C.brand, marginTop: 4, fontFamily: font }}>{value}</Text>
+      {note && <Text style={{ fontSize: 11, color: highlight ? C.heroMuted : C.muted, marginTop: 4, fontFamily: font }}>{note}</Text>}
+    </>
+  );
+  return highlight ? (
+    <LinearGradient colors={G.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[st.kpi, { borderColor: 'transparent' }]}>
+      {content}
+    </LinearGradient>
+  ) : (
+    <View style={st.kpi}>{content}</View>
+  );
+}
+
+export function KpiGrid({ items }: { items: { label: string; value: string | number; note?: string | undefined; highlight?: boolean | undefined }[] }) {
+  return (
+    <View style={{ gap: 10, marginBottom: 14 }}>
+      {items.map((k) => (
+        <Kpi key={k.label} {...k} />
+      ))}
+    </View>
+  );
+}
+
+export function Button({ title, onPress, variant = 'default', loading, disabled, icon, small }: { title: string; onPress?: () => void; variant?: 'primary' | 'default' | 'danger'; loading?: boolean; disabled?: boolean; icon?: ReactNode; small?: boolean }) {
+  const inner = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      {loading ? <ActivityIndicator color={variant === 'primary' ? '#fff' : C.action} /> : icon}
+      <Text style={{ color: variant === 'primary' ? '#fff' : variant === 'danger' ? C.danger : C.brand, fontWeight: '700', fontSize: small ? 13 : 15, fontFamily: font }}>{title}</Text>
+    </View>
+  );
+  const height = small ? 38 : 48;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ disabled: !!disabled || !!loading }} disabled={disabled || loading} onPress={onPress} style={({ pressed }) => ({ opacity: disabled ? 0.5 : pressed ? 0.85 : 1 })}>
+      {variant === 'primary' ? (
+        <LinearGradient colors={G.action} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[st.btn, { height }]}>
+          {inner}
+        </LinearGradient>
+      ) : (
+        <View style={[st.btn, st.btnDefault, { height }]}>{inner}</View>
+      )}
+    </Pressable>
+  );
+}
+
+export function Input({ label, error, hint, secure, ...rest }: TextInputProps & { label: string; error?: string | undefined; hint?: string; secure?: boolean }) {
+  const [show, setShow] = useState(false);
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <Text style={[T.body, { marginBottom: 8 }]}>{label}</Text>
+      <View>
+        <TextInput
+          accessibilityLabel={label}
+          placeholderTextColor="#8EA2AE"
+          style={[st.input, error ? { borderColor: '#E3A29B' } : null, secure ? { paddingRight: 48 } : null]}
+          secureTextEntry={secure && !show}
+          autoCapitalize="none"
+          {...rest}
+        />
+        {secure && (
+          <Pressable onPress={() => setShow((s) => !s)} style={st.eye} accessibilityLabel={show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+            {show ? <Eye size={20} color={C.muted} /> : <EyeOff size={20} color={C.muted} />}
+          </Pressable>
+        )}
+      </View>
+      {error ? <Text style={{ color: C.danger, fontSize: 12, marginTop: 6 }}>{error}</Text> : hint ? <Text style={[T.small, { marginTop: 6 }]}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+export function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<ComponentRef<typeof TextInput>>(null);
+  return (
+    <Pressable onPress={() => ref.current?.focus()} accessibilityLabel="Mã xác minh 6 số">
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {Array.from({ length: 6 }, (_, i) => (
+          <View key={i} style={[st.otpBox, value.length === i ? { borderColor: C.action } : null]}>
+            <Text style={{ fontSize: 20, fontWeight: '600', color: C.text }}>{value[i] ?? ''}</Text>
+          </View>
+        ))}
+      </View>
+      <TextInput ref={ref} value={value} onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} style={{ position: 'absolute', opacity: 0.01, width: 1, height: 1 }} autoFocus textContentType="oneTimeCode" accessibilityLabel="Nhập mã" />
+    </Pressable>
+  );
+}
+
+export type Tone = 'success' | 'warning' | 'neutral' | 'danger' | 'info' | string;
+export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: Tone }) {
+  const bg = tone === 'success' ? C.successBg : tone === 'warning' ? C.warningBg : tone === 'danger' ? C.dangerBg : tone === 'info' ? '#EAF1F7' : C.soft;
+  const fg = tone === 'success' ? C.action : tone === 'warning' ? C.warning : tone === 'danger' ? C.danger : tone === 'info' ? C.info : C.muted;
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: R.sm, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' }}>
+      <Text style={{ color: fg, fontSize: 12, fontFamily: font }}>{children}</Text>
+    </View>
+  );
+}
+
+type RowProps = { title: string; subtitle?: string | undefined; right?: ReactNode; icon?: ReactNode; onPress?: () => void; chevron?: boolean; last?: boolean };
+export function Row({ title, subtitle, right, icon, onPress, chevron, last }: RowProps) {
+  const content = (
+    <View style={[st.row, last ? { borderBottomWidth: 0 } : null]}>
+      {icon && <View style={st.iconTile}>{icon}</View>}
+      <View style={{ flex: 1 }}>
+        <Text style={[T.body, T.strong]}>{title}</Text>
+        {subtitle && <Text style={[T.small, { marginTop: 4 }]}>{subtitle}</Text>}
+      </View>
+      {right}
+      {chevron && <ChevronRight size={18} color={C.muted} />}
+    </View>
+  );
+  return onPress ? (
+    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+      {content}
+    </Pressable>
+  ) : (
+    content
+  );
+}
+
+export function KV({ rows }: { rows: { label: string; value: string }[] }) {
+  return (
+    <View>
+      {rows.map((r) => (
+        <View key={r.label} style={st.kv}>
+          <Text style={[T.muted, { flex: 1 }]}>{r.label}</Text>
+          <Text style={[T.body, { flex: 1.3, textAlign: 'right' }]}>{r.value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function Steps({ items }: { items: { title: string; sub?: string; done?: boolean }[] }) {
+  return (
+    <View>
+      {items.map((it, i) => (
+        <View key={i} style={{ flexDirection: 'row', gap: 12, paddingBottom: 18 }}>
+          <View style={[st.stepNum, it.done ? { backgroundColor: C.action } : null]}>{it.done ? <Check size={13} color="#fff" /> : <Text style={{ color: C.action, fontSize: 11, fontWeight: '700' }}>{i + 1}</Text>}</View>
+          <View style={{ flex: 1 }}>
+            <Text style={[T.body, T.strong, { fontSize: 13 }]}>{it.title}</Text>
+            {it.sub && <Text style={[T.small, { marginTop: 4 }]}>{it.sub}</Text>}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function Notice({ children, tone = 'warning' }: { children: ReactNode; tone?: 'warning' | 'info' | 'success' | 'danger' }) {
+  const Icon = tone === 'success' ? Check : tone === 'info' ? Info : tone === 'danger' ? CircleAlert : TriangleAlert;
+  const bg = tone === 'success' ? C.successBg : tone === 'info' ? '#EEF5FA' : tone === 'danger' ? C.dangerBg : C.warningBg;
+  const fg = tone === 'success' ? C.action : tone === 'info' ? '#2F5F80' : tone === 'danger' ? C.danger : C.warning;
+  return (
+    <View style={{ flexDirection: 'row', gap: 10, backgroundColor: bg, borderRadius: R.md, padding: 12, marginVertical: 8 }} accessibilityRole={tone === 'danger' ? 'alert' : undefined}>
+      <Icon size={16} color={fg} />
+      <Text style={{ color: fg, fontSize: 12, flex: 1, lineHeight: 18 }}>{children}</Text>
+    </View>
+  );
+}
+
+export function Loading() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg, padding: 24 }}>
+      <ActivityIndicator color={C.action} />
+      <Text style={[T.small, { marginTop: 10 }]}>Đang tải…</Text>
+    </View>
+  );
+}
+
+export function ErrorView({ error, onRetry }: { error: Error; onRetry?: () => void }) {
+  return (
+    <View style={{ flex: 1, padding: 16, backgroundColor: C.bg }}>
+      <Notice tone="danger">{error.message}</Notice>
+      {onRetry && <Button title="Thử lại" onPress={onRetry} />}
+    </View>
+  );
+}
+
+export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(11,28,40,0.45)' }} onPress={onClose} accessibilityLabel="Đóng" />
+      <View style={st.sheet}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <Text style={[T.h2, { fontSize: 18 }]}>{title}</Text>
+          <Pressable onPress={onClose} accessibilityLabel="Đóng" hitSlop={12}>
+            <X size={22} color={C.muted} />
+          </Pressable>
+        </View>
+        <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+export function Gap({ h = 12 }: { h?: number }) {
+  return <View style={{ height: h }} />;
+}
+
+const st = StyleSheet.create({
+  card: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: R.lg, padding: 16, marginBottom: 14 },
+  hero: { borderRadius: R.lg, padding: 18, marginBottom: 14 },
+  kpi: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: R.lg, paddingVertical: 12, paddingHorizontal: 16 },
+  btn: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  btnDefault: { backgroundColor: '#fff', borderWidth: 1, borderColor: C.line },
+  input: { height: 48, borderWidth: 1, borderColor: C.inputLine, borderRadius: R.md, paddingHorizontal: 14, fontSize: 15, color: C.text, backgroundColor: '#fff', fontFamily: font },
+  eye: { position: 'absolute', right: 10, top: 12 },
+  otpBox: { width: 44, height: 50, borderRadius: R.md, borderWidth: 1, borderColor: C.inputLine, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line },
+  iconTile: { width: 38, height: 38, borderRadius: R.md, backgroundColor: C.successBg, alignItems: 'center', justifyContent: 'center' },
+  kv: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line },
+  stepNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: C.successBg, alignItems: 'center', justifyContent: 'center' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, backgroundColor: 'rgba(245,247,248,0.96)', borderTopWidth: 1, borderTopColor: C.line, gap: 8 },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 18, maxHeight: '85%' },
+});

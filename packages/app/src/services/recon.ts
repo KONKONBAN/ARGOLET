@@ -2,8 +2,8 @@ import {
   canonicalize, D, DEFAULT_RULES, formatDate, formatVnd, newId, nextCode, runReconciliation, sha256Hex, sum, targetDigest, APPROVAL_POLICY_VERSION,
   type ReconOrder, type ReconTxn,
 } from '@argolet/core';
-import { AppCore, actor, requireFound } from '../core';
-import { AppError, type CallContext, type WorkspaceState } from '../runtime';
+import { type AppCore, actor, requireFound } from '../core';
+import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { BusinessRecordRow, MatchGroupRow } from '../types';
 import { defaultSite, inScope, scoped } from './documents';
@@ -230,7 +230,7 @@ export class ReconService {
     });
   }
 
-  async confirmInTx(tx: Tx, ws: WorkspaceState, g: MatchGroupRow, digest: string, now: string, em: import('../runtime').Emitter, note?: string) {
+  async confirmInTx(tx: Tx, ws: WorkspaceState, g: MatchGroupRow, digest: string, now: string, em: Emitter, note?: string) {
     if (g.status === 'CONFIRMED') throw new AppError('CONFLICT', 'Nhóm đã được xác nhận');
     if (digest !== groupDigest(g)) throw new AppError('CONFLICT', 'Phương án ghép đã thay đổi, vui lòng tải lại trước khi xác nhận');
     if (g.status === 'DISCREPANCY' && !note) throw new AppError('VALIDATION', 'Nhóm còn chênh lệch: cần ghi chú giải thích trước khi xác nhận', { field: 'note' });

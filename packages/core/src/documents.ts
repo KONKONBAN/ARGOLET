@@ -42,7 +42,7 @@ export function chooseParser(format: SourceFormat): 'structured' | 'ocr_vlm' {
 // ───────────── CSV ─────────────
 
 export function parseCsv(text: string, delimiter?: string): string[][] {
-  const src = text.replace(/^﻿/, '');
+  const src = text.replace(/^\uFEFF/, '');
   const firstLine = src.split(/\r?\n/, 1)[0] ?? '';
   const delim = delimiter ?? (firstLine.split(';').length > firstLine.split(',').length ? ';' : ',');
   const rows: string[][] = [];

@@ -3,10 +3,10 @@ import {
   randomHex, saltedFingerprint, sha256Hex, sum, validateFields, assertTransition, EVIDENCE_SCHEMA_VERSION, type DocumentFields,
   type DocumentVersionPayload, type FieldIssue,
 } from '@argolet/core';
-import { AppCore, actor, periodOf, requireFound, requireText } from '../core';
+import { type AppCore, actor, periodOf, requireFound, requireText } from '../core';
 import { AppError, type CallContext, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
-import type { DocumentRow, DocumentVersionRow, SourceKindCode, StructuredRow } from '../types';
+import type { Collections, DocumentRow, DocumentVersionRow, SourceKindCode, StructuredRow } from '../types';
 import { scopeLabel } from './org';
 
 export const SOURCE_LABEL: Record<SourceKindCode, string> = {
@@ -479,7 +479,7 @@ export async function scoped<K extends 'documents' | 'records' | 'matchGroups' |
   const rows = (await tx.list(col, ws.tenantId)) as unknown as { entityId: string }[];
   const allowAll = ws.membership.bindings.some((b) => b.entityIds === '*');
   const allowed = new Set(ws.membership.bindings.flatMap((b) => (b.entityIds === '*' ? [] : b.entityIds)));
-  return rows.filter((r) => (ws.entityId === '*' || r.entityId === ws.entityId) && (allowAll || allowed.has(r.entityId))) as never as import('../types').Collections[K][];
+  return rows.filter((r) => (ws.entityId === '*' || r.entityId === ws.entityId) && (allowAll || allowed.has(r.entityId))) as never as Collections[K][];
 }
 
 export async function defaultSite(tx: Tx, tenantId: string): Promise<string> {
