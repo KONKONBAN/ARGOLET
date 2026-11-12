@@ -107,3 +107,47 @@ export function requireAmount(value: unknown, label: string): string {
 export function periodOf(date: string): string {
   return date.slice(0, 7);
 }
+
+export function requireDate(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+    throw new AppError('VALIDATION', `${label} không hợp lệ (định dạng YYYY-MM-DD)`, { field: label });
+  }
+  return value;
+}
+
+export function requireNonNegative(value: unknown, label: string): string {
+  const v = requireAmount(value, label);
+  if (v.startsWith('-')) throw new AppError('VALIDATION', `${label} không được âm`, { field: label });
+  return v;
+}
+
+export interface PageParams {
+  page?: number | string | undefined;
+  pageSize?: number | string | undefined;
+}
+
+export interface Page<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  pageCount: number;
+}
+
+/** Server-side pagination: page is clamped to the available range, page size to [5, 100]. */
+export function paginate<T>(rows: T[], p: PageParams = {}, defaultSize = 20): Page<T> {
+  const sizeRaw = Number(p.pageSize ?? defaultSize);
+  const pageSize = Math.min(100, Math.max(5, Number.isFinite(sizeRaw) ? Math.floor(sizeRaw) : defaultSize));
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const pageRaw = Number(p.page ?? 1);
+  const page = Math.min(pageCount, Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1));
+  return { items: rows.slice((page - 1) * pageSize, page * pageSize), page, pageSize, total, pageCount };
+}
+
+/** Ratios, weights, quantities: "0.05", "0,05" or 0.05 (a dot is a decimal point here, never a thousands separator). */
+export function requireDecimal(value: unknown, label: string): string {
+  const s = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim().replace(',', '.') : '';
+  if (!/^\d+(\.\d+)?$/.test(s)) throw new AppError('VALIDATION', `${label} phải là số không âm (ví dụ 0.5)`, { field: label });
+  return s;
+}

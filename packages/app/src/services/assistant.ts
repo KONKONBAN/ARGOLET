@@ -150,8 +150,24 @@ export class AssistantService {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'assistant.use');
       const convs = (await tx.list('conversations', ws.tenantId, { userId: ws.user.id })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      const month = Number(tenant.settings.currentPeriod.slice(5));
+      const scope = await scopeLabel(tx, ws.tenantId, ws.entityId);
+      // Groups awaiting an approver's decision first: those are the ones people ask about.
+      const rank = { PENDING_APPROVAL: 0, PROPOSED: 1, DISCREPANCY: 2, CONFIRMED: 3 } as const;
+      const groups = (await scoped(tx, ws, 'matchGroups'))
+        .filter((g) => g.status !== 'CONFIRMED')
+        .sort((a, b) => rank[a.status] - rank[b.status] || b.code.localeCompare(a.code, undefined, { numeric: true }));
+      const suggestions = [
+        ...(groups[0] ? [`Vì sao nhóm ${groups[0].code} được gợi ý khớp?`] : []),
+        'Khoản nào chưa khớp?',
+        `Hồ sơ còn thiếu tháng ${month}`,
+        'Giải thích kết quả NPV',
+        'Doanh thu tháng này bao nhiêu?',
+      ];
       return {
-        scopeLabel: `Phạm vi: ${(await scopeLabel(tx, ws.tenantId, ws.entityId)).replace('Tất cả cơ sở', 'Minh An')} · Tháng ${Number(requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức').settings.currentPeriod.slice(5))}`,
+        scopeLabel: `Phạm vi: ${scope === 'Tất cả cơ sở' ? tenant.name : scope} · Tháng ${month}`,
+        suggestions,
         items: convs.map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt })),
         engine: this.core.deps.llm ? this.core.deps.llm.name : 'rules',
       };
@@ -215,7 +231,7 @@ export class AssistantService {
     if (!tool) {
       return {
         headline: 'Tôi chưa xác định được câu hỏi này.',
-        body: 'Bạn có thể hỏi: “Vì sao nhóm DS-1031 được gợi ý khớp?”, “Khoản nào chưa khớp?”, “Hồ sơ còn thiếu tháng 10”, “Giải thích kết quả NPV” hoặc trạng thái một chứng từ như “CT-1028”.',
+        body: 'Bạn có thể hỏi: “Khoản nào chưa khớp?”, “Hồ sơ nào còn thiếu?”, “Doanh thu kỳ này bao nhiêu?”, “Giải thích kết quả NPV”, vì sao một nhóm đối soát được gợi ý khớp (kèm mã nhóm DS-…) hoặc trạng thái một chứng từ theo mã CT-….',
         facts: [],
         citations: [],
         toolCalls: [],

@@ -102,7 +102,7 @@ describe('every screen renders without errors', () => {
   beforeAll(async () => {
     backend = await newBackend();
     await signIn(backend);
-    const docs = await backend.call('documents.list', { limit: 5 });
+    const docs = await backend.call('documents.list', { pageSize: 5 });
     ids.document = docs.items.find((d) => d.code === 'CT-1028')!.id;
     ids.validated = docs.items.find((d) => d.code === 'CT-1027')!.id;
     const recon = await backend.call('recon.summary', {});
@@ -189,7 +189,7 @@ describe('core flows through the UI', () => {
   it('confirms a document that needs review and records evidence', async () => {
     const backend = await newBackend();
     await signIn(backend);
-    const docs = await backend.call('documents.list', { limit: 5 });
+    const docs = await backend.call('documents.list', { pageSize: 5 });
     const doc = docs.items.find((d) => d.code === 'CT-1028')!;
     renderAt(backend, `#/documents/${doc.id}/review`);
     await settled();

@@ -46,7 +46,7 @@ export function AssistantPage() {
       setPending(null);
     }
   };
-  const suggestions = ['Vì sao nhóm DS-1031 được gợi ý khớp?', 'Khoản nào chưa khớp?', 'Hồ sơ còn thiếu tháng 10', 'Giải thích kết quả NPV', 'Doanh thu tháng này bao nhiêu?'];
+  const suggestions = list.data?.suggestions ?? ['Khoản nào chưa khớp?', 'Giải thích kết quả NPV', 'Doanh thu tháng này bao nhiêu?'];
   return (
     <div className="page">
       <PageHeader eyebrow="Nền tảng" title="Trợ lý ARGOLET" subtitle="Tìm thông tin có căn cứ trong đúng phạm vi." period={period} />

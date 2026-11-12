@@ -1,24 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CircleCheck, GitMerge, Landmark, ListFilter, Package, Play, Send, Receipt } from 'lucide-react';
 import { D, formatSignedVnd, formatVnd } from '@argolet/core';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
-import { Alert, Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, SearchBox, useToast } from '../ui/components';
+import { Alert, Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, Pagination, SearchBox, useToast } from '../ui/components';
+import { useListState } from '../ui/paging';
 import { PageFoot, usePeriodLabel } from './overview';
 
 // ───────── 14 · Đối soát đa nguồn ─────────
 export function ReconPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'' | 'review' | 'done'>('');
-  const data = useQuery('recon.summary', { q, filter: filter || undefined });
+  const list = useListState(20);
+  const [q, setQ] = useState(list.get('q'));
+  const filter = list.get('filter') as '' | 'review' | 'done';
+  const data = useQuery('recon.summary', { q: list.get('q') || undefined, filter: filter || undefined, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
   const run = useMutation('recon.run');
   const period = usePeriodLabel();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (q !== list.get('q')) list.setFilter('q', q);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, list]);
   if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
   const d = data.data;
-  const firstOpen = d.items.find((i) => i.status === 'PROPOSED');
   return (
     <div className="page">
       <PageHeader eyebrow="Nền tảng" title="Đối soát đa nguồn" subtitle="Nối đơn hàng, tiền thực nhận và phí." period={period} />
@@ -36,13 +43,15 @@ export function ReconPage() {
                 loading={run.loading}
                 onClick={async () => {
                   const r = await run.mutate({});
-                  toast('success', r.groups ? `Động cơ đối soát đề xuất ${r.groups} nhóm mới` : `Không có giao dịch mới để ghép (${r.unmatchedOrders} đơn chờ tiền về)`);
+                  if (r.groups) toast('success', `Động cơ đối soát đề xuất ${r.groups} nhóm mới`);
+                  else if (r.pendingSources) toast('info', `Có ${r.pendingSources} tệp đơn hàng / sao kê chưa được xác nhận. Xác nhận trong mục Chứng từ rồi chạy lại.`);
+                  else toast('info', r.unmatchedOrders ? `Không có giao dịch mới để ghép · ${r.unmatchedOrders} đơn đang chờ tiền về` : 'Không có giao dịch mới để ghép');
                 }}
               >
                 Chạy đối soát
               </Button>
             )}
-            <Button variant="primary" icon={<GitMerge size={18} />} disabled={!firstOpen} onClick={() => firstOpen && navigate(`/match/${firstOpen.id}`)}>
+            <Button variant="primary" icon={<GitMerge size={18} />} disabled={!d.firstOpenId} onClick={() => d.firstOpenId && navigate(`/match/${d.firstOpenId}`)}>
               Ghép nhiều–nhiều
             </Button>
           </>
@@ -56,7 +65,7 @@ export function ReconPage() {
             <label className="sr-only" htmlFor="recon-filter">
               Lọc
             </label>
-            <select id="recon-filter" className="select" style={{ height: 44, width: 180 }} value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
+            <select id="recon-filter" className="select" style={{ height: 44, width: 180 }} value={filter} onChange={(e) => list.setFilter('filter', e.target.value)}>
               <option value="">Tất cả nhóm</option>
               <option value="review">Cần xử lý</option>
               <option value="done">Đã xác nhận</option>
@@ -75,9 +84,7 @@ export function ReconPage() {
             { key: 'status', header: 'Trạng thái', render: (r) => <Chip tone={r.tone}>{r.statusLabel}</Chip> },
           ]}
         />
-        <p className="table-foot">
-          Hiển thị {d.items.length} / {d.totalMatching} nhóm · Kỳ {period.toLowerCase()}
-        </p>
+        <Pagination page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="nhóm" busy={data.fetching} />
       </Card>
       <PageFoot />
     </div>

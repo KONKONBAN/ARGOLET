@@ -1,5 +1,5 @@
-import { appraiseProject, compareScenarios, D, formatMillions, formatPercent, formatNumber, makeCalcRun, newId, npvSensitivity, type ProjectAssumptions } from '@argolet/core';
-import { type AppCore, actor, requireFound } from '../core';
+import { appraiseProject, compareScenarios, D, formatMillions, formatPercent, formatNumber, makeCalcRun, newId, nextCode, npvSensitivity, type ProjectAssumptions } from '@argolet/core';
+import { type AppCore, actor, requireFound, requireText } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { Tx } from '../store';
 import type { FinanceProjectRow } from '../types';
@@ -52,11 +52,43 @@ export class FinanceService {
     };
   }
 
+  private async list(tx: Tx, tenantId: string) {
+    return (await tx.list('financeProjects', tenantId)).sort((a, b) => a.code.localeCompare(b.code));
+  }
+
   /** Màn 27 · Phân tích tài chính. */
   async appraisal(call: CallContext, p: { projectId?: string } = {}) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      return { ...this.present(await this.project(tx, ws.tenantId, p.projectId)), canRun: this.core.can(ws, 'finance.run') };
+      const all = await this.list(tx, ws.tenantId);
+      const proj = (p.projectId ? all.find((x) => x.id === p.projectId) : undefined) ?? all[0];
+      const projects = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.name}` }));
+      const canRun = this.core.can(ws, 'finance.run');
+      if (!proj) return { empty: true as const, projects, canRun };
+      return { empty: false as const, ...this.present(proj), projects, canRun };
+    });
+  }
+
+  /** Tạo dự án thẩm định: giả định ban đầu, kịch bản thận trọng / cơ sở / tích cực (±1/6 dòng tiền). */
+  async createProject(call: CallContext, p: { name: string; assumptions: ProjectAssumptions }) {
+    const name = requireText(p.name, 'Tên dự án', 120);
+    const assumptions = validateAssumptions(p.assumptions);
+    return this.core.command(call, async (tx, em) => {
+      const ws = await this.core.requireWorkspace(tx, call, 'finance.run');
+      const code = nextCode('TD', (await tx.list('financeProjects', ws.tenantId)).map((x) => x.code), 3, 1);
+      const cf = D(assumptions.annualCashflow);
+      const id = newId('fin');
+      await tx.put('financeProjects', {
+        id, tenantId: ws.tenantId, code, name, assumptions,
+        scenarios: [
+          { name: 'Thận trọng', annualCashflow: cf.times(5).div(6).toDecimalPlaces(2).toFixed() },
+          { name: 'Cơ sở', annualCashflow: cf.toFixed() },
+          { name: 'Tích cực', annualCashflow: cf.times(7).div(6).toDecimalPlaces(2).toFixed() },
+        ],
+        lastCalcRunId: null,
+      });
+      await em.audit(ws.tenantId, actor(ws), 'finance.project.create', code, name);
+      return { id, code };
     });
   }
 
@@ -80,7 +112,11 @@ export class FinanceService {
   async scenarios(call: CallContext, p: { projectId?: string } = {}) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      const proj = await this.project(tx, ws.tenantId, p.projectId);
+      const all = await this.list(tx, ws.tenantId);
+      const projects = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.name}` }));
+      const found = (p.projectId ? all.find((x) => x.id === p.projectId) : undefined) ?? all[0];
+      if (!found) return { empty: true as const, projects, scenarios: [], sensitivity: '', npvPerMillion: '0', projectId: '', projectName: '', ratePct: '' };
+      const proj = found;
       const res = compareScenarios(proj.assumptions, proj.scenarios);
       const low = res[0];
       const base = res.find((s) => s.annualCashflow === proj.assumptions.annualCashflow) ?? res[1] ?? res[0];
@@ -100,6 +136,11 @@ export class FinanceService {
             ? `Dòng tiền giảm từ ${formatNumber(D(base.annualCashflow))} xuống ${formatNumber(D(low.annualCashflow))} triệu đồng/năm làm NPV chuyển từ ${D(base.npv).gte(0) ? '+' : ''}${formatNumber(D(base.npv), 2)} xuống ${formatNumber(D(low.npv), 2)} triệu đồng. Các kịch bản cùng vốn đầu tư ${formatNumber(D(proj.assumptions.investment))} triệu, thời hạn ${proj.assumptions.years} năm và suất chiết khấu ${formatNumber(D(proj.assumptions.discountRate).times(100))}%.`
             : '',
         npvPerMillion: sens,
+        empty: false as const,
+        projects,
+        projectId: proj.id,
+        projectName: `${proj.code} · ${proj.name}`,
+        ratePct: formatNumber(D(proj.assumptions.discountRate).times(100)),
       };
     });
   }

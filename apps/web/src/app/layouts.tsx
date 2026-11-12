@@ -241,8 +241,8 @@ function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const box = useRef<HTMLDivElement>(null);
-  const docs = useQuery('documents.list', { q, limit: 6 }, { enabled: q.trim().length >= 2 });
-  const groups = useQuery('recon.summary', { q }, { enabled: q.trim().length >= 2 });
+  const docs = useQuery('documents.list', { q, pageSize: 6 }, { enabled: q.trim().length >= 2 });
+  const groups = useQuery('recon.summary', { q, pageSize: 6 }, { enabled: q.trim().length >= 2 });
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (box.current && !box.current.contains(e.target as Node)) setOpen(false);

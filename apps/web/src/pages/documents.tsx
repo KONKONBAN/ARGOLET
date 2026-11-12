@@ -5,7 +5,8 @@ import { formatVnd, formatDate } from '@argolet/core';
 import { ApiError } from '../api/backend';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
-import { Alert, Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, SearchBox, TextInput, Timeline, readFileAsBase64, useToast } from '../ui/components';
+import { Alert, Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, Pagination, SearchBox, TextInput, Timeline, readFileAsBase64, useToast } from '../ui/components';
+import { useListState } from '../ui/paging';
 import { PageFoot, usePeriodLabel } from './overview';
 
 const toneOf = (status: string) => (status === 'VALIDATED' ? 'success' : status === 'NEEDS_REVIEW' || status === 'NEEDS_RECON' ? 'warning' : 'neutral');
@@ -13,11 +14,17 @@ const toneOf = (status: string) => (status === 'VALIDATED' ? 'success' : status 
 // ───────── 11 · Chứng từ ─────────
 export function DocumentsPage() {
   const navigate = useNavigate();
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState<'' | 'review' | 'done'>('');
-  const [limit, setLimit] = useState(20);
-  const data = useQuery('documents.list', { q, status: status || undefined, limit });
+  const list = useListState(20);
+  const [q, setQ] = useState(list.get('q'));
+  const status = list.get('status') as '' | 'review' | 'done';
+  const data = useQuery('documents.list', { q: list.get('q') || undefined, status: status || undefined, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
   const period = usePeriodLabel();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (q !== list.get('q')) list.setFilter('q', q);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, list]);
   if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
   const d = data.data;
   return (
@@ -45,7 +52,7 @@ export function DocumentsPage() {
             <label className="sr-only" htmlFor="doc-status">
               Lọc trạng thái
             </label>
-            <select id="doc-status" className="select" style={{ height: 44, width: 180 }} value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+            <select id="doc-status" className="select" style={{ height: 44, width: 180 }} value={status} onChange={(e) => list.setFilter('status', e.target.value)}>
               <option value="">Tất cả trạng thái</option>
               <option value="review">Cần kiểm tra</option>
               <option value="done">Đã xác nhận</option>
@@ -64,16 +71,7 @@ export function DocumentsPage() {
             { key: 'status', header: 'Trạng thái', render: (r) => <Chip tone={toneOf(r.status)}>{r.statusLabel}</Chip> },
           ]}
         />
-        <div className="row-between wrap" style={{ marginTop: 18 }}>
-          <p className="table-foot" style={{ margin: 0 }}>
-            Hiển thị {d.totalShown} / {d.totalMatching} bản ghi · Kỳ {period.toLowerCase()}
-          </p>
-          {d.totalShown < d.totalMatching && (
-            <Button size="sm" onClick={() => setLimit((l) => l + 30)}>
-              Xem thêm
-            </Button>
-          )}
-        </div>
+        <Pagination page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="chứng từ" busy={data.fetching} />
       </Card>
       <PageFoot />
     </div>
@@ -85,7 +83,9 @@ export function CapturePage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { ctx } = useSession();
-  const sites = ctx?.entities.filter((e) => e.kind === 'SITE') ?? [];
+  // Receiving units: stores/branches, or the legal entity itself when the organisation has no branches.
+  const allSites = ctx?.entities.filter((e) => e.kind === 'SITE') ?? [];
+  const sites = allSites.length ? allSites : ctx?.entities.filter((e) => e.kind === 'LEGAL_ENTITY') ?? [];
   const [entityId, setEntityId] = useState(ctx?.scope.entityId !== '*' ? ctx?.scope.entityId ?? '' : sites[0]?.id ?? '');
   const [location, setLocation] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -175,7 +175,7 @@ export function CapturePage() {
                 ))}
               </select>
             </div>
-            <TextInput label="Mã lô / vị trí bản giấy" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="LO-20261031 · Kệ A-02" />
+            <TextInput label="Mã lô / vị trí bản giấy" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="VD: Kệ A-02, hộp tháng này" />
           </div>
           {intake.error && <ErrorNote error={intake.error} />}
           <Button variant="primary" block size="lg" disabled={files.length === 0} loading={intake.loading} onClick={submit} icon={<CloudUpload size={18} />}>

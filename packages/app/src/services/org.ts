@@ -1,4 +1,4 @@
-import { isValidTaxCode, newId, normalizeEmail, isValidEmail, ROLE_LABELS, formatVnd, permissionsOf, type Role, type RoleBinding } from '@argolet/core';
+import { isValidTaxCode, newId, nextCode, normalizeEmail, isValidEmail, ROLE_LABELS, formatVnd, permissionsOf, type Role, type RoleBinding } from '@argolet/core';
 import { type AppCore, actor, requireFound, requireText } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { Tx } from '../store';
@@ -130,10 +130,15 @@ export class OrgService {
         userId: auth.user.id,
         displayName: auth.user.fullName,
         title: 'Quản trị tổ chức',
-        bindings: [{ role: 'ORG_ADMIN', entityIds: '*', approvalLimit: null }],
+        // The founder runs the books of a new organisation: administration plus accounting
+        // rights. Separation of duties still applies (nobody approves their own request).
+        bindings: [
+          { role: 'ORG_ADMIN', entityIds: '*', approvalLimit: null },
+          { role: 'CHIEF_ACCOUNTANT', entityIds: '*', approvalLimit: 'POLICY' },
+        ],
         status: 'ACTIVE',
         scopeLabel: 'Toàn tổ chức',
-        limitLabel: 'Không cấp',
+        limitLabel: 'Theo chính sách',
       });
       await tx.put('periods', { id: `per_${now.slice(0, 7)}_${entityId}`, tenantId, entityId, periodId: now.slice(0, 7), status: 'OPEN', closeMemoPrepared: false, closeId: null, version: 1 });
       for (const integ of defaultIntegrations(tenantId)) await tx.put('integrations', integ);
@@ -223,8 +228,9 @@ export class OrgService {
               statusLabel: m.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm ngưng',
               status: m.status,
               code: null as string | null,
+              isSelf: m.userId === ws.user.id,
             })),
-          ...invites,
+          ...invites.map((i) => ({ ...i, isSelf: false })),
         ],
       };
     });
@@ -265,6 +271,8 @@ export class OrgService {
       });
       await em.emit({ type: 'MemberInvited', tenantId: ws.tenantId, entityId: null, aggregateType: 'Tenant', aggregateId: ws.tenantId, actorId: ws.user.id, dataRef: `invitation/${code}`, dataVersion: 1, data: { code, role: p.role } });
       await em.audit(ws.tenantId, actor(ws), 'member.invite', code, ROLE_LABELS[p.role]);
+      const base = this.core.deps.config.publicBaseUrl.replace(/\/$/, '');
+      await this.core.deps.notifier.sendInvitation?.(email, { organization: t.name, inviter: ws.membership.displayName, roleLabel: ROLE_LABELS[p.role], code, link: `${base}/#/invite?code=${encodeURIComponent(code)}` });
       return { code };
     });
   }
@@ -300,13 +308,20 @@ export class OrgService {
       return {
         canManage: this.core.can(ws, 'settings.manage'),
         tenant: { name: t.name, orgType: t.orgType, taxCode: t.taxCode, settings: t.settings },
+        entities: await (async () => {
+          const all = await tx.list('entities', ws.tenantId);
+          const byId = new Map(all.map((e) => [e.id, e]));
+          return all
+            .sort((a, b) => (a.kind === b.kind ? a.code.localeCompare(b.code) : a.kind === 'LEGAL_ENTITY' ? -1 : 1))
+            .map((e) => ({ id: e.id, name: e.name, code: e.code, kind: e.kind, kindLabel: e.kind === 'LEGAL_ENTITY' ? 'Pháp nhân' : 'Cơ sở', parentName: e.parentId ? byId.get(e.parentId)?.name ?? '' : '' }));
+        })(),
         integrations: integrations.sort((a, b) => a.name.localeCompare(b.name, 'vi')),
         audit: audit.map((a) => ({ at: a.createdAt, actor: a.actorName, action: a.action, target: a.target, detail: a.detail })),
       };
     });
   }
 
-  async updateSettings(call: CallContext, p: { name?: string; accountingRegime?: TenantRow['settings']['accountingRegime']; packages?: TenantRow['settings']['packages'] }) {
+  async updateSettings(call: CallContext, p: { name?: string; accountingRegime?: TenantRow['settings']['accountingRegime']; packages?: TenantRow['settings']['packages']; currentPeriod?: string }) {
     return this.core.command(call, async (tx, em) => {
       const ws = await this.core.requireWorkspace(tx, call, 'settings.manage');
       const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
@@ -320,9 +335,36 @@ export class OrgService {
         if (p.packages.length === 0 || p.packages.some((x) => !['G1', 'G2', 'G3', 'G4'].includes(x))) throw new AppError('VALIDATION', 'Gói nghiệp vụ không hợp lệ');
         next.settings.packages = p.packages;
       }
+      if (p.currentPeriod !== undefined) {
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(p.currentPeriod)) throw new AppError('VALIDATION', 'Kỳ làm việc phải có dạng YYYY-MM', { field: 'currentPeriod' });
+        next.settings.currentPeriod = p.currentPeriod;
+      }
       await tx.put('tenants', next);
       await em.audit(ws.tenantId, actor(ws), 'settings.update', ws.tenantId, JSON.stringify(p));
       return { ok: true };
+    });
+  }
+
+  /** Thêm cơ sở (cửa hàng, chi nhánh) hoặc pháp nhân (công ty con) vào cơ cấu tổ chức. */
+  async addEntity(call: CallContext, p: { kind: 'SITE' | 'LEGAL_ENTITY'; name: string; parentId?: string }) {
+    if (p.kind !== 'SITE' && p.kind !== 'LEGAL_ENTITY') throw new AppError('VALIDATION', 'Loại đơn vị không hợp lệ', { field: 'kind' });
+    const name = requireText(p.name, p.kind === 'SITE' ? 'Tên cơ sở' : 'Tên pháp nhân', 120);
+    return this.core.command(call, async (tx, em) => {
+      const ws = await this.core.requireWorkspace(tx, call, 'settings.manage');
+      const all = await tx.list('entities', ws.tenantId);
+      if (all.some((e) => e.name.toLowerCase() === name.toLowerCase())) throw new AppError('CONFLICT', `Đơn vị "${name}" đã tồn tại`, { field: 'name' });
+      const legal = all.filter((e) => e.kind === 'LEGAL_ENTITY');
+      let parentId: string | null = null;
+      if (p.kind === 'SITE') {
+        const parent = p.parentId ? legal.find((e) => e.id === p.parentId) : legal[0];
+        parentId = requireFound(parent, 'pháp nhân quản lý').id;
+      }
+      const prefix = p.kind === 'SITE' ? 'CS' : 'PN';
+      const code = nextCode(prefix, all.map((e) => e.code), 2, 1);
+      const id = newId('ent');
+      await tx.put('entities', { id, tenantId: ws.tenantId, name, shortName: name, code, kind: p.kind, parentId, baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' });
+      await em.audit(ws.tenantId, actor(ws), 'entity.add', code, name);
+      return { id, code };
     });
   }
 

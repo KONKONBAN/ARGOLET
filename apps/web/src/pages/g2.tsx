@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ListFilter, Plus } from 'lucide-react';
 import { useMutation, useQuery } from '../api/hooks';
-import { Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, SearchBox, TextInput, useToast } from '../ui/components';
+import { Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, MoneyInput, PageHeader, PageLoading, Pagination, SearchBox, SelectInput, TextInput, useToast } from '../ui/components';
+import { useListState } from '../ui/paging';
 import { PageFoot, usePeriodLabel } from './overview';
 import { ModuleTabs } from './g1';
 
@@ -95,10 +96,13 @@ export function ClientsPage() {
 // ───────── 25 · Bán hàng & thu nợ ─────────
 export function SalesPage() {
   const toast = useToast();
-  const data = useQuery('modules.sales');
+  const list = useListState(20);
+  const data = useQuery('modules.sales', { page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
   const create = useMutation('modules.createDeal', { silent: true });
+  const move = useMutation('modules.updateDealStage', { silent: true });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ customer: '', value: '' });
+  const [editing, setEditing] = useState<{ id: string; label: string; stage: string; done: boolean } | null>(null);
   const period = usePeriodLabel();
   if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
   const d = data.data;
@@ -111,13 +115,17 @@ export function SalesPage() {
         <DataTable
           rows={d.items}
           rowKey={(r) => r.id}
+          onRowClick={d.canWrite ? (r) => { move.reset(); setEditing({ id: r.id, label: r.label, stage: r.stageCode, done: false }); } : undefined}
           columns={[
             { key: 'l', header: 'Khách hàng / hợp đồng', render: (r) => r.label, strong: true },
             { key: 's', header: 'Bước hiện tại', render: (r) => r.stage },
             { key: 'v', header: 'Giá trị', render: (r) => r.value, align: 'right' },
             { key: 't', header: 'Tình trạng', render: (r) => <Chip tone={r.tone}>{r.status}</Chip> },
           ]}
+          empty="Chưa có cơ hội bán hàng đang mở"
         />
+        <Pagination page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="cơ hội" busy={data.fetching} />
+        {d.canWrite && d.items.length > 0 && <p className="table-foot">Chọn một dòng để chuyển bước hoặc đánh dấu hoàn tất.</p>}
       </Card>
       {d.canWrite && (
         <div className="row mt-24" style={{ justifyContent: 'flex-end' }}>
@@ -150,8 +158,44 @@ export function SalesPage() {
         }
       >
         <TextInput label="Khách hàng" value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} />
-        <TextInput label="Giá trị dự kiến (đ)" inputMode="numeric" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value.replace(/[^\d]/g, '') })} />
+        <MoneyInput label="Giá trị dự kiến" value={form.value} onChange={(v) => setForm({ ...form, value: v })} />
         {create.error && <ErrorNote error={create.error} />}
+      </Modal>
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing?.label ?? ''}
+        footer={
+          <>
+            <Button onClick={() => setEditing(null)}>Hủy</Button>
+            <Button
+              variant="primary"
+              loading={move.loading}
+              onClick={async () => {
+                if (!editing) return;
+                try {
+                  await move.mutate({ dealId: editing.id, stage: editing.stage as never, done: editing.done });
+                  toast('success', editing.done ? 'Đã đánh dấu hoàn tất' : 'Đã cập nhật bước bán hàng');
+                  setEditing(null);
+                } catch {
+                  /* inline */
+                }
+              }}
+            >
+              Lưu
+            </Button>
+          </>
+        }
+      >
+        {editing && (
+          <>
+            <SelectInput label="Bước hiện tại" value={editing.stage} onChange={(v) => setEditing({ ...editing, stage: v })} options={d.stages.map((x) => ({ value: x.code, label: x.label }))} />
+            <label className="checkbox" style={{ display: 'flex', margin: '6px 0 12px' }}>
+              <input type="checkbox" checked={editing.done} onChange={(e) => setEditing({ ...editing, done: e.target.checked })} /> Đã thu đủ tiền / hoàn tất hợp đồng
+            </label>
+            {move.error && <ErrorNote error={move.error} />}
+          </>
+        )}
       </Modal>
       <PageFoot />
     </div>

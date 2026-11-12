@@ -1,5 +1,5 @@
 import { D, formatPeriod, formatSignedVnd, formatVnd, newId, sum, type DomainEvent } from '@argolet/core';
-import { type AppCore, requireFound } from '../core';
+import { type AppCore, requireFound, paginate, type PageParams } from '../core';
 import type { CallContext, Emitter, WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import { scoped } from './documents';
@@ -88,23 +88,28 @@ export class DashboardService {
     });
   }
 
-  async notifications(call: CallContext, p: { q?: string } = {}) {
+  async notifications(call: CallContext, p: { q?: string; unread?: boolean | string } & PageParams = {}) {
     return this.core.query(async (tx, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
       const today = localDate(now);
       const all = (await tx.list('notifications', ws.tenantId)).filter((n) => !n.userId || n.userId === ws.user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      let items = all;
+      let items = p.unread === true || p.unread === 'true' ? all.filter((n) => n.status === 'UNREAD') : all;
       if (p.q) {
         const q = p.q.toLowerCase();
         items = items.filter((n) => `${n.title} ${n.refCode} ${n.unitLabel}`.toLowerCase().includes(q));
       }
+      const pg = paginate(items, p, 20);
       return {
         kpis: {
           unread: all.filter((n) => n.status === 'UNREAD').length,
           actionRequired: all.filter((n) => n.actionRequired && n.status === 'UNREAD').length,
           today: all.filter((n) => localDate(n.createdAt) === today).length,
         },
-        items: items.slice(0, 50).map((n) => {
+        page: pg.page,
+        pageSize: pg.pageSize,
+        total: pg.total,
+        pageCount: pg.pageCount,
+        items: pg.items.map((n) => {
           const d = localDate(n.createdAt);
           const t = new Date(Date.parse(n.createdAt) + 7 * 3_600_000).toISOString().slice(11, 16);
           return {

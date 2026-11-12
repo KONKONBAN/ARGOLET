@@ -14,6 +14,9 @@ export interface ApiConfig {
   exposeDevCodes: boolean;
   pepper: string;
   anthropicApiKey: string | null;
+  /** SMTP connection URL (smtp:// or smtps://user:pass@host:port); enables real email delivery. */
+  smtpUrl: string | null;
+  mailFrom: string;
   webDist: string | null;
   publicBaseUrl: string;
   trustProxy: boolean;
@@ -40,9 +43,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     corsOrigins: (env.CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     demoSeed,
     demoClock: bool(env.DEMO_CLOCK, demoSeed),
-    exposeDevCodes: bool(env.EXPOSE_DEV_CODES, !production || demoSeed),
+    // Codes are shown on screen only in development / demo installs without a mail server.
+    exposeDevCodes: bool(env.EXPOSE_DEV_CODES, !env.SMTP_URL && (!production || demoSeed)),
     pepper: pepper || 'argolet-dev-pepper-change-me',
     anthropicApiKey: env.ANTHROPIC_API_KEY || null,
+    smtpUrl: env.SMTP_URL || null,
+    mailFrom: env.MAIL_FROM || 'ARGOLET <no-reply@argolet.local>',
     webDist,
     publicBaseUrl: env.PUBLIC_BASE_URL ?? `http://localhost:${env.PORT ?? 8080}`,
     trustProxy: bool(env.TRUST_PROXY, production),

@@ -3,7 +3,7 @@ import {
   randomHex, saltedFingerprint, sha256Hex, sum, validateFields, assertTransition, EVIDENCE_SCHEMA_VERSION, type DocumentFields,
   type DocumentVersionPayload, type FieldIssue,
 } from '@argolet/core';
-import { type AppCore, actor, periodOf, requireFound, requireText } from '../core';
+import { type AppCore, actor, paginate, periodOf, requireFound, requireText, type PageParams } from '../core';
 import { AppError, type CallContext, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { Collections, DocumentRow, DocumentVersionRow, SourceKindCode, StructuredRow } from '../types';
@@ -217,7 +217,7 @@ export class DocumentService {
     });
   }
 
-  async listDocuments(call: CallContext, p: { q?: string; status?: string; limit?: number } = {}) {
+  async listDocuments(call: CallContext, p: { q?: string; status?: string } & PageParams = {}) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'document.read');
       let docs = await scoped(tx, ws, 'documents');
@@ -229,7 +229,7 @@ export class DocumentService {
         docs = docs.filter((d) => `${d.code} ${d.title} ${d.counterparty} ${d.fields.documentNo}`.toLowerCase().includes(q));
       }
       docs.sort((a, b) => b.code.localeCompare(a.code, undefined, { numeric: true }));
-      const limit = Math.min(Math.max(p.limit ?? 50, 1), 500);
+      const pg = paginate(docs, p, 20);
       return {
         kpis: {
           total: all.length,
@@ -237,7 +237,11 @@ export class DocumentService {
           validated: all.filter((d) => d.status === 'VALIDATED').length,
         },
         canCreate: this.core.can(ws, 'document.create'),
-        items: docs.slice(0, limit).map((d) => ({
+        page: pg.page,
+        pageSize: pg.pageSize,
+        total: pg.total,
+        pageCount: pg.pageCount,
+        items: pg.items.map((d) => ({
           id: d.id,
           code: d.code,
           title: d.title,
@@ -251,8 +255,6 @@ export class DocumentService {
           status: d.status,
           statusLabel: DOC_STATUS_LABEL[d.status],
         })),
-        totalShown: Math.min(docs.length, limit),
-        totalMatching: docs.length,
       };
     });
   }
@@ -345,7 +347,7 @@ export class DocumentService {
       // Business records with provenance (RecordEvidence).
       const periodId = periodOf(fields.documentDate);
       const records: { recordId: string; amount: string }[] = [];
-      const putRecord = async (r: { kind: 'EXPENSE' | 'ORDER' | 'BANK_TXN'; code: string; amount: string; date: string; channel: string; counterparty: string; reference: string; payoutBatch: string; fee: string; refund: string; discount: string; locator: string }) => {
+      const putRecord = async (r: { kind: 'EXPENSE' | 'ORDER' | 'BANK_TXN'; code: string; amount: string; date: string; channel: string; counterparty: string; reference: string; payoutBatch: string; description?: string; fee: string; refund: string; discount: string; locator: string }) => {
         const recordId = newId('rec');
         await tx.put('records', {
           id: recordId,
@@ -362,6 +364,7 @@ export class DocumentService {
           counterparty: r.counterparty,
           reference: r.reference,
           payoutBatch: r.payoutBatch,
+          description: r.description ?? '',
           fee: r.fee,
           refund: r.refund,
           discount: r.discount,
@@ -387,6 +390,7 @@ export class DocumentService {
             counterparty: r.counterparty,
             reference: r.reference,
             payoutBatch: r.payoutBatch,
+            description: r.description,
             fee: r.fee,
             refund: r.refund,
             discount: r.discount,
@@ -425,7 +429,7 @@ export class DocumentService {
         latest: latest
           ? { ...latest, entityLabel: await scopeLabel(tx, ws.tenantId, latest.entityId), stage: latest.needsReview ? 2 : 4 }
           : null,
-        batches: batches.slice(0, 20).map((b) => ({ id: b.id, code: b.code, fileCount: b.fileCount, needsReview: b.needsReview, duplicates: b.duplicates, status: b.status, createdAt: b.createdAt })),
+        batches: batches.slice(0, 50).map((b) => ({ id: b.id, code: b.code, fileCount: b.fileCount, needsReview: b.needsReview, duplicates: b.duplicates, status: b.status, createdAt: b.createdAt })),
       };
     });
   }

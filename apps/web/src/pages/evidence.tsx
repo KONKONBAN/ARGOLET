@@ -3,13 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Download, FileCheck, ShieldCheck, ShieldAlert, Upload } from 'lucide-react';
 import { formatShortDateTime, formatTimeDate } from '@argolet/core';
 import { useMutation, useQuery } from '../api/hooks';
-import { Alert, Button, Card, Chip, DataTable, ErrorNote, KeyValues, PageHeader, PageLoading, Timeline, downloadText, readFileAsBase64, useToast } from '../ui/components';
+import { Alert, Button, Card, Chip, DataTable, ErrorNote, KeyValues, PageHeader, PageLoading, Pagination, Timeline, downloadText, readFileAsBase64, useToast } from '../ui/components';
+import { useListState } from '../ui/paging';
 import { PageFoot, usePeriodLabel } from './overview';
 
 // Danh mục bằng chứng: phiên bản chứng từ đã xác nhận + bộ chốt kỳ.
 export function EvidenceIndexPage() {
   const navigate = useNavigate();
-  const docs = useQuery('documents.list', { status: 'done', limit: 30 });
+  const list = useListState(20);
+  const docs = useQuery('documents.list', { status: 'done', page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
   const snaps = useQuery('evidence.snapshots');
   const period = usePeriodLabel();
   return (
@@ -45,6 +47,7 @@ export function EvidenceIndexPage() {
             ]}
           />
         )}
+        {docs.data && <Pagination page={docs.data.page} pageCount={docs.data.pageCount} total={docs.data.total} pageSize={docs.data.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="chứng từ" busy={docs.fetching} />}
       </Card>
       <PageFoot />
     </div>

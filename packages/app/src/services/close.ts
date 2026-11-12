@@ -16,6 +16,30 @@ async function periodFor(tx: Tx, ws: WorkspaceState, entityId: string, periodId:
   return { id, tenantId: ws.tenantId, entityId, periodId, status: 'OPEN', closeMemoPrepared: false, closeId: null, version: 1, createdAt: '', updatedAt: '', rev: 0 };
 }
 
+export function nextPeriodId(periodId: string): string {
+  const [y, m] = periodId.split('-').map(Number) as [number, number];
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+}
+
+/** Units that close their own books: sites, or the legal entities when there are no sites. */
+export async function closingUnits(tx: Tx, tenantId: string): Promise<string[]> {
+  const sites = await tx.list('entities', tenantId, { kind: 'SITE' });
+  if (sites.length) return sites.map((s) => s.id);
+  return (await tx.list('entities', tenantId, { kind: 'LEGAL_ENTITY' })).map((e) => e.id);
+}
+
+/** Once every unit has closed the organisation's current period, work moves on to the next month. */
+async function advancePeriodIfComplete(tx: Tx, tenantId: string, periodId: string): Promise<void> {
+  const tenant = requireFound(await tx.get('tenants', tenantId, tenantId), 'tổ chức');
+  if (tenant.settings.currentPeriod !== periodId) return;
+  const units = await closingUnits(tx, tenantId);
+  for (const u of units) {
+    const row = await tx.get('periods', tenantId, `per_${periodId}_${u}`);
+    if (row?.status !== 'CLOSED') return;
+  }
+  await tx.put('tenants', { ...tenant, settings: { ...tenant.settings, currentPeriod: nextPeriodId(periodId) } });
+}
+
 export class CloseService {
   constructor(private readonly core: AppCore) {}
 
@@ -162,6 +186,7 @@ export class CloseService {
         evidenceStatus: 'PENDING',
       });
       await tx.put('periods', { ...period, status: 'CLOSED', closeMemoPrepared: true, closeId, version: period.version });
+      await advancePeriodIfComplete(tx, ws.tenantId, p.periodId);
       await em.emit({ type: 'PeriodClosed', tenantId: ws.tenantId, entityId: p.entityId, aggregateType: 'Period', aggregateId: period.id, actorId: ws.user.id, dataRef: `close/${closeId}`, dataVersion: period.version, data: { closeId, periodId: p.periodId, version: period.version } });
       await em.audit(ws.tenantId, actor(ws), 'period.close', closeId, digest.slice(0, 16));
       return { closeId, version: period.version };

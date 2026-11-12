@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
-import { Check, CircleAlert, Eye, EyeOff, FileX, Info, Search, TriangleAlert, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, CircleAlert, Eye, EyeOff, FileX, Info, Search, TriangleAlert, X } from 'lucide-react';
 import type { ApiError } from '../api/backend';
 
 // ───────── buttons ─────────
@@ -34,6 +34,29 @@ export function TextInput({ label, hint, error, id, className = '', ...rest }: I
       <input id={fid} className={`input${error ? ' invalid' : ''} ${className}`} aria-invalid={!!error || undefined} {...rest} />
     </Field>
   );
+}
+
+export function SelectInput({ label, value, onChange, options, id, hint, disabled }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; id?: string; hint?: ReactNode; disabled?: boolean }) {
+  const auto = useId();
+  const fid = id ?? auto;
+  return (
+    <Field label={label} hint={hint} htmlFor={fid}>
+      <select id={fid} className="select" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+/** Amount in VND: digits only while typing, the formatted value as a hint underneath. */
+export function MoneyInput({ label, value, onChange, error, id }: { label: string; value: string; onChange: (v: string) => void; error?: string | undefined; id?: string }) {
+  const digits = value.replace(/[^\d]/g, '');
+  const hint = digits ? `${Number(digits).toLocaleString('vi-VN')} đ` : undefined;
+  return <TextInput id={id} label={label} inputMode="numeric" value={digits} onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ''))} hint={hint} error={error} />;
 }
 
 export function PasswordInput({ label, hint, error, id, ...rest }: InputProps) {
@@ -311,6 +334,66 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty }: { col
         </tbody>
       </table>
     </div>
+  );
+}
+
+// ───────── pagination ─────────
+/** Page numbers to show: first, last, current ± 1, with gaps marked by null. */
+export function pageWindow(page: number, pageCount: number): (number | null)[] {
+  const wanted = new Set([1, pageCount, page - 1, page, page + 1].filter((p) => p >= 1 && p <= pageCount));
+  const sorted = [...wanted].sort((a, b) => a - b);
+  const out: (number | null)[] = [];
+  sorted.forEach((p, i) => {
+    const prev = sorted[i - 1];
+    if (prev !== undefined && p - prev > 1) out.push(p - prev === 2 ? p - 1 : null);
+    out.push(p);
+  });
+  return out;
+}
+
+export function Pagination({
+  page, pageCount, total, pageSize, onPage, onPageSize, unit = 'bản ghi', busy,
+}: { page: number; pageCount: number; total: number; pageSize: number; onPage: (p: number) => void; onPageSize?: (n: number) => void; unit?: string; busy?: boolean }) {
+  if (total === 0) return null;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(total, page * pageSize);
+  return (
+    <nav className="pager" aria-label="Phân trang" aria-busy={busy || undefined}>
+      <span className="pager-info">
+        Hiển thị <b>{from}–{to}</b> trên <b>{total}</b> {unit}
+      </span>
+      <div className="pager-ctrl">
+        {onPageSize && (
+          <label className="pager-size">
+            <span className="sr-only">Số dòng mỗi trang</span>
+            <select className="select" value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))}>
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} / trang
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button type="button" className="pager-btn" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Trang trước">
+          <ChevronLeft size={16} />
+        </button>
+        {pageWindow(page, pageCount).map((p, i) =>
+          p === null ? (
+            <span key={`gap${i}`} className="pager-gap" aria-hidden>
+              …
+            </span>
+          ) : (
+            <button type="button" key={p} className={`pager-btn${p === page ? ' active' : ''}`} aria-current={p === page ? 'page' : undefined} aria-label={`Trang ${p}`} onClick={() => onPage(p)}>
+              {p}
+            </button>
+          ),
+        )}
+        <button type="button" className="pager-btn" disabled={page >= pageCount} onClick={() => onPage(page + 1)} aria-label="Trang sau">
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </nav>
   );
 }
 

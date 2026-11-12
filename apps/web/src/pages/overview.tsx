@@ -1,10 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, ChevronRight, CircleCheck, FileSearch, Files, GitCompareArrows, ListFilter, Plus } from 'lucide-react';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
 import { CashflowLineChart, ChartLegend } from '../ui/charts';
-import { Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, SearchBox, useToast } from '../ui/components';
+import { Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, Pagination, SearchBox, useToast } from '../ui/components';
+import { useListState } from '../ui/paging';
+
+/** Search box text → URL filter after a short pause (keeps paging state in the URL). */
+function useDebouncedFilter(list: ReturnType<typeof useListState>, key = 'q') {
+  const [text, setText] = useState(list.get(key));
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (text !== list.get(key)) list.setFilter(key, text);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [text, list, key]);
+  return [text, setText] as const;
+}
 
 export function usePeriodLabel(): string {
   const { ctx } = useSession();
@@ -127,14 +140,15 @@ export function OverviewPage() {
 export function InboxPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'ALL' | 'APPROVAL' | 'MATCH' | 'DOCUMENT' | 'PERIOD'>('ALL');
+  const list = useListState(20);
+  const [q, setQ] = useDebouncedFilter(list);
+  const filter = (list.get('kind') || 'ALL') as 'ALL' | 'APPROVAL' | 'MATCH' | 'DOCUMENT' | 'PERIOD';
   const [filterOpen, setFilterOpen] = useState(false);
-  const data = useQuery('approvals.inbox', { q });
+  const data = useQuery('approvals.inbox', { q: list.get('q') || undefined, kind: filter === 'ALL' ? undefined : filter, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
   const markRead = useMutation('dashboard.markRead');
   const period = usePeriodLabel();
   if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
-  const items = data.data.items.filter((i) => filter === 'ALL' || i.kind === filter);
+  const items = data.data.items;
   return (
     <div className="page">
       <PageHeader eyebrow="Nền tảng" title="Việc cần xử lý" subtitle="Ưu tiên các hồ sơ cần bạn xử lý." period={period} />
@@ -176,9 +190,7 @@ export function InboxPage() {
           ]}
           empty="Không còn việc cần xử lý"
         />
-        <p className="table-foot">
-          Hiển thị {items.length} bản ghi · Kỳ {period.toLowerCase()}
-        </p>
+        <Pagination page={data.data.page} pageCount={data.data.pageCount} total={data.data.total} pageSize={data.data.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="việc" busy={data.fetching} />
       </Card>
       <Modal open={filterOpen} onClose={() => setFilterOpen(false)} title="Bộ lọc công việc" footer={<Button variant="primary" onClick={() => setFilterOpen(false)}>Áp dụng</Button>}>
         {(
@@ -191,7 +203,7 @@ export function InboxPage() {
           ] as const
         ).map(([k, label]) => (
           <label key={k} className="checkbox" style={{ display: 'flex', padding: '8px 0' }}>
-            <input type="radio" name="inbox-filter" checked={filter === k} onChange={() => setFilter(k)} /> {label}
+            <input type="radio" name="inbox-filter" checked={filter === k} onChange={() => list.setFilter('kind', k === 'ALL' ? '' : k)} /> {label}
           </label>
         ))}
       </Modal>
@@ -204,13 +216,14 @@ export function InboxPage() {
 export function NotificationsPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [q, setQ] = useState('');
-  const [onlyUnread, setOnlyUnread] = useState(false);
-  const data = useQuery('dashboard.notifications', { q });
+  const list = useListState(20);
+  const [q, setQ] = useDebouncedFilter(list);
+  const onlyUnread = list.get('unread') === '1';
+  const data = useQuery('dashboard.notifications', { q: list.get('q') || undefined, unread: onlyUnread || undefined, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
   const mark = useMutation('dashboard.markRead');
   const period = usePeriodLabel();
   if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
-  const items = data.data.items.filter((n) => !onlyUnread || n.status === 'UNREAD');
+  const items = data.data.items;
   return (
     <div className="page">
       <PageHeader eyebrow="Quản trị" title="Thông báo" subtitle="Theo dõi các thay đổi liên quan đến bạn." period={period} />
@@ -235,7 +248,7 @@ export function NotificationsPage() {
       <Card>
         <div className="toolbar">
           <SearchBox value={q} onChange={setQ} />
-          <Button icon={<ListFilter size={18} />} onClick={() => setOnlyUnread((s) => !s)} aria-pressed={onlyUnread}>
+          <Button icon={<ListFilter size={18} />} onClick={() => list.setFilter('unread', onlyUnread ? '' : '1')} aria-pressed={onlyUnread}>
             {onlyUnread ? 'Chỉ chưa đọc' : 'Bộ lọc'}
           </Button>
         </div>
@@ -255,9 +268,7 @@ export function NotificationsPage() {
           ]}
           empty="Không có thông báo"
         />
-        <p className="table-foot">
-          Hiển thị {items.length} bản ghi · Kỳ {period.toLowerCase()}
-        </p>
+        <Pagination page={data.data.page} pageCount={data.data.pageCount} total={data.data.total} pageSize={data.data.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="thông báo" busy={data.fetching} />
       </Card>
       <PageFoot />
     </div>

@@ -36,9 +36,9 @@ describe('01–03 · account, sign-in and organisation', () => {
     const org = await app.org.createOrganization(call, { name: 'Công ty An', orgType: 'Hộ kinh doanh', taxCode: '0312345679' });
     const ctx = await app.org.context(call);
     expect(ctx.tenant.id).toBe(org.tenantId);
-    expect(ctx.member.roles).toEqual(['ORG_ADMIN']);
-    expect(ctx.member.permissions).toContain('member.manage');
-    expect(ctx.member.permissions).not.toContain('approval.decide');
+    // The founder administers the organisation and keeps its books.
+    expect(ctx.member.roles).toEqual(['ORG_ADMIN', 'CHIEF_ACCOUNTANT']);
+    for (const perm of ['member.manage', 'document.validate', 'recon.confirm', 'approval.decide', 'period.close']) expect(ctx.member.permissions).toContain(perm);
     await app.auth.logout(call);
     expect(await app.auth.me(call)).toBeNull();
     await expectAppError(app.org.context(call), 'UNAUTHENTICATED');
@@ -70,8 +70,8 @@ describe('01–03 · account, sign-in and organisation', () => {
     const ctx = await app.org.context(call);
     expect(ctx.member.roles).toEqual(['ACCOUNTANT']);
     // Scope is limited to Quận 3: documents from other sites are invisible.
-    const docs = await app.documents.listDocuments(call, { limit: 500 });
-    const all = await app.documents.listDocuments(await loginAs(app), { limit: 500 });
+    const docs = await app.documents.listDocuments(call, { pageSize: 100 });
+    const all = await app.documents.listDocuments(await loginAs(app), { pageSize: 100 });
     expect(docs.kpis.total).toBeLessThan(all.kpis.total);
     await expectAppError(app.documents.getDocument(call, { documentId: 'CT-1012' }), 'NOT_FOUND');
     await expectAppError(app.org.respondInvitation(call, { code: 'MOI-2026', accept: true }), 'CONFLICT');

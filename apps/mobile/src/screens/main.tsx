@@ -11,7 +11,7 @@ import { D, formatDate, formatSignedVnd, formatVnd, formatShortDateTime } from '
 import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
 import { useSession } from '../session';
 import { C, font } from '../theme';
-import { Button, Card, Chip, ErrorView, Gap, Hero, Input, KV, KpiGrid, Loading, Notice, OtpInput, Row, Screen, Sheet, Steps, T, Title } from '../ui';
+import { Button, Card, Chip, ErrorView, Gap, Hero, Input, KV, KpiGrid, Loading, Notice, OtpInput, Pager, Row, Screen, Sheet, Steps, T, Title } from '../ui';
 import type { ScreenProps } from '../App';
 
 const toneOf = (s: string) => (s === 'VALIDATED' ? 'success' : s === 'NEEDS_REVIEW' || s === 'NEEDS_RECON' ? 'warning' : 'neutral');
@@ -115,14 +115,15 @@ export function OverviewScreen({ navigation }: { navigation: unknown }) {
 export function InboxScreen({ navigation }: { navigation: unknown }) {
   const nav = asNav(navigation);
   const [q, setQ] = useState('');
-  const data = useQuery('approvals.inbox', { q });
+  const [page, setPage] = useState(1);
+  const data = useQuery('approvals.inbox', { q: q || undefined, page, pageSize: 20 }, { keepPrevious: true });
   if (!data.data) return data.error ? <ErrorView error={data.error} onRetry={data.refetch} /> : <Loading />;
   const routeOf = (r: { kind: string; id: string }) =>
     r.kind === 'APPROVAL' ? (['Approval', { id: r.id }] as const) : r.kind === 'MATCH' ? (['ReconDetail', { id: r.id }] as const) : r.kind === 'DOCUMENT' ? (['Review', { id: r.id }] as const) : (['Close', undefined] as const);
   return (
-    <Screen>
+    <Screen key={`inbox-${data.data.page}`}>
       <Title title="Việc cần xử lý" subtitle={`${data.data.kpis.toApprove} cần duyệt · ${data.data.kpis.toSupplement} cần bổ sung · ${data.data.kpis.dueToday} đến hạn hôm nay`} />
-      <TextInput value={q} onChangeText={setQ} placeholder="Tìm kiếm trong danh sách" placeholderTextColor="#8EA2AE" style={{ height: 44, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, marginBottom: 14, fontFamily: font }} accessibilityLabel="Tìm kiếm" />
+      <TextInput value={q} onChangeText={(v) => { setQ(v); setPage(1); }} placeholder="Tìm kiếm trong danh sách" placeholderTextColor="#8EA2AE" style={{ height: 44, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, marginBottom: 14, fontFamily: font }} accessibilityLabel="Tìm kiếm" />
       {data.data.items.length === 0 && <Notice tone="success">Không còn việc cần xử lý.</Notice>}
       {data.data.items.map((r) => {
         const [to, params] = routeOf(r);
@@ -138,6 +139,7 @@ export function InboxScreen({ navigation }: { navigation: unknown }) {
           </Card>
         );
       })}
+      <Pager page={data.data.page} pageCount={data.data.pageCount} total={data.data.total} pageSize={data.data.pageSize} onPage={setPage} unit="việc" />
     </Screen>
   );
 }
@@ -147,14 +149,14 @@ export function DocumentsScreen({ navigation }: { navigation: unknown }) {
   const nav = asNav(navigation);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'' | 'review' | 'done'>('');
-  const [limit, setLimit] = useState(20);
-  const data = useQuery('documents.list', { q, status: status || undefined, limit });
+  const [page, setPage] = useState(1);
+  const data = useQuery('documents.list', { q: q || undefined, status: status || undefined, page, pageSize: 20 }, { keepPrevious: true });
   if (!data.data) return data.error ? <ErrorView error={data.error} onRetry={data.refetch} /> : <Loading />;
   const d = data.data;
   return (
-    <Screen footer={d.canCreate ? <Button title="Thêm chứng từ" variant="primary" onPress={() => nav.navigate('Capture')} /> : undefined}>
+    <Screen key={`docs-${d.page}`} footer={d.canCreate ? <Button title="Thêm chứng từ" variant="primary" onPress={() => nav.navigate('Capture')} /> : undefined}>
       <Title title="Chứng từ" subtitle={`${d.kpis.total} chứng từ · ${d.kpis.needsReview} cần kiểm tra · ${d.kpis.validated} đã xác nhận`} />
-      <TextInput value={q} onChangeText={setQ} placeholder="Tìm kiếm trong danh sách" placeholderTextColor="#8EA2AE" style={{ height: 44, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, marginBottom: 10, fontFamily: font }} accessibilityLabel="Tìm kiếm chứng từ" />
+      <TextInput value={q} onChangeText={(v) => { setQ(v); setPage(1); }} placeholder="Tìm kiếm trong danh sách" placeholderTextColor="#8EA2AE" style={{ height: 44, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, marginBottom: 10, fontFamily: font }} accessibilityLabel="Tìm kiếm chứng từ" />
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
         {(
           [
@@ -163,7 +165,7 @@ export function DocumentsScreen({ navigation }: { navigation: unknown }) {
             ['', 'Tất cả'],
           ] as const
         ).map(([k, l]) => (
-          <Pressable key={k} onPress={() => setStatus(k)} accessibilityRole="button" accessibilityState={{ selected: status === k }}>
+          <Pressable key={k} onPress={() => { setStatus(k); setPage(1); }} accessibilityRole="button" accessibilityState={{ selected: status === k }}>
             <Chip tone={status === k ? 'success' : 'neutral'}>{l}</Chip>
           </Pressable>
         ))}
@@ -173,7 +175,8 @@ export function DocumentsScreen({ navigation }: { navigation: unknown }) {
           <Row icon={<FileText size={18} color={C.action} />} title={r.label} subtitle={`${r.amountLabel} · ${r.source} · ${r.dateLabel}`} right={<Chip tone={toneOf(r.status)}>{r.statusLabel}</Chip>} onPress={() => nav.navigate(r.status === 'VALIDATED' ? 'Evidence' : 'Review', { id: r.id })} />
         </Card>
       ))}
-      {d.totalShown < d.totalMatching && <Button title="Xem thêm" onPress={() => setLimit((l) => l + 30)} />}
+      {d.items.length === 0 && <Notice tone="info">Không có chứng từ phù hợp.</Notice>}
+      <Pager page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={setPage} unit="chứng từ" />
     </Screen>
   );
 }
@@ -366,13 +369,15 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
 // ───────── 14 · Đối soát ─────────
 export function ReconcileScreen({ navigation }: ScreenProps<'Reconcile'>) {
   const [filter, setFilter] = useState<'' | 'review' | 'done'>('review');
-  const data = useQuery('recon.summary', { filter: filter || undefined });
+  const [page, setPage] = useState(1);
+  const [runMsg, setRunMsg] = useState<string | null>(null);
+  const data = useQuery('recon.summary', { filter: filter || undefined, page, pageSize: 20 }, { keepPrevious: true });
   const run = useMutation('recon.run');
   if (!data.data) return data.error ? <ErrorView error={data.error} /> : <Loading />;
   const d = data.data;
-  const first = d.items.find((i) => i.status === 'PROPOSED');
+  const firstId = d.firstOpenId;
   return (
-    <Screen footer={<Button title="Ghép nhiều–nhiều" variant="primary" disabled={!first} onPress={() => first && navigation.navigate('Match', { id: first.id })} />}>
+    <Screen key={`recon-${d.page}`} footer={<Button title="Ghép nhiều–nhiều" variant="primary" disabled={!firstId} onPress={() => firstId && navigation.navigate('Match', { id: firstId })} />}>
       <Title title="Đối soát đa nguồn" subtitle={`${d.kpis.matched} đã khớp · ${d.kpis.toConfirm} cần xác nhận · ${d.kpis.discrepancies} chênh lệch`} />
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14, alignItems: 'center' }}>
         {(
@@ -382,21 +387,32 @@ export function ReconcileScreen({ navigation }: ScreenProps<'Reconcile'>) {
             ['', 'Tất cả'],
           ] as const
         ).map(([k, l]) => (
-          <Pressable key={k} onPress={() => setFilter(k)} accessibilityRole="button">
+          <Pressable key={k} onPress={() => { setFilter(k); setPage(1); }} accessibilityRole="button">
             <Chip tone={filter === k ? 'success' : 'neutral'}>{l}</Chip>
           </Pressable>
         ))}
         {d.canRun && (
-          <Pressable onPress={() => void run.mutate({}).then((r) => Alert.alert('Đối soát', r.groups ? `Đề xuất ${r.groups} nhóm mới` : 'Không có giao dịch mới để ghép'))} style={{ marginLeft: 'auto' }}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              void run.mutate({}).then((r) =>
+                setRunMsg(r.groups ? `Đề xuất ${r.groups} nhóm mới` : r.pendingSources ? `Có ${r.pendingSources} tệp đơn hàng / sao kê chưa xác nhận. Xác nhận trong Chứng từ rồi chạy lại.` : 'Không có giao dịch mới để ghép'),
+              )
+            }
+            style={{ marginLeft: 'auto' }}
+          >
             <Text style={{ color: C.action, fontWeight: '700' }}>Chạy đối soát</Text>
           </Pressable>
         )}
       </View>
+      {runMsg && <Notice tone="info">{runMsg}</Notice>}
+      {d.items.length === 0 && <Notice tone="info">Không có nhóm đối soát phù hợp.</Notice>}
       {d.items.map((r) => (
         <Card key={r.id} style={{ paddingVertical: 4 }}>
           <Row icon={<GitCompareArrows size={18} color={C.action} />} title={r.label} subtitle={`${r.statusLabel} · ${r.receivedLabel}`} right={<Chip tone={r.tone}>{r.source}</Chip>} onPress={() => navigation.navigate('ReconDetail', { id: r.id })} />
         </Card>
       ))}
+      <Pager page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={setPage} unit="nhóm" />
     </Screen>
   );
 }
@@ -725,7 +741,8 @@ export function AssistantScreen({ navigation }: ScreenProps<'Assistant'>) {
 
 // ───────── 36 · Thông báo ─────────
 export function NotificationsScreen({ navigation }: ScreenProps<'Notifications'>) {
-  const data = useQuery('dashboard.notifications', {});
+  const [page, setPage] = useState(1);
+  const data = useQuery('dashboard.notifications', { page, pageSize: 20 }, { keepPrevious: true });
   const mark = useMutation('dashboard.markRead');
   if (!data.data) return data.error ? <ErrorView error={data.error} /> : <Loading />;
   const go = (route: string) => {
@@ -741,7 +758,7 @@ export function NotificationsScreen({ navigation }: ScreenProps<'Notifications'>
     else navigation.navigate('Main', { screen: 'Inbox' });
   };
   return (
-    <Screen footer={<Button title="Đánh dấu đã đọc" onPress={() => void mark.mutate({})} loading={mark.loading} />}>
+    <Screen key={`ntf-${data.data.page}`} footer={<Button title="Đánh dấu đã đọc" onPress={() => void mark.mutate({})} loading={mark.loading} />}>
       <Text style={[T.muted, { marginBottom: 12 }]}>{`${data.data.kpis.unread} chưa đọc · ${data.data.kpis.actionRequired} cần hành động · ${data.data.kpis.today} hôm nay`}</Text>
       {data.data.items.map((n) => (
         <Card key={n.id} style={{ paddingVertical: 4 }}>
@@ -751,6 +768,8 @@ export function NotificationsScreen({ navigation }: ScreenProps<'Notifications'>
           }} />
         </Card>
       ))}
+      {data.data.items.length === 0 && <Notice tone="info">Không có thông báo.</Notice>}
+      <Pager page={data.data.page} pageCount={data.data.pageCount} total={data.data.total} pageSize={data.data.pageSize} onPage={setPage} unit="thông báo" />
     </Screen>
   );
 }

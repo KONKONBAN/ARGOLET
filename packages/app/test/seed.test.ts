@@ -159,6 +159,7 @@ describe('demo dataset matches the Figma design', () => {
     expect(p.kpis.map((k) => k.value)).toEqual(['1.000 triệu đ', '420 triệu đ', '180 triệu đ']);
     expect(p.kpis[2]!.note).toBe('Còn khả dụng 400 triệu đ');
     const f = await app.finance.appraisal(call);
+    if (f.empty) throw new Error('demo finance project missing');
     expect([f.result.npvLabel, f.result.irrLabel, f.result.paybackLabel, f.result.dscrLabel]).toEqual(['137,24 triệu', '15,24%', '3,33 năm', '1,50 lần']);
     const sc = await app.finance.scenarios(call);
     expect(sc.scenarios.map((x) => x.npvLabel)).toEqual(['-52,30 triệu đ', '137,24 triệu đ', '326,78 triệu đ']);

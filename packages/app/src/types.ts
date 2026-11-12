@@ -203,6 +203,8 @@ export interface BusinessRecordRow extends BaseRow {
   counterparty: string;
   reference: string;
   payoutBatch: string;
+  /** Free-text line description (bank statements), used to recognise payout batch codes. */
+  description?: string | undefined;
   fee: string;
   refund: string;
   discount: string;

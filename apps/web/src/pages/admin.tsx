@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell, Boxes, Building2, ChartColumn, ChevronRight, DatabaseBackup, FolderKanban, GitCompareArrows, Handshake, History, KeyRound, Lock, Network, Plug,
   ShieldCheck, Smartphone, Store, Truck, UserPlus, Users, Zap,
@@ -7,7 +7,7 @@ import {
 import type { Role } from '@argolet/core';
 import { useBackend, useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
-import { Alert, Button, Card, Chip, DataTable, ErrorNote, KeyValues, Modal, OtpInput, PageHeader, PageLoading, PasswordInput, TextInput, useToast } from '../ui/components';
+import { Alert, Button, Card, Chip, DataTable, ErrorNote, KeyValues, Modal, OtpInput, PageHeader, PageLoading, PasswordInput, SelectInput, TextInput, useToast } from '../ui/components';
 import { PageFoot, usePeriodLabel } from './overview';
 
 const ROLE_OPTIONS: [Role, string][] = [
@@ -64,7 +64,7 @@ export function MembersPage() {
                 <span className="row">
                   <Chip tone={r.status === 'ACTIVE' ? 'success' : r.status === 'INVITED' ? 'info' : 'warning'}>{r.statusLabel}</Chip>
                   {r.code && <span className="small muted">{r.code}</span>}
-                  {data.data!.canManage && r.status !== 'INVITED' && (
+                  {data.data!.canManage && r.status !== 'INVITED' && !r.isSelf && (
                     <button
                       className="link-btn"
                       onClick={async () => {
@@ -167,11 +167,16 @@ export function MembersPage() {
 export function SettingsPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { refresh } = useSession();
   const data = useQuery('org.settings');
   const update = useMutation('org.updateSettings', { silent: true });
   const setInt = useMutation('org.setIntegration');
-  const [panel, setPanel] = useState<null | 'org' | 'integrations' | 'audit' | 'backup' | 'privacy'>(null);
+  const location = useLocation();
+  const [panel, setPanel] = useState<null | 'org' | 'integrations' | 'audit' | 'backup' | 'privacy'>(location.hash === '#co-cau' ? 'org' : null);
   const [regime, setRegime] = useState<string>('');
+  const [periodEdit, setPeriodEdit] = useState<string>('');
+  const addEntity = useMutation('org.addEntity', { silent: true });
+  const [entityForm, setEntityForm] = useState({ kind: 'SITE', name: '' });
   const period = usePeriodLabel();
   if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
   const d = data.data;
@@ -212,7 +217,7 @@ export function SettingsPage() {
               loading={update.loading}
               onClick={async () => {
                 try {
-                  await update.mutate({ accountingRegime: (regime || d.tenant.settings.accountingRegime) as 'TT133' });
+                  await update.mutate({ accountingRegime: (regime || d.tenant.settings.accountingRegime) as 'TT133', ...(periodEdit && periodEdit !== d.tenant.settings.currentPeriod ? { currentPeriod: periodEdit } : {}) });
                   toast('success', 'Đã lưu cài đặt');
                   setPanel(null);
                 } catch (e) {
@@ -244,6 +249,49 @@ export function SettingsPage() {
             <option value="HKD">Hộ kinh doanh</option>
           </select>
         </div>
+        <TextInput label="Kỳ làm việc hiện tại" type="month" value={periodEdit || d.tenant.settings.currentPeriod} onChange={(e) => setPeriodEdit(e.target.value)} disabled={!d.canManage} hint="Tự chuyển sang tháng kế tiếp khi mọi đơn vị đã chốt kỳ." />
+        <h3 className="card-title mt-24" id="co-cau">
+          Cơ cấu tổ chức
+        </h3>
+        <DataTable
+          rows={d.entities}
+          rowKey={(r) => r.id}
+          columns={[
+            { key: 'n', header: 'Đơn vị', render: (r) => r.name, strong: true },
+            { key: 'k', header: 'Loại', render: (r) => r.kindLabel },
+            { key: 'c', header: 'Mã', render: (r) => r.code },
+            { key: 'p', header: 'Thuộc', render: (r) => r.parentName || '—' },
+          ]}
+        />
+        {d.canManage && (
+          <div className="row wrap mt-16" style={{ alignItems: 'flex-end', gap: 10 }}>
+            <div style={{ flex: '1 1 160px' }}>
+              <SelectInput label="Thêm đơn vị" value={entityForm.kind} onChange={(v) => setEntityForm({ ...entityForm, kind: v })} options={[{ value: 'SITE', label: 'Cơ sở / cửa hàng / chi nhánh' }, { value: 'LEGAL_ENTITY', label: 'Pháp nhân (công ty con)' }]} />
+            </div>
+            <div style={{ flex: '2 1 200px' }}>
+              <TextInput label="Tên đơn vị" value={entityForm.name} onChange={(e) => setEntityForm({ ...entityForm, name: e.target.value })} placeholder={entityForm.kind === 'SITE' ? 'Cửa hàng Nguyễn Trãi' : 'Công ty TNHH …'} />
+            </div>
+            <div className="field">
+              <Button
+                loading={addEntity.loading}
+                disabled={!entityForm.name.trim()}
+                onClick={async () => {
+                  try {
+                    const r = await addEntity.mutate({ kind: entityForm.kind as 'SITE', name: entityForm.name });
+                    toast('success', `Đã thêm ${entityForm.name} (${r.code})`);
+                    setEntityForm({ ...entityForm, name: '' });
+                    await refresh();
+                  } catch {
+                    /* inline */
+                  }
+                }}
+              >
+                Thêm
+              </Button>
+            </div>
+          </div>
+        )}
+        {addEntity.error && <ErrorNote error={addEntity.error} />}
       </Modal>
       <Modal open={panel === 'integrations'} onClose={() => setPanel(null)} title="Kết nối dữ liệu" width={620}>
         {d.integrations.map((i) => (

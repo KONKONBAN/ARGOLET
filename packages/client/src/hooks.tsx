@@ -59,15 +59,20 @@ export interface QueryState<T> {
   data: T | undefined;
   error: ApiError | undefined;
   loading: boolean;
+  /** A request for the current parameters is in flight (data may be the previous page). */
+  fetching: boolean;
   refetch: () => void;
 }
 
-export function useQuery<K extends OperationName>(name: K, params?: OpParams<K>, opts: { enabled?: boolean } = {}): QueryState<OpResult<K>> {
+export function useQuery<K extends OperationName>(name: K, params?: OpParams<K>, opts: { enabled?: boolean; keepPrevious?: boolean } = {}): QueryState<OpResult<K>> {
   const { backend, onError } = useBackend();
   const key = `${name}:${JSON.stringify(params ?? {})}`;
   const enabled = opts.enabled ?? true;
   useSyncExternalStore(subscribe, () => version);
   const entry = cache.get(key);
+  // Paginated / filtered lists keep showing the previous result while the next one loads.
+  const previous = useRef<unknown>(undefined);
+  if (entry?.data !== undefined) previous.current = entry.data;
   const load = useCallback(() => {
     const cur = cache.get(key) ?? { stale: true };
     if (cur.promise) return;
@@ -91,10 +96,12 @@ export function useQuery<K extends OperationName>(name: K, params?: OpParams<K>,
     const e = cache.get(key);
     if (!e || (e.stale && !e.promise)) load();
   });
+  const shown = entry?.data ?? (opts.keepPrevious ? previous.current : undefined);
   return {
-    data: entry?.data as OpResult<K> | undefined,
+    data: shown as OpResult<K> | undefined,
     error: entry?.error,
-    loading: enabled && (!entry || !!entry.promise) && entry?.data === undefined,
+    loading: enabled && (!entry || !!entry.promise) && shown === undefined,
+    fetching: enabled && !!entry?.promise,
     refetch: () => {
       const e = cache.get(key);
       if (e) e.stale = true;

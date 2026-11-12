@@ -1,5 +1,5 @@
 import { decide, formatDate, formatVnd, ApprovalError, sum, D, type ApprovalRequest } from '@argolet/core';
-import { type AppCore, actor, requireFound } from '../core';
+import { type AppCore, actor, requireFound, paginate, type PageParams } from '../core';
 import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { ApprovalRow } from '../types';
@@ -25,7 +25,7 @@ export class ApprovalService {
   constructor(private readonly core: AppCore, private readonly recon: ReconService) {}
 
   /** Màn 10 · Hộp công việc: phê duyệt, xác nhận đối soát, bổ sung chứng từ, rà soát chốt kỳ. */
-  async inbox(call: CallContext, p: { q?: string } = {}) {
+  async inbox(call: CallContext, p: { q?: string; kind?: 'APPROVAL' | 'MATCH' | 'DOCUMENT' | 'PERIOD' } & PageParams = {}) {
     return this.core.query(async (tx, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
       const today = localDate(now);
@@ -39,16 +39,16 @@ export class ApprovalService {
       type Item = { id: string; kind: 'APPROVAL' | 'MATCH' | 'DOCUMENT' | 'PERIOD'; title: string; sender: string; due: string; dueLabel: string; value: string; status: string; tone: 'warning' | 'neutral' | 'success'; route: string };
       const items: Item[] = [
         ...mine.map((a) => ({ id: a.id, kind: 'APPROVAL' as const, title: a.title, sender: a.requesterName, due: a.dueDate, dueLabel: relativeDay(a.dueDate, today), value: formatVnd(a.amount), status: 'Chờ duyệt', tone: 'warning' as const, route: `/approvals/${a.id}` })),
-        ...groups.map((g) => ({ id: g.id, kind: 'MATCH' as const, title: `Xác nhận nhóm ${g.code}`, sender: users.get(g.confirmedBy ?? '') ?? 'Thanh Hà', due: g.createdAt.slice(0, 10) > today ? g.createdAt.slice(0, 10) : today, dueLabel: relativeDay(g.createdAt.slice(0, 10) > today ? g.createdAt.slice(0, 10) : today, today), value: formatVnd(g.received), status: 'Cần xác nhận', tone: 'warning' as const, route: `/reconciliation/${g.id}` })),
-        ...docs.map((d) => ({ id: d.id, kind: 'DOCUMENT' as const, title: `Bổ sung ${d.title.toLowerCase()}`, sender: users.get(d.receivedBy) ?? 'Hải Nam', due: addDays(d.receivedAt.slice(0, 10), 1), dueLabel: relativeDay(addDays(d.receivedAt.slice(0, 10), 1), today), value: formatVnd(d.amount), status: 'Cần bổ sung', tone: 'neutral' as const, route: `/documents/${d.id}/review` })),
+        ...groups.map((g) => ({ id: g.id, kind: 'MATCH' as const, title: `Xác nhận nhóm ${g.code}`, sender: users.get(g.confirmedBy ?? '') ?? 'Động cơ đối soát', due: g.createdAt.slice(0, 10) > today ? g.createdAt.slice(0, 10) : today, dueLabel: relativeDay(g.createdAt.slice(0, 10) > today ? g.createdAt.slice(0, 10) : today, today), value: formatVnd(g.received), status: 'Cần xác nhận', tone: 'warning' as const, route: `/reconciliation/${g.id}` })),
+        ...docs.map((d) => ({ id: d.id, kind: 'DOCUMENT' as const, title: `Bổ sung ${d.title.toLowerCase()}`, sender: users.get(d.receivedBy) ?? '—', due: addDays(d.receivedAt.slice(0, 10), 1), dueLabel: relativeDay(addDays(d.receivedAt.slice(0, 10), 1), today), value: formatVnd(d.amount), status: 'Cần bổ sung', tone: 'neutral' as const, route: `/documents/${d.id}/review` })),
         ...periods.map((pr) => ({ id: pr.id, kind: 'PERIOD' as const, title: `Chốt kỳ ${sites.get(pr.entityId)?.name.replace('Cơ sở ', 'cơ sở ') ?? ''}`.trim(), sender: 'Kế toán', due: closeDueDate(pr.periodId), dueLabel: relativeDay(closeDueDate(pr.periodId), today), value: `Tháng ${Number(pr.periodId.slice(5))}`, status: 'Chờ rà soát', tone: 'neutral' as const, route: '/close' })),
       ];
       const order = { APPROVAL: 0, MATCH: 1, DOCUMENT: 2, PERIOD: 3 };
       items.sort((a, b) => order[a.kind] - order[b.kind] || a.due.localeCompare(b.due));
-      let shown = items;
+      let shown = p.kind ? items.filter((i) => i.kind === p.kind) : items;
       if (p.q) {
         const q = p.q.toLowerCase();
-        shown = items.filter((i) => `${i.title} ${i.sender}`.toLowerCase().includes(q));
+        shown = shown.filter((i) => `${i.title} ${i.sender}`.toLowerCase().includes(q));
       }
       return {
         kpis: {
@@ -58,7 +58,7 @@ export class ApprovalService {
           approvalsAmount: formatVnd(sum(mine.map((a) => a.amount))),
           discrepancies: (await scoped(tx, ws, 'matchGroups')).filter((g) => g.status === 'DISCREPANCY').length,
         },
-        items: shown,
+        ...paginate(shown, p, 20),
       };
     });
   }

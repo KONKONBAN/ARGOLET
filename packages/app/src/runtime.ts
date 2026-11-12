@@ -14,6 +14,7 @@ export type ErrorCode =
   | 'RATE_LIMITED'
   | 'STEP_UP_REQUIRED'
   | 'NO_WORKSPACE'
+  | 'UNAVAILABLE'
   | 'INTERNAL';
 
 const STATUS: Record<ErrorCode, number> = {
@@ -25,6 +26,7 @@ const STATUS: Record<ErrorCode, number> = {
   RATE_LIMITED: 429,
   STEP_UP_REQUIRED: 403,
   NO_WORKSPACE: 409,
+  UNAVAILABLE: 503,
   INTERNAL: 500,
 };
 
@@ -46,9 +48,19 @@ export interface PasswordHasher {
   verify(hash: string, password: string): Promise<boolean>;
 }
 
+export interface InvitationMessage {
+  organization: string;
+  inviter: string;
+  roleLabel: string;
+  code: string;
+  link: string;
+}
+
 export interface Notifier {
-  /** Deliver a one-time code / link. Returns a delivery id. */
+  /** Deliver a one-time code (verification, password reset, step-up). */
   sendCode(to: string, purpose: string, code: string): Promise<void>;
+  /** Optional: deliver an invitation to join an organisation. */
+  sendInvitation?(to: string, invitation: InvitationMessage): Promise<void>;
 }
 
 export interface LlmClient {

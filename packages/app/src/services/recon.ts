@@ -2,11 +2,12 @@ import {
   canonicalize, D, DEFAULT_RULES, formatDate, formatVnd, newId, nextCode, runReconciliation, sha256Hex, sum, targetDigest, APPROVAL_POLICY_VERSION,
   type ReconOrder, type ReconTxn,
 } from '@argolet/core';
-import { type AppCore, actor, requireFound } from '../core';
+import { type AppCore, actor, paginate, requireFound, type PageParams } from '../core';
 import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { BusinessRecordRow, MatchGroupRow } from '../types';
-import { defaultSite, inScope, scoped } from './documents';
+import { inScope, scoped } from './documents';
+import { closingUnits } from './close';
 import { scopeLabel } from './org';
 
 export const GROUP_STATUS_LABEL = (g: Pick<MatchGroupRow, 'status' | 'residual'>): string =>
@@ -35,6 +36,23 @@ const toOrder = (r: BusinessRecordRow): ReconOrder => ({
   channel: r.channel,
 });
 
+const squash = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/**
+ * Banks rarely carry the payout batch in a structured field: it is written somewhere in the
+ * transfer description ("GF-PAY-1106 thanh toan don hang"). A credit is linked to a batch when
+ * its description or reference contains a batch code that the platform's own orders carry.
+ */
+export function linkPayoutBatches(txns: BusinessRecordRow[], orders: { payoutBatch?: string | undefined }[]): BusinessRecordRow[] {
+  const batches = [...new Set(orders.map((o) => o.payoutBatch).filter((b): b is string => !!b && squash(b).length >= 3))].sort((a, b) => squash(b).length - squash(a).length);
+  return txns.map((t) => {
+    if (t.payoutBatch) return t;
+    const text = squash(`${t.description ?? ''} ${t.reference}`);
+    const hit = batches.find((b) => text.includes(squash(b)));
+    return hit ? { ...t, payoutBatch: hit } : t;
+  });
+}
+
 const toTxn = (r: BusinessRecordRow): ReconTxn => ({
   recordId: r.recordId,
   recordVersion: r.version,
@@ -55,7 +73,7 @@ export function groupDigest(g: MatchGroupRow): string {
 export class ReconService {
   constructor(private readonly core: AppCore) {}
 
-  async summary(call: CallContext, p: { q?: string; filter?: 'review' | 'done' } = {}) {
+  async summary(call: CallContext, p: { q?: string; filter?: 'review' | 'done' } & PageParams = {}) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'recon.read');
       const groups = await scoped(tx, ws, 'matchGroups');
@@ -68,6 +86,7 @@ export class ReconService {
       }
       rows.sort((a, b) => b.code.localeCompare(a.code, undefined, { numeric: true }));
       const openOrders = (await scoped(tx, ws, 'records')).filter((r) => r.kind === 'ORDER' && !r.matchGroupId);
+      const pg = paginate(rows, p, 20);
       return {
         kpis: {
           matched: groups.filter((g) => g.status === 'CONFIRMED').length,
@@ -76,7 +95,12 @@ export class ReconService {
           unmatchedOrders: openOrders.length,
         },
         canRun: this.core.can(ws, 'recon.run'),
-        items: rows.slice(0, 50).map((g) => ({
+        firstOpenId: groups.filter((g) => g.status === 'PROPOSED').sort((x, y) => y.code.localeCompare(x.code, undefined, { numeric: true }))[0]?.id ?? null,
+        page: pg.page,
+        pageSize: pg.pageSize,
+        total: pg.total,
+        pageCount: pg.pageCount,
+        items: pg.items.map((g) => ({
           id: g.id,
           code: g.code,
           label: `${g.code} · ${g.orderIds.length} đơn hàng`,
@@ -89,7 +113,6 @@ export class ReconService {
           statusLabel: GROUP_STATUS_LABEL(g),
           tone: g.status === 'CONFIRMED' ? 'success' : g.status === 'DISCREPANCY' ? 'warning' : g.status === 'PENDING_APPROVAL' ? 'success' : 'warning',
         })),
-        totalMatching: rows.length,
       };
     });
   }
@@ -149,13 +172,29 @@ export class ReconService {
   async run(call: CallContext, p: { entityId?: string; periodId?: string } = {}) {
     return this.core.command(call, async (tx, em, now) => {
       const ws0 = await this.core.requireWorkspace(tx, call, 'recon.run');
-      const entityId = p.entityId ?? (ws0.entityId !== '*' ? ws0.entityId : await defaultSite(tx, ws0.tenantId));
-      const ws = await this.core.requireWorkspace(tx, call, 'recon.run', { entityId });
-      const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      const tenant = requireFound(await tx.get('tenants', ws0.tenantId, ws0.tenantId), 'tổ chức');
       const periodId = p.periodId ?? tenant.settings.currentPeriod;
+      // One run per unit: a specific unit, the member's own scope, or every unit when viewing the whole organisation.
+      const units = p.entityId ? [p.entityId] : ws0.entityId !== '*' ? [ws0.entityId] : await closingUnits(tx, ws0.tenantId);
+      const total = { groups: 0, unmatchedOrders: 0, unmatchedTxns: 0, pendingSources: 0, runIds: [] as string[], inputSnapshotDigest: '' };
+      for (const entityId of units) {
+        const ws = await this.core.requireWorkspace(tx, call, 'recon.run', { entityId });
+        const r = await this.runUnit(tx, em, now, ws, entityId, periodId);
+        total.groups += r.groups;
+        total.unmatchedOrders += r.unmatchedOrders;
+        total.unmatchedTxns += r.unmatchedTxns;
+        total.pendingSources += r.pendingSources;
+        total.runIds.push(r.runId);
+        total.inputSnapshotDigest = r.inputSnapshotDigest;
+      }
+      return { runId: total.runIds[0] ?? '', runIds: total.runIds, units: units.length, groups: total.groups, unmatchedOrders: total.unmatchedOrders, unmatchedTxns: total.unmatchedTxns, pendingSources: total.pendingSources, inputSnapshotDigest: total.inputSnapshotDigest };
+    });
+  }
+
+  private async runUnit(tx: Tx, em: Emitter, now: string, ws: WorkspaceState, entityId: string, periodId: string) {
       const open = (await tx.list('records', ws.tenantId, { entityId })).filter((r) => !r.matchGroupId && r.periodId === periodId);
       const orders = open.filter((r) => r.kind === 'ORDER').map(toOrder);
-      const txns = open.filter((r) => r.kind === 'BANK_TXN' || r.kind === 'CASH').map(toTxn);
+      const txns = linkPayoutBatches(open.filter((r) => r.kind === 'BANK_TXN' || r.kind === 'CASH'), orders).map(toTxn);
       const inputSnapshotDigest = sha256Hex(canonicalize({ orders, txns, periodId, entityId }));
       const result = runReconciliation(orders, txns, DEFAULT_RULES);
       const runId = newId('run');
@@ -193,7 +232,7 @@ export class ReconService {
           allocations: g.allocations,
           explanation: g.explanation,
           basis: g.basis,
-          feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',')}% · Quy tắc hiệu lực 01/10`,
+          feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',')}% · ${result.rulesVersion}`,
           inputSnapshotVersion: inputSnapshotDigest.slice(0, 16),
           rulesVersion: result.rulesVersion,
           confirmedBy: null,
@@ -215,8 +254,9 @@ export class ReconService {
       await tx.put('reconRuns', { id: runId, tenantId: ws.tenantId, entityId, periodId, inputSnapshotDigest, rulesVersion: result.rulesVersion, groupIds, unmatchedOrders: result.unmatchedOrders, unmatchedTxns: result.unmatchedTxns, createdBy: ws.user.id });
       await em.emit({ type: 'ReconciliationProposed', tenantId: ws.tenantId, entityId, aggregateType: 'ReconRun', aggregateId: runId, actorId: ws.user.id, dataRef: `recon-run/${runId}`, dataVersion: 1, data: { runId, groups: groupIds.length } });
       await em.audit(ws.tenantId, actor(ws), 'recon.run', runId, `${groupIds.length} nhóm đề xuất`);
-      return { runId, groups: groupIds.length, unmatchedOrders: result.unmatchedOrders.length, unmatchedTxns: result.unmatchedTxns.length, inputSnapshotDigest };
-    });
+      // Source files (POS / platform / bank) only feed the engine once someone has confirmed them.
+      const pendingSources = (await tx.list('documents', ws.tenantId, { entityId })).filter((d) => (d.rowKind === 'POS' || d.rowKind === 'BANK') && d.date.slice(0, 7) === periodId && d.status !== 'VALIDATED' && d.status !== 'REJECTED').length;
+      return { runId, groups: groupIds.length, unmatchedOrders: result.unmatchedOrders.length, unmatchedTxns: result.unmatchedTxns.length, pendingSources, inputSnapshotDigest };
   }
 
   /** "Kế toán xác nhận kết quả đối soát" → MatchResolved. */

@@ -115,8 +115,16 @@ describe('HTTP API', () => {
       return r.json();
     };
     expect((await get('/v1/dashboard')).netLabel).toBe('+84.600.000 đ');
-    expect((await get('/v1/documents?status=review')).totalMatching).toBe(4);
-    expect((await get('/v1/documents?q=Nguy%C3%AAn&limit=3')).items.length).toBeLessThanOrEqual(3);
+    expect((await get('/v1/documents?status=review')).total).toBe(4);
+    expect((await get('/v1/documents?q=Nguy%C3%AAn&pageSize=5')).items.length).toBeLessThanOrEqual(5);
+    // Pagination over HTTP: numbers arrive as query strings, pages are disjoint and clamped.
+    const p1 = await get('/v1/documents?page=1&pageSize=20');
+    const p2 = await get('/v1/documents?page=2&pageSize=20');
+    expect([p1.total, p1.pageCount, p1.items.length, p2.page]).toEqual([128, 7, 20, 2]);
+    expect(p1.items.some((x: { id: string }) => p2.items.some((y: { id: string }) => y.id === x.id))).toBe(false);
+    expect((await get('/v1/documents?page=99&pageSize=20')).page).toBe(7);
+    expect((await get('/v1/inbox?kind=APPROVAL')).items.every((i: { kind: string }) => i.kind === 'APPROVAL')).toBe(true);
+    expect((await get('/v1/notifications?unread=true')).items.every((n: { status: string }) => n.status === 'UNREAD')).toBe(true);
     expect((await get('/v1/match-groups')).kpis.matched).toBe(82);
     expect((await get('/v1/match-groups/DS-1031')).group.received).toBe('1125000');
     expect((await get('/v1/inbox')).items.length).toBeGreaterThan(3);

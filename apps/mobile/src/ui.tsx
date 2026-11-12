@@ -2,7 +2,7 @@ import { Children, cloneElement, isValidElement, useRef, useState, type Componen
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, ChevronRight, CircleAlert, Eye, EyeOff, Info, TriangleAlert, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, CircleAlert, Eye, EyeOff, Info, TriangleAlert, X } from 'lucide-react-native';
 import { C, G, R, font } from './theme';
 
 export const T = StyleSheet.create({
@@ -204,6 +204,32 @@ export function Row({ title, subtitle, right, icon, onPress, chevron, last }: Ro
   );
 }
 
+/** Page controls for long lists: previous · "Trang x/y" · next, with the visible range. */
+export function Pager({ page, pageCount, total, pageSize, onPage, unit = 'bản ghi' }: { page: number; pageCount: number; total: number; pageSize: number; onPage: (p: number) => void; unit?: string }) {
+  if (total === 0) return null;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(total, page * pageSize);
+  const btn = (dir: -1 | 1) => {
+    const disabled = dir < 0 ? page <= 1 : page >= pageCount;
+    const Icon = dir < 0 ? ChevronLeft : ChevronRight;
+    return (
+      <Pressable onPress={() => !disabled && onPage(page + dir)} disabled={disabled} accessibilityRole="button" accessibilityLabel={dir < 0 ? 'Trang trước' : 'Trang sau'} accessibilityState={{ disabled }} style={[st.pagerBtn, disabled ? { opacity: 0.35 } : null]} hitSlop={6}>
+        <Icon size={20} color={C.text} />
+      </Pressable>
+    );
+  };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 14 }}>
+      {btn(-1)}
+      <View style={{ alignItems: 'center' }}>
+        <Text style={[T.body, T.strong]}>{`Trang ${page} / ${pageCount}`}</Text>
+        <Text style={[T.small, { marginTop: 2 }]}>{`${from}–${to} trên ${total} ${unit}`}</Text>
+      </View>
+      {btn(1)}
+    </View>
+  );
+}
+
 export function KV({ rows }: { rows: { label: string; value: string }[] }) {
   return (
     <View>
@@ -294,6 +320,7 @@ const st = StyleSheet.create({
   eye: { position: 'absolute', right: 10, top: 12 },
   otpBox: { width: 44, height: 50, borderRadius: R.md, borderWidth: 1, borderColor: C.inputLine, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line },
+  pagerBtn: { width: 44, height: 44, borderRadius: R.md, borderWidth: 1, borderColor: C.line, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   iconTile: { width: 38, height: 38, borderRadius: R.md, backgroundColor: C.successBg, alignItems: 'center', justifyContent: 'center' },
   kv: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line },
   stepNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: C.successBg, alignItems: 'center', justifyContent: 'center' },
