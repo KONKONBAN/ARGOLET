@@ -308,8 +308,9 @@ describe('08 · controlled assistant', () => {
     const admin = await loginAs(app);
     const r1 = await app.assistant.ask(admin, { question: 'Khoản nào chưa khớp?' });
     expect(r1.answer.headline).toContain('nhóm chưa xác nhận');
-    // ORG_ADMIN has no recon.confirm → the gateway refuses the write tool server side.
-    const r2 = await app.assistant.ask(admin, { conversationId: r1.conversationId, question: 'Xác nhận nhóm DS-1032 giúp tôi' });
+    // An approver without recon.confirm → the gateway refuses the write tool server side.
+    const nam = await loginAs(app, 'hainam@minhan.example');
+    const r2 = await app.assistant.ask(nam, { question: 'Xác nhận nhóm DS-1032 giúp tôi' });
     expect(r2.answer.proposal).toBeUndefined();
     expect(r2.answer.headline).toBe('Không thể thực hiện yêu cầu.');
     // An accountant gets a proposal that still needs an approver — nothing is executed.
@@ -324,6 +325,6 @@ describe('08 · controlled assistant', () => {
     const r4 = await app.assistant.ask(admin, { question: 'Thời tiết hôm nay?' });
     expect(r4.answer.headline).toContain('chưa xác định');
     const conv = await app.assistant.conversation(admin, { conversationId: r1.conversationId });
-    expect(conv.messages).toHaveLength(4);
+    expect(conv.messages).toHaveLength(2);
   });
 });

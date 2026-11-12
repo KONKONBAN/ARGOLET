@@ -114,7 +114,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       await put('entities', { id, tenantId: T, name, shortName, code, kind, parentId, baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh', createdAt: vn('2026-09-01') });
     }
     const members: NewRow<'memberships'>[] = [
-      { id: 'mem_admin', tenantId: T, userId: USERS.admin, displayName: 'Minh Anh', title: 'Quản trị tổ chức', bindings: [{ role: 'ORG_ADMIN', entityIds: '*', approvalLimit: null }, { role: 'APPROVER', entityIds: '*', approvalLimit: 'POLICY' }], status: 'ACTIVE', scopeLabel: 'Toàn tổ chức', limitLabel: 'Theo chính sách', createdAt: vn('2026-09-01', '08:00') },
+      { id: 'mem_admin', tenantId: T, userId: USERS.admin, displayName: 'Minh Anh', title: 'Quản trị tổ chức', bindings: [{ role: 'ORG_ADMIN', entityIds: '*', approvalLimit: null }, { role: 'CHIEF_ACCOUNTANT', entityIds: '*', approvalLimit: 'POLICY' }], status: 'ACTIVE', scopeLabel: 'Toàn tổ chức', limitLabel: 'Theo chính sách', createdAt: vn('2026-09-01', '08:00') },
       { id: 'mem_staff', tenantId: T, userId: USERS.staff, displayName: 'Nguyễn Minh Anh', title: 'Nhân viên', bindings: [{ role: 'STAFF', entityIds: [SITES.q3], approvalLimit: null }], status: 'ACTIVE', scopeLabel: 'Cơ sở Quận 3', limitLabel: 'Không cấp', createdAt: vn('2026-09-01', '08:01') },
       { id: 'mem_accountant', tenantId: T, userId: USERS.accountant, displayName: 'Thanh Hà', title: 'Kế toán', bindings: [{ role: 'ACCOUNTANT', entityIds: '*', approvalLimit: null }], status: 'ACTIVE', scopeLabel: '3 cơ sở', limitLabel: 'Không cấp', createdAt: vn('2026-09-01', '08:02') },
       { id: 'mem_approver', tenantId: T, userId: USERS.approver, displayName: 'Hải Nam', title: 'Người duyệt', bindings: [{ role: 'APPROVER', entityIds: ['ent_mae'], approvalLimit: '50000000' }], status: 'ACTIVE', scopeLabel: 'Dự án DA-001', limitLabel: '50.000.000 đ', createdAt: vn('2026-09-01', '08:03') },
@@ -311,7 +311,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
   const titles: Record<string, string> = { 'Điện lực TP.HCM': 'Hóa đơn tiền điện', 'Cấp nước Sài Gòn': 'Hóa đơn tiền nước', 'Nhà đất Quận 3': 'Tiền thuê mặt bằng' };
   const expenseTarget = 344_000_000 - 3_680_000 - 1_840_000;
   const genericExpenses: { amount: number; d: number; supplier: string }[] = [];
-  for (let i = 0; i < genericCount; i++) genericExpenses.push({ amount: roundTo(600_000 + rnd() * 5_400_000, 10_000), d: 1 + Math.floor((i / genericCount) * 31), supplier: pick(suppliers) });
+  for (let i = 0; i < genericCount; i++) genericExpenses.push({ amount: roundTo(1_800_000 + rnd() * 2_600_000, 10_000), d: 1 + (i % 31), supplier: pick(suppliers) });
   const expSum = genericExpenses.reduce((a, e) => a + e.amount, 0);
   const scale = expenseTarget / expSum;
   let acc = 0;
@@ -320,13 +320,14 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
     acc += e.amount;
   });
   genericExpenses.forEach((e, i) => {
-    const d = Math.min(e.d, 30);
+    const d = e.d;
     const kindSrc = pick(['XML_EINVOICE', 'XML_EINVOICE', 'PDF', 'PHOTO'] as const);
     plans.push({
       key: `EXP-${i}`,
       date: day(d),
-      receivedAt: vn(day(d), `${String(8 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`),
-      validatedAt: vn(day(d), '17:30'),
+      // Documents of the demo day (31/10) arrive before 09:40 — the moment the design depicts.
+      receivedAt: d === 31 ? vn(day(d), `07:${String(10 + ((i * 7) % 40)).padStart(2, '0')}`) : vn(day(d), `${String(8 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`),
+      validatedAt: d === 31 ? vn(day(d), '09:28') : vn(day(d), '17:30'),
       validatedBy: i % 3 === 0 ? USERS.admin : USERS.accountant,
       doc: { ...base, title: kindSrc === 'XML_EINVOICE' ? e.supplier : titles[e.supplier] ?? 'Hóa đơn mua hàng', counterparty: e.supplier, sourceKind: kindSrc, entityId: siteCycle[i % 3]!, date: day(d), amount: String(e.amount), status: 'VALIDATED', kind: 'EXPENSE', fields: expFields(e.supplier, `HD-${String(100 + i).padStart(5, '0')}`, day(d), String(e.amount), kindSrc === 'XML_EINVOICE' ? '0312345678' : undefined) },
     });
@@ -351,7 +352,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       rowsOf.get(docKey)!.push({ ...r, lineNo: rowsOf.get(docKey)!.length + 2 });
     };
     const mkRecord = (r: Omit<BusinessRecordRow, 'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'rev' | 'recordId' | 'version' | 'currency' | 'adjustment' | 'periodId'> & { id: string }) => {
-      const row = { ...r, tenantId: T, recordId: r.id, version: 1, currency: 'VND', adjustment: '0', periodId: r.date.slice(0, 7), createdAt: vn(r.date, '12:00') };
+      const row = { ...r, tenantId: T, recordId: r.id, version: 1, currency: 'VND', adjustment: '0', periodId: r.date.slice(0, 7), createdAt: vn(r.date, r.date === day(31) ? '09:00' : '12:00') };
       records.push(row);
       if (r.documentId) evidenceLinks.push({ id: `rev_${r.id}`, tenantId: T, recordId: r.id, recordVersion: 1, documentId: r.documentId, documentVersion: 1, fieldLocator: 'row' });
       return row;
@@ -398,7 +399,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       );
       const p = res.groups[0]!;
       const feePct = D(p.gross).isZero() ? D(0) : D(p.fee).div(p.gross).times(100);
-      const confirmedAt = g.status === 'CONFIRMED' ? vn(g.date, '16:00') : null;
+      const confirmedAt = g.status === 'CONFIRMED' ? vn(g.date, g.date === day(31) ? '09:10' : '16:00') : null;
       await tx.put('matchGroups', {
         id: gid,
         tenantId: T,
@@ -431,7 +432,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
         confirmedAt,
         approvalId: g.code === 'DS-1031' ? 'apv_ds1031' : null,
         version: confirmedAt ? 2 : 1,
-        createdAt: vn(g.date, '15:00'),
+        createdAt: vn(g.date, g.date === day(31) ? '09:05' : '15:00'),
       });
     }
     await tx.put('reconRuns', { id: runId, tenantId: T, entityId: SITES.q3, periodId: '2026-10', inputSnapshotDigest: sha256Hex('seed-run'), rulesVersion: DEFAULT_RULES.rulesVersion, groupIds: groups.map((g) => `grp_${g.code.replace('DS-', '')}`), unmatchedOrders: [], unmatchedTxns: [], createdBy: USERS.accountant, createdAt: vn(day(31), '09:15') });
@@ -655,14 +656,19 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       if (!byDay.has(d)) byDay.set(d, []);
       byDay.get(d)!.push(v);
     }
-    for (const d of [...byDay.keys()].sort()) {
-      const list = byDay.get(d)!;
+    // Anchor every batch in time order so batch codes follow the clock (EV-YYYYMMDD-NNN).
+    const jobs: { at: string; list: DocumentVersionRow[] }[] = [];
+    for (const list of byDay.values()) {
       const at = list.map((v) => v.confirmedAt).sort().pop()!;
-      await app.evidence.anchorDocumentVersions(tx, T, new Date(Date.parse(at) + 600_000).toISOString(), list.map((v) => ({ doc: docs.get(v.documentId)!, version: v })));
+      jobs.push({ at: new Date(Date.parse(at) + 600_000).toISOString(), list });
     }
     for (const id of special) {
       const v = latest.get(id)!;
-      await app.evidence.anchorDocumentVersions(tx, T, new Date(Date.parse(v.confirmedAt) + 60_000).toISOString(), [{ doc: docs.get(id)!, version: v }]);
+      jobs.push({ at: new Date(Date.parse(v.confirmedAt) + 60_000).toISOString(), list: [v] });
+    }
+    jobs.sort((a, b) => a.at.localeCompare(b.at));
+    for (const job of jobs) {
+      await app.evidence.anchorDocumentVersions(tx, T, job.at, job.list.map((v) => ({ doc: docs.get(v.documentId)!, version: v })));
     }
   });
 

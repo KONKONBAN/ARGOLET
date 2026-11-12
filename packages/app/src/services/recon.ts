@@ -140,7 +140,7 @@ export class ReconService {
         },
         orders: orders.map((o) => ({ id: o.recordId, code: o.code, date: o.date, dateLabel: formatDate(o.date), gross: o.amount, fee: o.fee, refund: o.refund, channel: o.channel })),
         receipts: txns.map((t) => ({ id: t.recordId, code: t.code, date: t.date, dateLabel: formatDate(t.date), amount: t.amount, source: t.kind === 'CASH' ? 'Tiền mặt' : 'Ngân hàng', reference: t.payoutBatch || t.reference })),
-        canConfirm: this.core.can(ws, 'recon.confirm', g.entityId) && g.status !== 'CONFIRMED',
+        canConfirm: this.core.can(ws, 'recon.confirm', g.entityId) && (g.status === 'PROPOSED' || g.status === 'DISCREPANCY'),
       };
     });
   }
@@ -225,6 +225,7 @@ export class ReconService {
       const ws0 = await this.core.requireWorkspace(tx, call, 'recon.read');
       const g = await findGroup(tx, ws0.tenantId, p.groupId);
       const ws = await this.core.requireWorkspace(tx, call, 'recon.confirm', { entityId: g.entityId });
+      if (g.status === 'PENDING_APPROVAL') throw new AppError('CONFLICT', 'Nhóm đang chờ phê duyệt, hãy xử lý trong hộp công việc');
       return this.confirmInTx(tx, ws, g, p.digest, now, em, p.note);
     });
   }
