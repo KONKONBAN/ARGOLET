@@ -1,0 +1,41 @@
+{
+  "name": "argolet",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ARGOLET – nền tảng tiếp nhận chứng từ, đối soát đa nguồn, phê duyệt, chốt kỳ và bằng chứng toàn vẹn (Web · Android · iOS)",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @argolet/web dev",
+    "dev:api": "pnpm --filter @argolet/api dev",
+    "dev:mobile": "pnpm --filter @argolet/mobile start",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm --filter @argolet/e2e test",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "19.3.0",
+      "react-dom": "19.3.0"
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@node-rs/argon2"
+    ]
+  }
+}
