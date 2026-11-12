@@ -29,13 +29,21 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter "@argolet/web..."
       - run: pnpm --filter @argolet/web build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - id: pages
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+      - if: steps.pages.outcome != 'success'
+        run: echo "::notice title=GitHub Pages chưa bật::Bật tại Settings → Pages → Source - GitHub Actions, rồi chạy lại workflow này (Run workflow)."
+      - if: steps.pages.outcome == 'success'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: apps/web/dist
+    outputs:
+      enabled: ${{ steps.pages.outcome == 'success' }}
 
   deploy:
     needs: build
+    if: needs.build.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
