@@ -92,7 +92,7 @@ function Tabs({ navigation }: ScreenProps<'Main'>) {
         tabBarActiveTintColor: C.action,
         tabBarInactiveTintColor: C.muted,
         tabBarLabelStyle: { fontSize: 11, lineHeight: 15, fontFamily: font },
-        tabBarStyle: { borderTopColor: C.line, height: 60 + insets.bottom, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8) },
+        tabBarStyle: { borderTopColor: C.line, height: 64 + Math.max(insets.bottom, 8), paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8) },
       }}
     >
       <Tab.Screen name="Overview" component={M.OverviewScreen} options={{ title: 'Tổng quan', tabBarIcon: ({ color }) => <LayoutGrid size={20} color={color} /> }} />

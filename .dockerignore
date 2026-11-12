@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/dist-web
+**/dist-native
+**/.expo
+**/test-results
+**/playwright-report
+apps/api/data
+.git
+docs
+*.log
+.env
+.env.*
