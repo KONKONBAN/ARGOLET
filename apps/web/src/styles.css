@@ -572,44 +572,7 @@ img {
   color: #087452;
 }
 
-/* ───────── camera & photo checks ───────── */
-.camera-stage {
-  position: relative;
-  background: #0b2d48;
-  border-radius: var(--radius-md, 10px);
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-  display: grid;
-  place-items: center;
-}
-.camera-stage video,
-.camera-shot {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.camera-frame {
-  position: absolute;
-  inset: 8% 14%;
-  border: 2px dashed rgba(181, 246, 213, 0.9);
-  border-radius: 12px;
-  box-shadow: 0 0 0 999px rgba(11, 45, 72, 0.35);
-  pointer-events: none;
-}
-.camera-wait {
-  position: relative;
-  color: #d5e8e7;
-  font-size: 14px;
-}
-.camera-error {
-  padding: 18px;
-  border-radius: 10px;
-  background: #fff7ed;
-  color: #8a4b0f;
-  line-height: 1.5;
-}
+/* ───────── photo checks ───────── */
 .quality-list {
   list-style: none;
   margin: 6px 0 0;

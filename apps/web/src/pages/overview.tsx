@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Camera,
+  ChartColumn,
   ArrowUpRight,
   ChevronRight,
   CircleCheck,
@@ -69,15 +69,13 @@ export function OverviewPage() {
             <Button icon={<Files size={18} />} onClick={() => navigate('/decision-pack')}>
               Bộ hồ sơ
             </Button>
+            <Button icon={<ChartColumn size={18} />} onClick={() => navigate('/finance')}>
+              Tài chính
+            </Button>
             {o.canCreate && (
-              <>
-                <Button icon={<Camera size={18} />} onClick={() => navigate('/capture?camera=1')}>
-                  Chụp hóa đơn
-                </Button>
-                <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
-                  Thêm chứng từ
-                </Button>
-              </>
+              <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
+                Thêm chứng từ
+              </Button>
             )}
           </>
         }

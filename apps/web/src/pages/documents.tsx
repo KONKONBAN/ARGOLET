@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Camera,
   CircleAlert,
   CircleCheck,
   Copy,
@@ -27,7 +26,7 @@ import { ApiError } from '../api/backend';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
 import { AuthenticityPanel } from '../ui/authenticity';
-import { analyzePhoto, CameraCapture, QualityList, type PhotoQuality } from '../ui/camera';
+import { analyzePhoto, QualityList, type PhotoQuality } from '../ui/photo';
 import { readQrFromImage } from '../ui/qr';
 import {
   Alert,
@@ -94,14 +93,9 @@ export function DocumentsPage() {
         ]}
         action={
           d.canCreate ? (
-            <>
-              <Button icon={<Camera size={18} />} onClick={() => navigate('/capture?camera=1')}>
-                Chụp hóa đơn
-              </Button>
-              <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
-                Thêm chứng từ
-              </Button>
-            </>
+            <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
+              Thêm chứng từ
+            </Button>
           ) : undefined
         }
       />
@@ -242,13 +236,6 @@ export function CapturePage() {
   const [quality, setQuality] = useState(() => new Map<File, PhotoQuality>());
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const [params, setParams] = useSearchParams();
-  const [cameraOpen, setCameraOpen] = useState(params.get('camera') === '1');
-  const closeCamera = () => {
-    setCameraOpen(false);
-    if (params.has('camera')) setParams({}, { replace: true });
-  };
   const rate = (f: File, q: PhotoQuality) => setQuality((m) => new Map(m).set(f, q));
   // The e-invoice QR printed on a photo: read in the browser, verified (CRC) and used on the server.
   const [qrs, setQrs] = useState(() => new Map<File, string | null>());
@@ -326,9 +313,6 @@ export function CapturePage() {
               <Button variant="primary" onClick={() => inputRef.current?.click()} style={{ minWidth: 156 }}>
                 Chọn tệp
               </Button>
-              <Button icon={<Camera size={18} />} onClick={() => setCameraOpen(true)}>
-                Chụp ảnh hóa đơn
-              </Button>
             </div>
             <input
               ref={inputRef}
@@ -338,25 +322,7 @@ export function CapturePage() {
               accept=".xml,.csv,.pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.json"
               onChange={(e) => add(e.target.files)}
             />
-            <input
-              ref={cameraRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              hidden
-              onChange={(e) => add(e.target.files)}
-            />
           </div>
-          <CameraCapture
-            open={cameraOpen}
-            onClose={closeCamera}
-            onCapture={(file, q) => {
-              setFiles((f) => [...f, file].slice(0, 50));
-              rate(file, q);
-              void scanQr(file);
-            }}
-            onFallback={() => cameraRef.current?.click()}
-          />
           {files.length > 0 && (
             <div className="mt-16">
               {files.map((f, i) => (
@@ -440,10 +406,10 @@ export function CapturePage() {
           <Card title="Tiếp nhận theo nhu cầu">
             {[
               {
-                icon: Camera,
-                t: 'Chụp chứng từ',
-                s: 'Chụp từng trang và kiểm tra ảnh',
-                act: () => setCameraOpen(true),
+                icon: ScanLine,
+                t: 'Ảnh / bản scan hóa đơn',
+                s: 'Kiểm tra ảnh, đọc mã QR hóa đơn tự động',
+                act: () => inputRef.current?.click(),
               },
               {
                 icon: FileSpreadsheet,
