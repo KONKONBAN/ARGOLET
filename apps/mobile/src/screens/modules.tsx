@@ -11,6 +11,7 @@ import {
   Truck,
   Wrench,
 } from 'lucide-react-native';
+import { formatShortDateTime } from '@argolet/core';
 import { useMutation, useQuery, type OpResult } from '@argolet/client';
 import { useSession } from '../session';
 import { C, font } from '../theme';
@@ -1327,8 +1328,26 @@ export function FinanceScreen({ navigation }: ScreenProps<'Finance'>) {
           </View>
         )}
       </View>
+      <CalcRunHistory />
       {createSheet}
     </Screen>
+  );
+}
+
+/** Every calculation is reproducible: inputs digest, engine version and time are kept. */
+function CalcRunHistory() {
+  const runs = useQuery('finance.calcRuns');
+  if (!runs.data?.length) return null;
+  return (
+    <Card title="Lịch sử tính toán">
+      {runs.data.slice(0, 10).map((r) => (
+        <Row
+          key={r.id}
+          title={r.task === 'project_appraisal' ? 'Thẩm định dự án' : r.task}
+          subtitle={`${formatShortDateTime(r.createdAt)} · ${r.engineVersion} · ${r.inputSnapshotDigest.slice(0, 12)}…`}
+        />
+      ))}
+    </Card>
   );
 }
 
@@ -2109,6 +2128,7 @@ export function IntercompanyScreen() {
 export function MembersScreen() {
   const data = useQuery('org.listMembers');
   const invite = useMutation('org.inviteMember', { silent: true });
+  const update = useMutation('org.updateMember', { silent: true });
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('ACCOUNTANT');
@@ -2141,6 +2161,33 @@ export function MembersScreen() {
             title={m.isSelf ? `${m.name} (bạn)` : m.name}
             subtitle={`${m.roleLabel} · ${m.scopeLabel} · hạn mức ${m.limitLabel}${m.code ? ` · mã ${m.code}` : ''}`}
             right={<Chip tone={m.status === 'ACTIVE' ? 'success' : 'info'}>{m.statusLabel}</Chip>}
+            onPress={
+              data.data!.canManage && m.status !== 'INVITED' && !m.isSelf
+                ? () =>
+                    Alert.alert(
+                      m.name,
+                      m.status === 'ACTIVE'
+                        ? 'Tạm ngưng quyền truy cập của thành viên này?'
+                        : 'Kích hoạt lại thành viên này?',
+                      [
+                        { text: 'Huỷ', style: 'cancel' },
+                        {
+                          text: m.status === 'ACTIVE' ? 'Tạm ngưng' : 'Kích hoạt',
+                          style: m.status === 'ACTIVE' ? 'destructive' : 'default',
+                          onPress: () =>
+                            void update
+                              .mutate({
+                                membershipId: m.id,
+                                status: m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE',
+                              })
+                              .catch((e: unknown) =>
+                                Alert.alert('Không cập nhật được', e instanceof Error ? e.message : ''),
+                              ),
+                        },
+                      ],
+                    )
+                : undefined
+            }
           />
         )}
       />
@@ -2203,9 +2250,12 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
   const data = useQuery('org.settings');
   const setInt = useMutation('org.setIntegration');
   const addEntity = useMutation('org.addEntity', { silent: true });
+  const updateSettings = useMutation('org.updateSettings', { silent: true });
   const { refresh } = useSession();
   const [open, setOpen] = useState(false);
   const [ef, setEf] = useState({ kind: 'SITE', name: '' });
+  const [editing, setEditing] = useState(false);
+  const [sf, setSf] = useState({ regime: '', period: '' });
   if (!data.data) return data.error ? <ErrorView error={data.error} /> : <Loading />;
   const d = data.data;
   return (
@@ -2220,7 +2270,55 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
             { label: 'Kỳ hiện tại', value: d.tenant.settings.currentPeriod },
           ]}
         />
+        {d.canManage && (
+          <Button
+            small
+            title="Sửa chế độ kế toán & kỳ"
+            onPress={() => {
+              updateSettings.reset();
+              setSf({ regime: d.tenant.settings.accountingRegime, period: d.tenant.settings.currentPeriod });
+              setEditing(true);
+            }}
+          />
+        )}
       </Card>
+      <Sheet visible={editing} onClose={() => setEditing(false)} title="Cài đặt kế toán">
+        <Choice
+          label="Chế độ kế toán"
+          value={sf.regime}
+          options={[
+            { value: 'HKD', label: 'Hộ kinh doanh' },
+            { value: 'TT133', label: 'TT133 (DN nhỏ và vừa)' },
+            { value: 'TT200', label: 'TT200' },
+          ]}
+          onChange={(v) => setSf({ ...sf, regime: v })}
+        />
+        <Input
+          label="Kỳ hiện tại (YYYY-MM)"
+          value={sf.period}
+          onChangeText={(v) => setSf({ ...sf, period: v })}
+          error={updateSettings.error?.message}
+          keyboardType="numbers-and-punctuation"
+        />
+        <Button
+          title="Lưu cài đặt"
+          variant="primary"
+          loading={updateSettings.loading}
+          onPress={async () => {
+            const ok = await updateSettings
+              .mutate({
+                accountingRegime: sf.regime as 'TT133',
+                ...(sf.period !== d.tenant.settings.currentPeriod ? { currentPeriod: sf.period } : {}),
+              })
+              .catch(() => null);
+            if (ok) {
+              setEditing(false);
+              await refresh();
+            }
+          }}
+        />
+        <Gap h={24} />
+      </Sheet>
       <ListCard
         title="Cơ cấu tổ chức"
         rows={d.entities}
@@ -2327,6 +2425,7 @@ export function SecurityScreen() {
   const revoke = useMutation('auth.revokeSession');
   const setup = useMutation('auth.setupTotp', { silent: true });
   const enable = useMutation('auth.enableTotp', { silent: true });
+  const disable = useMutation('auth.disableTotp', { silent: true });
   const change = useMutation('auth.changePassword', { silent: true });
   const [totp, setTotp] = useState<OpResult<'auth.setupTotp'> | null>(null);
   const [code, setCode] = useState('');
@@ -2336,7 +2435,26 @@ export function SecurityScreen() {
     <Screen>
       <Card title="Xác thực nhiều lớp (TOTP)">
         {me?.user.mfaEnabled ? (
-          <Notice tone="success">Đã bật xác thực nhiều lớp.</Notice>
+          <>
+            <Notice tone="success">Đã bật xác thực nhiều lớp.</Notice>
+            <Text style={[T.small, { marginBottom: 8 }]}>
+              Để tắt, nhập mã 6 số đang hiển thị trong ứng dụng xác thực.
+            </Text>
+            <OtpInput value={code} onChange={setCode} />
+            {disable.error && <Notice tone="danger">{disable.error.message}</Notice>}
+            <Gap />
+            <Button
+              title="Tắt TOTP"
+              disabled={code.length !== 6}
+              loading={disable.loading}
+              onPress={async () => {
+                if (await disable.mutate({ code }).catch(() => null)) {
+                  await refresh();
+                  setCode('');
+                }
+              }}
+            />
+          </>
         ) : totp ? (
           <>
             <Text style={T.small}>Thêm khóa này vào ứng dụng xác thực:</Text>

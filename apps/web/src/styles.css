@@ -503,44 +503,160 @@ img {
   border-radius: var(--radius-lg);
   background: var(--hero-grad);
   color: #fff;
-  padding: 18px 24px 20px;
+  padding: 22px 28px;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 160px;
-  gap: 24px;
-  align-items: start;
+  /* Three equal columns: net cash, revenue, expense — same rows, same baselines. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.hero-col {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 28px;
+  min-width: 0;
+}
+.hero-col:first-child {
+  padding-left: 0;
+}
+.hero-col + .hero-col {
+  border-left: 1px solid rgba(213, 232, 231, 0.25);
 }
 .hero-ring {
   position: absolute;
-  right: 12px;
-  top: -4px;
+  z-index: 0;
+  right: -36px;
+  top: -40px;
   width: 196px;
   height: 132px;
   border: 14px solid rgba(156, 233, 207, 0.55);
   border-radius: 50%;
   transform: rotate(-14deg);
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.35;
 }
 .hero-label {
   font-size: 13px;
   color: var(--hero-muted);
 }
-.hero-big {
-  font-size: 34px;
+.hero-value {
+  font-size: 30px;
   font-weight: 700;
-  color: var(--hero-strong);
-  margin: 8px 0 12px;
   letter-spacing: -0.01em;
   line-height: 1.15;
+  overflow-wrap: anywhere;
 }
-.hero-mid {
-  font-size: 24px;
-  font-weight: 700;
-  margin-top: 6px;
+.hero-value.net {
+  color: var(--hero-strong);
 }
-.hero-sep {
-  border-left: 1px solid rgba(213, 232, 231, 0.25);
-  padding-left: 24px;
+
+.mono-wrap {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.chip-btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink, #1f2d3d);
+  cursor: pointer;
+}
+.chip-btn:hover,
+.chip-btn:focus-visible {
+  border-color: #087452;
+  color: #087452;
+}
+
+/* ───────── camera & photo checks ───────── */
+.camera-stage {
+  position: relative;
+  background: #0b2d48;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+}
+.camera-stage video,
+.camera-shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.camera-frame {
+  position: absolute;
+  inset: 8% 14%;
+  border: 2px dashed rgba(181, 246, 213, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 0 0 999px rgba(11, 45, 72, 0.35);
+  pointer-events: none;
+}
+.camera-wait {
+  position: relative;
+  color: #d5e8e7;
+  font-size: 14px;
+}
+.camera-error {
+  padding: 18px;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #8a4b0f;
+  line-height: 1.5;
+}
+.quality-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.quality-list li {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.quality-list li.ok svg {
+  color: #087452;
+  flex: none;
+  margin-top: 2px;
+}
+.quality-list li.warn svg {
+  color: #b45309;
+  flex: none;
+  margin-top: 2px;
+}
+.picked-file {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.picked-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+.picked-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.picked-file .row {
+  white-space: nowrap;
+  flex: none;
 }
 
 /* ───────── page chrome ───────── */
@@ -1712,8 +1828,11 @@ main.refreshing .list-rows {
   .page {
     padding: 24px 24px;
   }
-  .hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  .hero-col {
+    padding: 0 18px;
+  }
+  .hero-value {
+    font-size: 24px;
   }
   .hero-ring {
     display: none;
@@ -1818,18 +1937,34 @@ main.refreshing .list-rows {
   .kpi-action .btn {
     flex: 1;
   }
+  /* Phones: net cash across the top, revenue and expense side by side below it. */
   .hero {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 18px 20px;
   }
-  .hero-sep {
-    border-left: 0;
-    padding-left: 0;
+  .hero-col {
+    gap: 4px;
+    padding: 14px 0 0 14px;
+    margin-top: 14px;
     border-top: 1px solid rgba(213, 232, 231, 0.25);
-    padding-top: 12px;
   }
-  .hero-big {
-    font-size: 28px;
+  .hero-col:first-child {
+    grid-column: 1 / -1;
+    padding: 0;
+    margin-top: 0;
+    border-top: 0;
+  }
+  .hero-col:nth-child(2) {
+    padding-left: 0;
+  }
+  .hero-col + .hero-col:nth-child(2) {
+    border-left: 0;
+  }
+  .hero-value {
+    font-size: 20px;
+  }
+  .hero-value.net {
+    font-size: 30px;
   }
   .kpi-value {
     font-size: 24px;

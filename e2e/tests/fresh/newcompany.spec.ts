@@ -377,5 +377,21 @@ test('a new company runs the whole product from an empty server', async ({ brows
     await toast(page, /Toàn vẹn đã xác minh/);
   });
 
+  await test.step('evidence: the closed November is verified against its anchored proof', async () => {
+    await go(page, 'evidence', /Bằng chứng/);
+    await page.locator('table tbody tr').filter({ hasText: '2026-11' }).first().click();
+    const d = page.getByRole('dialog', { name: /Bộ chốt kỳ 2026-11/ });
+    await expect(d.getByText(/Biên nhận sổ cái/)).toBeVisible();
+    await d.getByRole('button', { name: 'Kiểm chứng toàn vẹn' }).click();
+    await expect(d.getByText(/Toàn vẹn: dữ liệu chốt kỳ khớp với bằng chứng đã neo/)).toBeVisible();
+    await page.keyboard.press('Escape');
+  });
+
+  await test.step('the finance page keeps a reproducible history of calculations', async () => {
+    await go(page, 'finance', /Phân tích tài chính|Thẩm định/);
+    await expect(page.getByRole('heading', { name: 'Lịch sử tính toán' })).toBeVisible();
+    await expect(page.getByText('Thẩm định dự án (NPV, IRR, hoàn vốn, DSCR)').first()).toBeVisible();
+  });
+
   await expectClean(w, info);
 });

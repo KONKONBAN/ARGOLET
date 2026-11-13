@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Camera,
   ArrowUpRight,
   ChevronRight,
   CircleCheck,
@@ -69,27 +70,35 @@ export function OverviewPage() {
               Bộ hồ sơ
             </Button>
             {o.canCreate && (
-              <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
-                Thêm chứng từ
-              </Button>
+              <>
+                <Button icon={<Camera size={18} />} onClick={() => navigate('/capture?camera=1')}>
+                  Chụp hóa đơn
+                </Button>
+                <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
+                  Thêm chứng từ
+                </Button>
+              </>
             )}
           </>
         }
       />
-      <section className="hero" aria-label="Dòng tiền thuần">
-        <div>
-          <div className="hero-label">Dòng tiền thuần</div>
-          <div className="hero-big num">{o.netLabel}</div>
-          <div className="hero-label small">{o.netNote}</div>
-        </div>
-        <div className="hero-sep">
-          <div className="hero-label small">Doanh thu</div>
-          <div className="hero-mid num">{o.revenueLabel}</div>
-        </div>
-        <div>
-          <div className="hero-label small">Chi phí</div>
-          <div className="hero-mid num">{o.expenseLabel}</div>
-        </div>
+      <section className="hero" aria-label="Dòng tiền trong kỳ">
+        {[
+          {
+            label: 'Dòng tiền thuần',
+            value: o.netLabel,
+            note: `Doanh thu − chi phí · ${o.periodLabel}`,
+            net: true,
+          },
+          { label: 'Doanh thu', value: o.revenueLabel, note: o.revenueNote },
+          { label: 'Chi phí', value: o.expenseLabel, note: o.expenseNote },
+        ].map((x) => (
+          <div key={x.label} className="hero-col">
+            <div className="hero-label">{x.label}</div>
+            <div className={`hero-value num${x.net ? ' net' : ''}`}>{x.value}</div>
+            <div className="hero-label small">{x.note}</div>
+          </div>
+        ))}
         <div className="hero-ring" aria-hidden />
       </section>
       <div className="grid split-main" style={{ marginTop: 24 }}>
@@ -285,8 +294,46 @@ export function InboxPage() {
           </label>
         ))}
       </Modal>
+      <DecidedApprovals />
       <PageFoot />
     </div>
+  );
+}
+
+/** Approvals already decided (approved, rejected, changes requested), newest first. */
+function DecidedApprovals() {
+  const navigate = useNavigate();
+  const all = useQuery('approvals.list');
+  const decided = (all.data ?? []).filter((a) => a.status !== 'PENDING').slice(0, 10);
+  if (!decided.length) return null;
+  return (
+    <Card
+      className="mt-24"
+      title="Đã xử lý gần đây"
+      subtitle="Quyết định phê duyệt được lưu cùng người lập, số tiền và thời điểm"
+    >
+      <DataTable
+        rows={decided}
+        rowKey={(r) => r.id}
+        onRowClick={(r) => navigate(`/approvals/${r.id}`)}
+        columns={[
+          { key: 't', header: 'Hồ sơ', render: (r) => r.title, strong: true },
+          { key: 'r', header: 'Người lập', render: (r) => r.requesterName },
+          { key: 'a', header: 'Số tiền', render: (r) => r.amountLabel, align: 'right' },
+          {
+            key: 's',
+            header: 'Kết quả',
+            render: (r) => (
+              <Chip
+                tone={r.status === 'APPROVED' ? 'success' : r.status === 'REJECTED' ? 'danger' : 'warning'}
+              >
+                {r.statusLabel}
+              </Chip>
+            ),
+          },
+        ]}
+      />
+    </Card>
   );
 }
 

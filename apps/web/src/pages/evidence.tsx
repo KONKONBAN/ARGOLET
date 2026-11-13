@@ -11,6 +11,7 @@ import {
   DataTable,
   ErrorNote,
   KeyValues,
+  Modal,
   PageHeader,
   PageLoading,
   Pagination,
@@ -32,6 +33,7 @@ export function EvidenceIndexPage() {
     { keepPrevious: true },
   );
   const snaps = useQuery('evidence.snapshots');
+  const [openClose, setOpenClose] = useState<string | null>(null);
   const period = usePeriodLabel();
   return (
     <div className="page">
@@ -46,6 +48,7 @@ export function EvidenceIndexPage() {
           <DataTable
             rows={snaps.data}
             rowKey={(r) => r.closeId}
+            onRowClick={(r) => setOpenClose(r.closeId)}
             columns={[
               { key: 'c', header: 'Bộ chốt', render: (r) => r.closeId, strong: true },
               { key: 'p', header: 'Kỳ', render: (r) => r.periodId },
@@ -68,6 +71,7 @@ export function EvidenceIndexPage() {
             empty="Chưa có kỳ nào được chốt"
           />
         )}
+        {openClose && <CloseSnapshotDialog closeId={openClose} onClose={() => setOpenClose(null)} />}
       </Card>
       <Card
         className="mt-24"
@@ -102,6 +106,84 @@ export function EvidenceIndexPage() {
       </Card>
       <PageFoot />
     </div>
+  );
+}
+
+/** A period close: what was sealed, its ledger receipt, and a fresh integrity check (B3–B7). */
+function CloseSnapshotDialog({ closeId, onClose }: { closeId: string; onClose: () => void }) {
+  const snap = useQuery('evidence.snapshot', { closeId });
+  const verify = useMutation('evidence.verifyClose', { silent: true });
+  const [result, setResult] = useState<Awaited<ReturnType<typeof verify.mutate>> | null>(null);
+  const s = snap.data;
+  return (
+    <Modal
+      title={s ? `Bộ chốt kỳ ${s.periodId} · phiên bản ${s.version}` : 'Bộ chốt kỳ'}
+      open
+      onClose={onClose}
+      width={680}
+      footer={
+        <>
+          <Button onClick={onClose}>Đóng</Button>
+          <Button
+            variant="primary"
+            icon={<ShieldCheck size={18} />}
+            loading={verify.loading}
+            disabled={!s?.receipt}
+            onClick={async () => {
+              try {
+                setResult(await verify.mutate({ closeId }));
+              } catch {
+                /* shown below */
+              }
+            }}
+          >
+            Kiểm chứng toàn vẹn
+          </Button>
+        </>
+      }
+    >
+      {snap.error && <ErrorNote error={snap.error} />}
+      {s && (
+        <KeyValues
+          rows={[
+            { label: 'Mã bộ chốt', value: s.closeId },
+            { label: 'Thời điểm chốt', value: formatShortDateTime(s.closedAt) },
+            { label: 'Số bản ghi trong manifest', value: String(s.members) },
+            { label: 'Phê duyệt kèm theo', value: String(s.approvals.length) },
+            { label: 'Quy tắc', value: s.rulesVersion },
+            { label: 'Digest manifest', value: <code className="mono-wrap">{s.manifestDigest}</code> },
+            {
+              label: 'Biên nhận sổ cái',
+              value: s.receipt
+                ? `${s.receipt.batchCode} · khối ${s.receipt.blockNumber} · ${s.receipt.validationCode}`
+                : 'Đang tạo bằng chứng',
+            },
+          ]}
+        />
+      )}
+      {verify.error && <ErrorNote error={verify.error} />}
+      {result && (
+        <div className="mt-16">
+          <Alert
+            tone={result.ok && result.chainValid ? 'success' : 'danger'}
+            title={
+              result.ok && result.chainValid
+                ? 'Toàn vẹn: dữ liệu chốt kỳ khớp với bằng chứng đã neo'
+                : 'Không khớp: dữ liệu chốt kỳ đã khác bằng chứng đã neo'
+            }
+          >
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              {result.steps.map((st) => (
+                <li key={st.code}>
+                  {st.ok ? '✓' : '✗'} {st.code} · {st.label}: {st.detail}
+                </li>
+              ))}
+              <li>{result.chainValid ? '✓' : '✗'} Chuỗi khối của sổ cái liền mạch</li>
+            </ul>
+          </Alert>
+        </div>
+      )}
+    </Modal>
   );
 }
 

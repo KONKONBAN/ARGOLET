@@ -20,7 +20,15 @@ test.describe('core business flows', () => {
     await expect(page.getByText('Đã phê duyệt hồ sơ')).toBeVisible();
     await expect(page).toHaveURL(/#\/inbox$/);
     await settled(page, 'Việc cần xử lý');
-    await expect(page.getByText('Duyệt chi mua nguyên liệu', { exact: true })).toHaveCount(0);
+    // Gone from the pending work, listed under decided approvals with its outcome.
+    const pending = page.locator('.card').first();
+    await expect(pending.getByText('Duyệt chi mua nguyên liệu', { exact: true })).toHaveCount(0);
+    const decided = page
+      .locator('.card')
+      .filter({ has: page.getByRole('heading', { name: 'Đã xử lý gần đây' }) });
+    await expect(decided.getByRole('row').filter({ hasText: 'Duyệt chi mua nguyên liệu' })).toContainText(
+      'Đã phê duyệt',
+    );
     await expectClean(w, info);
   });
 
@@ -149,6 +157,23 @@ test.describe('core business flows', () => {
     await page.getByRole('button', { name: 'Tính lại kịch bản' }).click();
     await expect(page.getByText(/Đã tính lại · CalcRun/)).toBeVisible();
     await expect(page.getByText('213,05 triệu').first()).toBeVisible();
+    await expectClean(w, info);
+  });
+
+  test('reject a document with a reason; it stays visible as rejected', async ({ page }, info) => {
+    const w = watch(page);
+    await login(page);
+    await go(page, 'documents/doc_1012/review', 'Kiểm tra chứng từ');
+    await page.getByRole('button', { name: 'Từ chối chứng từ' }).click();
+    const d = page.getByRole('dialog', { name: 'Từ chối CT-1012' });
+    await d.getByRole('button', { name: 'Ảnh mờ, không đọc được' }).click();
+    await expect(d.getByLabel('Lý do từ chối')).toHaveValue('Ảnh mờ, không đọc được');
+    await d.getByRole('button', { name: 'Từ chối', exact: true }).click();
+    await expect(page.getByText('Đã từ chối CT-1012')).toBeVisible();
+    await go(page, 'documents/doc_1012/review', 'Kiểm tra chứng từ');
+    await expect(page.getByText('Chứng từ đã bị từ chối')).toBeVisible();
+    await expect(page.getByText('Ảnh mờ, không đọc được').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Xác nhận chứng từ' })).toBeDisabled();
     await expectClean(w, info);
   });
 

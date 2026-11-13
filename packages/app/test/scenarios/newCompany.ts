@@ -266,6 +266,10 @@ export async function newCompanyScenario(
     },
   });
   const ap = await app.finance.appraisal(owner, { projectId: fp.id });
+  // The first calculation is recorded like every recalculation (reproducible CalcRun).
+  const runs = await app.finance.calcRuns(owner);
+  expect(runs).toHaveLength(1);
+  expect(runs[0]!.task).toBe('project_appraisal');
   if (ap.empty) throw new Error('appraisal missing');
   expect(ap.result.dscrLabel).toBe('1,50 lần');
   expect((await app.finance.scenarios(owner)).scenarios.map((s) => s.name)).toEqual([

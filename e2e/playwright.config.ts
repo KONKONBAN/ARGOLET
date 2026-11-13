@@ -29,6 +29,14 @@ export default defineConfig({
     timezoneId: 'Asia/Ho_Chi_Minh',
     trace: 'off',
     screenshot: 'only-on-failure',
+    // A camera that films a printed invoice (for the in-app photo capture).
+    launchOptions: {
+      args: [
+        '--use-fake-ui-for-media-stream',
+        '--use-fake-device-for-media-stream',
+        `--use-file-for-fake-video-capture=${path.join(root, 'e2e/fixtures/camera-hoa-don.mjpeg')}`,
+      ],
+    },
   },
   projects: [
     {

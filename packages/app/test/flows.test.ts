@@ -371,7 +371,7 @@ describe('09 · approvals and close', () => {
   });
 
   it('closes the Quận 3 period after the checklist, with step-up, and anchors the snapshot', async () => {
-    const { app } = await seededApp();
+    const { app, store } = await seededApp();
     const admin = await loginAs(app);
     const acct = await loginAs(app, 'thanhha@minhan.example');
     let st = await app.close.status(admin, { entityId: 'site_q3' });
@@ -424,6 +424,16 @@ describe('09 · approvals and close', () => {
       app.close.close(acct, { entityId: 'site_q1', periodId: '2026-10', digest: 'x' }),
       'FORBIDDEN',
     );
+    // Altering the sealed figures afterwards (directly in storage) is detected.
+    await store.transaction(async (tx) => {
+      const s = (await tx.get('closeSnapshots', 'ten_minhan', res.closeId))!;
+      await tx.put('closeSnapshots', {
+        ...s,
+        manifest: { ...s.manifest, totals: { ...s.manifest.totals, revenue: '1' } },
+      });
+    });
+    const tampered = await app.evidence.verifyClose(admin, { closeId: res.closeId });
+    expect(tampered.ok).toBe(false);
   });
 });
 

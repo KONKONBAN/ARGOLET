@@ -59,6 +59,8 @@ export class DashboardService {
       expenseLabel: formatVnd(expense),
       netLabel: formatSignedVnd(revenue.minus(expense)),
       netNote: `Thu ${compact(revenue)} · Chi ${compact(expense)}`,
+      revenueNote: `Tại quầy ${compact(sum(counter.map((r) => r.amount)))} · Nền tảng ${compact(sum(platform.map((r) => r.amount)))}`,
+      expenseNote: `${expenses.length} khoản chi đã ghi nhận`,
       series,
       seriesLabel: `${days[0]!.slice(8)}–${days[6]!.slice(8)}/${days[6]!.slice(5, 7)}/${days[6]!.slice(0, 4)} · Đơn vị: triệu đồng`,
       tasks: [

@@ -182,6 +182,42 @@ export function Hero({
   );
 }
 
+/** Two equal columns under a hero figure (e.g. revenue | expense), separated by hairlines. */
+export function HeroSplit({ items }: { items: { label: string; value: string; note?: string }[] }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        marginTop: 14,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(213,232,231,0.25)',
+      }}
+    >
+      {items.map((x, i) => (
+        <View
+          key={x.label}
+          style={{
+            flex: 1,
+            paddingLeft: i ? 12 : 0,
+            marginLeft: i ? 12 : 0,
+            borderLeftWidth: i ? 1 : 0,
+            borderLeftColor: 'rgba(213,232,231,0.25)',
+          }}
+        >
+          <Text style={{ color: C.heroMuted, fontSize: 12, fontFamily: font }}>{x.label}</Text>
+          <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', marginTop: 4, fontFamily: font }}>
+            {x.value}
+          </Text>
+          {x.note ? (
+            <Text style={{ color: C.heroMuted, fontSize: 11, marginTop: 4, fontFamily: font }}>{x.note}</Text>
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export function Kpi({
   label,
   value,

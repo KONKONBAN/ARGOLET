@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Camera,
   CircleCheck,
@@ -24,6 +24,7 @@ import { formatVnd, formatDate } from '@argolet/core';
 import { ApiError } from '../api/backend';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
+import { analyzePhoto, CameraCapture, QualityList, type PhotoQuality } from '../ui/camera';
 import {
   Alert,
   Button,
@@ -89,9 +90,14 @@ export function DocumentsPage() {
         ]}
         action={
           d.canCreate ? (
-            <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
-              Thêm chứng từ
-            </Button>
+            <>
+              <Button icon={<Camera size={18} />} onClick={() => navigate('/capture?camera=1')}>
+                Chụp hóa đơn
+              </Button>
+              <Button variant="primary" icon={<Plus size={18} />} onClick={() => navigate('/capture')}>
+                Thêm chứng từ
+              </Button>
+            </>
           ) : undefined
         }
       />
@@ -150,6 +156,44 @@ export function DocumentsPage() {
   );
 }
 
+/** A file waiting to be sent: photos show a thumbnail and the result of the quality check. */
+function PickedFile({
+  file,
+  quality,
+  onRemove,
+}: {
+  file: File;
+  quality: PhotoQuality | undefined;
+  onRemove: () => void;
+}) {
+  const isImage = file.type.startsWith('image/');
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isImage) return;
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file, isImage]);
+  return (
+    <div className="picked-file">
+      {url ? <img src={url} alt="" className="picked-thumb" /> : <FileText size={18} color="#536978" />}
+      <div style={{ minWidth: 0 }}>
+        <div className="row-between">
+          <span className="picked-name">{file.name}</span>
+          <span className="row">
+            <span className="muted small">{Math.max(1, Math.round(file.size / 1024))} KB</span>
+            <button className="link-btn" onClick={onRemove}>
+              Bỏ
+            </button>
+          </span>
+        </div>
+        {isImage &&
+          (quality ? <QualityList q={quality} /> : <span className="muted small">Đang kiểm tra ảnh…</span>)}
+      </div>
+    </div>
+  );
+}
+
 // ───────── 12 · Tiếp nhận chứng từ ─────────
 export function CapturePage() {
   const navigate = useNavigate();
@@ -163,15 +207,30 @@ export function CapturePage() {
   );
   const [location, setLocation] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [quality, setQuality] = useState(() => new Map<File, PhotoQuality>());
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const [params, setParams] = useSearchParams();
+  const [cameraOpen, setCameraOpen] = useState(params.get('camera') === '1');
+  const closeCamera = () => {
+    setCameraOpen(false);
+    if (params.has('camera')) setParams({}, { replace: true });
+  };
+  const rate = (f: File, q: PhotoQuality) => setQuality((m) => new Map(m).set(f, q));
   const intake = useMutation('documents.intake', { silent: true });
   const [result, setResult] = useState<Awaited<ReturnType<typeof intake.mutate>> | null>(null);
   const period = usePeriodLabel();
-  const add = (list: FileList | null) => {
+  const add = (list: FileList | File[] | null) => {
     if (!list) return;
-    setFiles((f) => [...f, ...Array.from(list)].slice(0, 50));
+    const picked = Array.from(list);
+    setFiles((f) => [...f, ...picked].slice(0, 50));
+    // Photos are checked (resolution, light, sharpness) before they are sent.
+    for (const f of picked)
+      if (f.type.startsWith('image/'))
+        analyzePhoto(f)
+          .then((q) => rate(f, q))
+          .catch(() => undefined);
   };
   const submit = async () => {
     try {
@@ -219,8 +278,8 @@ export function CapturePage() {
               <Button variant="primary" onClick={() => inputRef.current?.click()} style={{ minWidth: 156 }}>
                 Chọn tệp
               </Button>
-              <Button icon={<Camera size={18} />} onClick={() => cameraRef.current?.click()}>
-                Chụp ảnh
+              <Button icon={<Camera size={18} />} onClick={() => setCameraOpen(true)}>
+                Chụp ảnh hóa đơn
               </Button>
             </div>
             <input
@@ -240,25 +299,24 @@ export function CapturePage() {
               onChange={(e) => add(e.target.files)}
             />
           </div>
+          <CameraCapture
+            open={cameraOpen}
+            onClose={closeCamera}
+            onCapture={(file, q) => {
+              setFiles((f) => [...f, file].slice(0, 50));
+              rate(file, q);
+            }}
+            onFallback={() => cameraRef.current?.click()}
+          />
           {files.length > 0 && (
             <div className="mt-16">
               {files.map((f, i) => (
-                <div
-                  key={i}
-                  className="row-between"
-                  style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}
-                >
-                  <span className="row" style={{ minWidth: 0 }}>
-                    <FileText size={16} color="#536978" />{' '}
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
-                  </span>
-                  <span className="row">
-                    <span className="muted small">{Math.max(1, Math.round(f.size / 1024))} KB</span>
-                    <button className="link-btn" onClick={() => setFiles((s) => s.filter((_, j) => j !== i))}>
-                      Bỏ
-                    </button>
-                  </span>
-                </div>
+                <PickedFile
+                  key={`${f.name}-${f.size}-${f.lastModified}-${i}`}
+                  file={f}
+                  quality={quality.get(f)}
+                  onRemove={() => setFiles((s) => s.filter((_, j) => j !== i))}
+                />
               ))}
             </div>
           )}
@@ -335,7 +393,7 @@ export function CapturePage() {
                 icon: Camera,
                 t: 'Chụp chứng từ',
                 s: 'Chụp từng trang và kiểm tra ảnh',
-                act: () => cameraRef.current?.click(),
+                act: () => setCameraOpen(true),
               },
               {
                 icon: FileSpreadsheet,
@@ -395,6 +453,9 @@ export function ReviewPage() {
   const doc = useQuery('documents.get', { documentId: id });
   const save = useMutation('documents.saveDraft');
   const confirm = useMutation('documents.confirm', { silent: true });
+  const reject = useMutation('documents.reject', { silent: true });
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
   const [fields, setFields] = useState<{
     supplier: string;
     documentNo: string;
@@ -546,11 +607,69 @@ export function ReviewPage() {
               Xác nhận chứng từ
             </Button>
           )}
+          {d.status === 'REJECTED' && (
+            <div className="mt-16">
+              <Alert tone="danger" title="Chứng từ đã bị từ chối">
+                {issues[0]?.message ?? 'Không ghi lý do'}
+              </Alert>
+            </div>
+          )}
+          {!readOnly && (
+            <Button block className="mt-8" variant="ghost" onClick={() => setRejecting(true)}>
+              Từ chối chứng từ
+            </Button>
+          )}
           {!doc.data.canValidate && d.status !== 'VALIDATED' && (
             <p className="muted small mt-8">
               Vai trò hiện tại chỉ được lưu nháp; người có quyền kế toán sẽ xác nhận.
             </p>
           )}
+          <Modal
+            title={`Từ chối ${d.code}`}
+            open={rejecting}
+            onClose={() => setRejecting(false)}
+            footer={
+              <>
+                <Button onClick={() => setRejecting(false)}>Huỷ</Button>
+                <Button
+                  variant="danger"
+                  loading={reject.loading}
+                  disabled={!reason.trim()}
+                  onClick={async () => {
+                    try {
+                      await reject.mutate({ documentId: d.id, reason: reason.trim() });
+                      setRejecting(false);
+                      toast('success', `Đã từ chối ${d.code}`);
+                      navigate('/documents');
+                    } catch {
+                      /* shown in the dialog */
+                    }
+                  }}
+                >
+                  Từ chối
+                </Button>
+              </>
+            }
+          >
+            <p className="muted small" style={{ marginTop: 0 }}>
+              Chứng từ bị từ chối không tạo bản ghi kế toán và không thể xác nhận lại; lý do được lưu trong
+              nhật ký kiểm toán.
+            </p>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 8, margin: '12px 0' }}>
+              {[
+                'Trùng với chứng từ đã tiếp nhận',
+                'Ảnh mờ, không đọc được',
+                'Không thuộc đơn vị này',
+                'Sai thông tin, cần lập lại',
+              ].map((r) => (
+                <button key={r} type="button" className="chip-btn" onClick={() => setReason(r)}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            <TextInput label="Lý do từ chối" value={reason} onChange={(e) => setReason(e.target.value)} />
+            {reject.error && <ErrorNote error={reject.error} />}
+          </Modal>
         </Card>
       </div>
       <PageFoot />

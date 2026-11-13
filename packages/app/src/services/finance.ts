@@ -12,7 +12,7 @@ import {
   type ProjectAssumptions,
 } from '@argolet/core';
 import { type AppCore, actor, requireFound, requireText } from '../core';
-import { AppError, type CallContext } from '../runtime';
+import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { FinanceProjectRow } from '../types';
 
@@ -86,10 +86,11 @@ export class FinanceService {
   }
 
   /** Tạo dự án thẩm định: giả định ban đầu, kịch bản thận trọng / cơ sở / tích cực (±1/6 dòng tiền). */
+  /** Creates an appraisal project and records its first calculation (a CalcRun, like every recalculation). */
   async createProject(call: CallContext, p: { name: string; assumptions: ProjectAssumptions }) {
     const name = requireText(p.name, 'Tên dự án', 120);
     const assumptions = validateAssumptions(p.assumptions);
-    return this.core.command(call, async (tx, em) => {
+    return this.core.command(call, async (tx, em, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'finance.run');
       const code = nextCode(
         'TD',
@@ -99,7 +100,7 @@ export class FinanceService {
       );
       const cf = D(assumptions.annualCashflow);
       const id = newId('fin');
-      await tx.put('financeProjects', {
+      const proj = (await tx.put('financeProjects', {
         id,
         tenantId: ws.tenantId,
         code,
@@ -111,8 +112,9 @@ export class FinanceService {
           { name: 'Tích cực', annualCashflow: cf.times(7).div(6).toDecimalPlaces(2).toFixed() },
         ],
         lastCalcRunId: null,
-      });
+      })) as FinanceProjectRow;
       await em.audit(ws.tenantId, actor(ws), 'finance.project.create', code, name);
+      await this.recordRun(tx, em, ws, proj, assumptions, now);
       return { id, code };
     });
   }
@@ -123,35 +125,7 @@ export class FinanceService {
     return this.core.command(call, async (tx, em, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'finance.run');
       const proj = await this.project(tx, ws.tenantId, p.projectId);
-      const result = appraiseProject(assumptions);
-      const run = makeCalcRun({
-        calcRunId: newId('calc'),
-        task: 'project_appraisal',
-        packageCode: 'G3',
-        rulesVersion: 'finance-rules-2026.10',
-        assumptions,
-        method:
-          'NPV/IRR (chiết khấu cuối kỳ), hoàn vốn giản đơn nội suy tuyến tính, DSCR = CFADS / nghĩa vụ nợ',
-        result,
-        createdAt: now,
-      });
-      await tx.put('calcRuns', { ...run, id: run.calcRunId, tenantId: ws.tenantId, createdBy: ws.user.id });
-      const saved = (await tx.put('financeProjects', {
-        ...proj,
-        assumptions,
-        lastCalcRunId: run.calcRunId,
-      })) as FinanceProjectRow;
-      await em.emit({
-        type: 'CalcRunCompleted',
-        tenantId: ws.tenantId,
-        entityId: null,
-        aggregateType: 'FinanceProject',
-        aggregateId: proj.id,
-        actorId: ws.user.id,
-        dataRef: `calc/${run.calcRunId}`,
-        dataVersion: 1,
-        data: { calcRunId: run.calcRunId, engineVersion: run.engineVersion },
-      });
+      const { saved, run } = await this.recordRun(tx, em, ws, proj, assumptions, now);
       await em.audit(ws.tenantId, actor(ws), 'finance.recalculate', proj.code, run.calcRunId);
       return {
         ...this.present(saved),
@@ -162,6 +136,47 @@ export class FinanceService {
         },
       };
     });
+  }
+
+  /** Runs the appraisal and keeps it reproducible: inputs, rules, method and engine version. */
+  private async recordRun(
+    tx: Tx,
+    em: Emitter,
+    ws: WorkspaceState,
+    proj: FinanceProjectRow,
+    assumptions: ProjectAssumptions,
+    now: string,
+  ) {
+    const result = appraiseProject(assumptions);
+    const run = makeCalcRun({
+      calcRunId: newId('calc'),
+      task: 'project_appraisal',
+      packageCode: 'G3',
+      rulesVersion: 'finance-rules-2026.10',
+      assumptions,
+      method:
+        'NPV/IRR (chiết khấu cuối kỳ), hoàn vốn giản đơn nội suy tuyến tính, DSCR = CFADS / nghĩa vụ nợ',
+      result,
+      createdAt: now,
+    });
+    await tx.put('calcRuns', { ...run, id: run.calcRunId, tenantId: ws.tenantId, createdBy: ws.user.id });
+    const saved = (await tx.put('financeProjects', {
+      ...proj,
+      assumptions,
+      lastCalcRunId: run.calcRunId,
+    })) as FinanceProjectRow;
+    await em.emit({
+      type: 'CalcRunCompleted',
+      tenantId: ws.tenantId,
+      entityId: null,
+      aggregateType: 'FinanceProject',
+      aggregateId: proj.id,
+      actorId: ws.user.id,
+      dataRef: `calc/${run.calcRunId}`,
+      dataVersion: 1,
+      data: { calcRunId: run.calcRunId, engineVersion: run.engineVersion },
+    });
+    return { saved, run };
   }
 
   /** Màn 28 · So sánh kịch bản + độ nhạy NPV. */

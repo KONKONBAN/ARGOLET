@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Calculator, CircleCheck, Columns3, FileText, MapPin, Plus, Wrench } from 'lucide-react';
+import { formatShortDateTime } from '@argolet/core';
 import { useMutation, useQuery } from '../api/hooks';
 import { CashflowColumns } from '../ui/charts';
 import {
@@ -671,11 +672,44 @@ export function FinancePage() {
           <p className="small muted">{r.footnote}</p>
         </div>
       </div>
+      <CalcRunHistory />
       {createModal}
       <PageFoot />
     </div>
   );
 }
+
+/** Every calculation is reproducible: inputs digest, engine version and time are kept. */
+function CalcRunHistory() {
+  const runs = useQuery('finance.calcRuns');
+  if (!runs.data?.length) return null;
+  return (
+    <Card
+      className="mt-24"
+      title="Lịch sử tính toán"
+      subtitle="20 lần tính gần nhất · có thể tái lập từ dữ liệu đầu vào"
+    >
+      <DataTable
+        rows={runs.data}
+        rowKey={(r) => r.id}
+        columns={[
+          { key: 't', header: 'Thời điểm', render: (r) => formatShortDateTime(r.createdAt), strong: true },
+          { key: 'k', header: 'Phép tính', render: (r) => CALC_TASK[r.task] ?? r.task },
+          { key: 'e', header: 'Phiên bản động cơ', render: (r) => r.engineVersion },
+          {
+            key: 'd',
+            header: 'Dấu vân tay đầu vào',
+            render: (r) => <code className="mono-wrap">{r.inputSnapshotDigest.slice(0, 16)}…</code>,
+          },
+        ]}
+      />
+    </Card>
+  );
+}
+
+const CALC_TASK: Record<string, string> = {
+  project_appraisal: 'Thẩm định dự án (NPV, IRR, hoàn vốn, DSCR)',
+};
 
 // ───────── 28 · So sánh kịch bản ─────────
 export function ScenariosPage() {

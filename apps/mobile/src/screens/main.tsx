@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Share, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, Share, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
@@ -46,6 +46,7 @@ import {
   ErrorView,
   Gap,
   Hero,
+  HeroSplit,
   Input,
   KV,
   KpiGrid,
@@ -142,7 +143,14 @@ export function OverviewScreen({ navigation }: { navigation: unknown }) {
   return (
     <Screen>
       <Title title="Tổng quan kinh doanh" subtitle={`${o.periodLabel} · VND`} />
-      <Hero label="Dòng tiền thuần" value={o.netLabel} note={o.netNote} />
+      <Hero label="Dòng tiền thuần" value={o.netLabel} note={`Doanh thu − chi phí · ${o.periodLabel}`}>
+        <HeroSplit
+          items={[
+            { label: 'Doanh thu', value: o.revenueLabel, note: o.revenueNote },
+            { label: 'Chi phí', value: o.expenseLabel, note: o.expenseNote },
+          ]}
+        />
+      </Hero>
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
         {[
           { icon: Camera, label: 'Chụp chứng từ', to: 'Capture' },
@@ -321,7 +329,32 @@ export function InboxScreen({ navigation }: { navigation: unknown }) {
         onPage={setPage}
         unit="việc"
       />
+      <DecidedApprovals onOpen={(id) => nav.navigate('Approval', { id })} />
     </Screen>
+  );
+}
+
+/** Approvals already decided (approved, rejected, changes requested), newest first. */
+function DecidedApprovals({ onOpen }: { onOpen: (id: string) => void }) {
+  const all = useQuery('approvals.list');
+  const decided = (all.data ?? []).filter((a) => a.status !== 'PENDING').slice(0, 10);
+  if (!decided.length) return null;
+  return (
+    <Card title="Đã xử lý gần đây">
+      {decided.map((a) => (
+        <Row
+          key={a.id}
+          title={a.title}
+          subtitle={`${a.requesterName} · ${a.amountLabel}`}
+          right={
+            <Chip tone={a.status === 'APPROVED' ? 'success' : a.status === 'REJECTED' ? 'danger' : 'warning'}>
+              {a.statusLabel}
+            </Chip>
+          }
+          onPress={() => onOpen(a.id)}
+        />
+      ))}
+    </Card>
   );
 }
 
@@ -501,6 +534,14 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
 }
 
 // ───────── 12 · Tiếp nhận chứng từ ─────────
+/** Size, and for photos a resolution check: the text must stay readable for extraction. */
+function photoNote(f: { base64: string; width?: number; height?: number }) {
+  const kb = `${Math.max(1, Math.round((f.base64.length * 0.75) / 1024))} KB`;
+  if (!f.width || !f.height) return kb;
+  const ok = Math.max(f.width, f.height) >= 1000;
+  return `${kb} · ${f.width}×${f.height} · ${ok ? 'đủ nét để đọc' : 'ảnh nhỏ, nên chụp gần hơn'}`;
+}
+
 export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
   const { ctx } = useSession();
   const sites = ctx?.entities.filter((e) => e.kind === 'SITE') ?? [];
@@ -508,7 +549,9 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
     ctx?.scope.entityId !== '*' ? (ctx?.scope.entityId ?? '') : (sites[0]?.id ?? ''),
   );
   const [location, setLocation] = useState('');
-  const [files, setFiles] = useState<{ name: string; mime: string; base64: string }[]>([]);
+  const [files, setFiles] = useState<
+    { name: string; mime: string; base64: string; uri?: string; width?: number; height?: number }[]
+  >([]);
   const intake = useMutation('documents.intake', { silent: true });
   const [result, setResult] = useState<Awaited<ReturnType<typeof intake.mutate>> | null>(null);
   const takePhoto = async (camera: boolean) => {
@@ -536,6 +579,9 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
         name: a.fileName ?? `anh-chung-tu-${Date.now()}-${i}.jpg`,
         mime: a.mimeType ?? 'image/jpeg',
         base64: a.base64 ?? '',
+        uri: a.uri,
+        width: a.width,
+        height: a.height,
       })),
     ]);
   };
@@ -603,9 +649,19 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
       {files.map((f, i) => (
         <Row
           key={i}
-          icon={<FileText size={18} color={C.action} />}
+          icon={
+            f.uri && f.mime.startsWith('image/') ? (
+              <Image
+                source={{ uri: f.uri }}
+                style={{ width: 44, height: 44, borderRadius: 6 }}
+                accessibilityLabel="Ảnh chứng từ"
+              />
+            ) : (
+              <FileText size={18} color={C.action} />
+            )
+          }
           title={f.name}
-          subtitle={`${Math.max(1, Math.round((f.base64.length * 0.75) / 1024))} KB`}
+          subtitle={photoNote(f)}
           right={
             <Pressable onPress={() => setFiles((s) => s.filter((_, j) => j !== i))}>
               <Text style={{ color: C.action }}>Bỏ</Text>
@@ -665,6 +721,9 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
   const doc = useQuery('documents.get', { documentId: route.params.id });
   const save = useMutation('documents.saveDraft');
   const confirm = useMutation('documents.confirm', { silent: true });
+  const reject = useMutation('documents.reject', { silent: true });
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
   const [f, setF] = useState<{
     supplier: string;
     documentNo: string;
@@ -687,11 +746,11 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
   const d = doc.data.document;
   const plain = () => ({ ...f, total: f.total.replace(/[^\d]/g, '') });
   const issue = (k: string) => d.issues.find((i) => i.field === k && i.severity === 'error')?.message;
-  const ro = d.status === 'VALIDATED' || !doc.data.canValidate;
+  const ro = d.status === 'VALIDATED' || d.status === 'REJECTED' || !doc.data.canValidate;
   return (
     <Screen
       footer={
-        d.status === 'VALIDATED' ? (
+        d.status === 'REJECTED' ? undefined : d.status === 'VALIDATED' ? (
           <Button
             title="Xem bằng chứng & lịch sử"
             onPress={() => navigation.navigate('Evidence', { id: d.id })}
@@ -781,11 +840,51 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
           onPress={() => void save.mutate({ documentId: d.id, fields: plain() }).catch(() => undefined)}
         />
       )}
+      {d.status === 'REJECTED' && (
+        <Notice tone="danger">{`Chứng từ đã bị từ chối: ${d.issues[0]?.message ?? 'không ghi lý do'}`}</Notice>
+      )}
+      {!ro && (
+        <>
+          <Gap h={8} />
+          <Button title="Từ chối chứng từ" small onPress={() => setRejecting(true)} />
+        </>
+      )}
       {!doc.data.canValidate && d.status !== 'VALIDATED' && (
         <Text style={[T.small, { marginTop: 10 }]}>
           Vai trò hiện tại chỉ lưu nháp; người có quyền kế toán sẽ xác nhận.
         </Text>
       )}
+      <Sheet visible={rejecting} onClose={() => setRejecting(false)} title={`Từ chối ${d.code}`}>
+        <Text style={[T.small, { marginBottom: 10 }]}>
+          Chứng từ bị từ chối không tạo bản ghi kế toán; lý do được lưu trong nhật ký kiểm toán.
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {[
+            'Trùng với chứng từ đã tiếp nhận',
+            'Ảnh mờ, không đọc được',
+            'Không thuộc đơn vị này',
+            'Sai thông tin, cần lập lại',
+          ].map((r) => (
+            <Pressable key={r} onPress={() => setReason(r)} accessibilityRole="button">
+              <Chip tone={reason === r ? 'success' : 'neutral'}>{r}</Chip>
+            </Pressable>
+          ))}
+        </View>
+        <Input label="Lý do từ chối" value={reason} onChangeText={setReason} />
+        {reject.error && <Notice tone="danger">{reject.error.message}</Notice>}
+        <Button
+          title="Từ chối"
+          variant="primary"
+          disabled={!reason.trim()}
+          loading={reject.loading}
+          onPress={async () => {
+            if (await reject.mutate({ documentId: d.id, reason: reason.trim() }).catch(() => null)) {
+              setRejecting(false);
+              navigation.goBack();
+            }
+          }}
+        />
+      </Sheet>
     </Screen>
   );
 }
@@ -1232,7 +1331,69 @@ export function CloseScreen({ navigation }: ScreenProps<'Close'>) {
       ))}
       <Button title="Xem Decision Pack" onPress={() => navigation.navigate('DecisionPack')} />
       {close.error && <Notice tone="danger">{close.error.message}</Notice>}
+      <Gap />
+      <ClosedPeriods />
     </Screen>
+  );
+}
+
+/** Periods already closed, each with a fresh integrity check against the anchored evidence. */
+function ClosedPeriods() {
+  const snaps = useQuery('evidence.snapshots');
+  const verify = useMutation('evidence.verifyClose', { silent: true });
+  const { backend } = useBackend();
+  const showDetail = async (closeId: string) => {
+    try {
+      const d = await backend.call('evidence.snapshot', { closeId });
+      Alert.alert(
+        `Bộ chốt kỳ ${d.periodId} · v${d.version}`,
+        [
+          `${d.members} bản ghi · ${d.approvals.length} phê duyệt`,
+          `Quy tắc ${d.rulesVersion}`,
+          `Digest ${d.manifestDigest.slice(0, 24)}…`,
+          d.receipt
+            ? `Biên nhận ${d.receipt.batchCode} · khối ${d.receipt.blockNumber}`
+            : 'Đang tạo bằng chứng',
+        ].join('\n'),
+      );
+    } catch (e) {
+      Alert.alert('Không mở được bộ chốt', e instanceof Error ? e.message : '');
+    }
+  };
+  const [results, setResults] = useState<Record<string, boolean>>({});
+  if (!snaps.data?.length) return null;
+  return (
+    <Card title="Các kỳ đã chốt">
+      {snaps.data.map((s) => (
+        <Row
+          key={s.closeId}
+          onPress={() => void showDetail(s.closeId)}
+          icon={<CircleCheck size={18} color={s.evidenceStatus === 'ANCHORED' ? C.action : C.warning} />}
+          title={`Kỳ ${s.periodId} · phiên bản ${s.version}`}
+          subtitle={
+            s.closeId in results
+              ? results[s.closeId]
+                ? 'Toàn vẹn: khớp bằng chứng đã neo'
+                : 'Không khớp bằng chứng đã neo'
+              : `${formatShortDateTime(s.closedAt)} · ${s.evidenceStatus === 'ANCHORED' ? 'đã neo bằng chứng' : 'đang tạo bằng chứng'}`
+          }
+          right={
+            s.evidenceStatus === 'ANCHORED' ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={async () => {
+                  const r = await verify.mutate({ closeId: s.closeId }).catch(() => null);
+                  if (r) setResults((m) => ({ ...m, [s.closeId]: r.ok && r.chainValid }));
+                }}
+              >
+                <Text style={{ color: C.action }}>Kiểm chứng</Text>
+              </Pressable>
+            ) : undefined
+          }
+        />
+      ))}
+      {verify.error && <Notice tone="danger">{verify.error.message}</Notice>}
+    </Card>
   );
 }
 
@@ -1382,6 +1543,8 @@ export function AssistantScreen({ navigation }: ScreenProps<'Assistant'>) {
   const [active, setActive] = useState<string | null>(null);
   const conv = useQuery('assistant.conversation', { conversationId: active ?? '' }, { enabled: !!active });
   const ask = useMutation('assistant.ask', { silent: true });
+  const proposal = useMutation('assistant.submitProposal', { silent: true });
+  const { can } = useSession();
   const [q, setQ] = useState('');
   useEffect(() => {
     if (!active && list.data?.items[0]) setActive(list.data.items[0].id);
@@ -1481,6 +1644,25 @@ export function AssistantScreen({ navigation }: ScreenProps<'Assistant'>) {
                 <Text style={{ color: C.action, fontWeight: '700' }}>{c.label} ›</Text>
               </Pressable>
             ))}
+            {m.answer?.proposal && can('recon.confirm') ? (
+              <View style={{ marginTop: 12 }}>
+                <Button
+                  title="Xem đề xuất để xác nhận"
+                  variant="primary"
+                  small
+                  loading={proposal.loading}
+                  onPress={async () => {
+                    const r = await proposal
+                      .mutate({ toolName: m.answer!.proposal!.toolName, args: m.answer!.proposal!.args })
+                      .catch((e: unknown) => {
+                        Alert.alert('Không gửi được đề xuất', e instanceof Error ? e.message : '');
+                        return null;
+                      });
+                    if (r) navigation.navigate('ReconDetail', { id: r.groupId });
+                  }}
+                />
+              </View>
+            ) : null}
             {m.answer?.note ? <Text style={[T.small, { marginTop: 10 }]}>{m.answer.note}</Text> : null}
           </Card>
         ),
