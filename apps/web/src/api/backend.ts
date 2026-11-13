@@ -1,7 +1,6 @@
 import { ApiError, HttpBackend, probeServer, type Backend } from '@argolet/client';
 
-export { ApiError, HttpBackend, type Backend };
-export type { BackendInfo, OperationName, OpParams, OpResult } from '@argolet/client';
+export { ApiError, type Backend };
 
 /**
  * Choose the transport at start-up:

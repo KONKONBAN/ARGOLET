@@ -2,12 +2,22 @@ import nodemailer from 'nodemailer';
 import { AppError, type InvitationMessage, type Notifier } from '@argolet/app';
 
 const PURPOSE: Record<string, { subject: string; lead: string }> = {
-  VERIFY_CONTACT: { subject: 'Mã xác minh tài khoản ARGOLET', lead: 'Dùng mã sau để xác minh địa chỉ email và kích hoạt tài khoản ARGOLET của bạn.' },
-  RESET_PASSWORD: { subject: 'Mã đặt lại mật khẩu ARGOLET', lead: 'Có yêu cầu đặt lại mật khẩu cho tài khoản ARGOLET gắn với email này.' },
-  STEP_UP: { subject: 'Mã xác thực bổ sung ARGOLET', lead: 'Một thao tác quan trọng (phê duyệt hoặc chốt kỳ) cần bạn xác thực bổ sung.' },
+  VERIFY_CONTACT: {
+    subject: 'Mã xác minh tài khoản ARGOLET',
+    lead: 'Dùng mã sau để xác minh địa chỉ email và kích hoạt tài khoản ARGOLET của bạn.',
+  },
+  RESET_PASSWORD: {
+    subject: 'Mã đặt lại mật khẩu ARGOLET',
+    lead: 'Có yêu cầu đặt lại mật khẩu cho tài khoản ARGOLET gắn với email này.',
+  },
+  STEP_UP: {
+    subject: 'Mã xác thực bổ sung ARGOLET',
+    lead: 'Một thao tác quan trọng (phê duyệt hoặc chốt kỳ) cần bạn xác thực bổ sung.',
+  },
 };
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+const esc = (s: string) =>
+  s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const mask = (email: string) => email.replace(/^(.).*(@.*)$/, '$1***$2');
 
 function layout(title: string, bodyHtml: string): string {
@@ -35,7 +45,11 @@ export interface MailConfig {
  * to retry instead of waiting for a code that never arrives.
  */
 export function createMailNotifier(cfg: MailConfig, log: (msg: string) => void): Notifier {
-  const transport = nodemailer.createTransport(cfg.smtpUrl, { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 } as never);
+  const transport = nodemailer.createTransport(cfg.smtpUrl, {
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  } as never);
   const send = async (to: string, subject: string, text: string, html: string) => {
     try {
       await transport.sendMail({ from: cfg.from, to, subject, text, html });
@@ -47,23 +61,31 @@ export function createMailNotifier(cfg: MailConfig, log: (msg: string) => void):
   return {
     async sendCode(to, purpose, code) {
       if (!to.includes('@')) {
-        throw new AppError('VALIDATION', 'Hiện ARGOLET gửi mã qua email. Vui lòng dùng địa chỉ email.', { field: 'contact' });
+        throw new AppError('VALIDATION', 'Hiện ARGOLET gửi mã qua email. Vui lòng dùng địa chỉ email.', {
+          field: 'contact',
+        });
       }
       const p = PURPOSE[purpose] ?? { subject: 'Mã xác thực ARGOLET', lead: 'Mã xác thực của bạn:' };
       const text = `${p.lead}\n\nMã: ${code}\nMã có hiệu lực trong ${cfg.otpTtlMinutes} phút. Không chia sẻ mã này với bất kỳ ai.`;
-      const html = layout(p.subject, `<p style="margin:0 0 20px;line-height:1.6">${esc(p.lead)}</p>
+      const html = layout(
+        p.subject,
+        `<p style="margin:0 0 20px;line-height:1.6">${esc(p.lead)}</p>
 <div style="font-size:32px;font-weight:700;letter-spacing:8px;background:#EEF6F2;color:#087452;border-radius:10px;padding:16px;text-align:center">${esc(code)}</div>
-<p style="margin:20px 0 0;font-size:13px;color:#536978">Mã có hiệu lực trong ${cfg.otpTtlMinutes} phút. Không chia sẻ mã này với bất kỳ ai, kể cả nhân viên ARGOLET.</p>`);
+<p style="margin:20px 0 0;font-size:13px;color:#536978">Mã có hiệu lực trong ${cfg.otpTtlMinutes} phút. Không chia sẻ mã này với bất kỳ ai, kể cả nhân viên ARGOLET.</p>`,
+      );
       await send(to, `${p.subject}: ${code}`, text, html);
     },
     async sendInvitation(to: string, inv: InvitationMessage) {
       const subject = `${inv.inviter} mời bạn tham gia ${inv.organization} trên ARGOLET`;
       const text = `${inv.inviter} mời bạn tham gia ${inv.organization} với vai trò ${inv.roleLabel}.\n\nMã mời: ${inv.code}\nMở lời mời: ${inv.link}\n\nĐăng ký hoặc đăng nhập bằng chính email này rồi nhập mã mời. Lời mời có hiệu lực 7 ngày.`;
-      const html = layout('Lời mời tham gia không gian làm việc', `<p style="margin:0 0 16px;line-height:1.6"><b>${esc(inv.inviter)}</b> mời bạn tham gia <b>${esc(inv.organization)}</b> với vai trò <b>${esc(inv.roleLabel)}</b>.</p>
+      const html = layout(
+        'Lời mời tham gia không gian làm việc',
+        `<p style="margin:0 0 16px;line-height:1.6"><b>${esc(inv.inviter)}</b> mời bạn tham gia <b>${esc(inv.organization)}</b> với vai trò <b>${esc(inv.roleLabel)}</b>.</p>
 <p style="margin:0 0 8px;font-size:13px;color:#536978">Mã mời</p>
 <div style="font-size:22px;font-weight:700;letter-spacing:2px;color:#0B2D48;margin-bottom:20px">${esc(inv.code)}</div>
 <a href="${esc(inv.link)}" style="display:inline-block;background:#087452;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:8px">Mở lời mời</a>
-<p style="margin:20px 0 0;font-size:13px;color:#536978">Đăng ký hoặc đăng nhập bằng chính email này rồi nhập mã mời. Lời mời có hiệu lực 7 ngày.</p>`);
+<p style="margin:20px 0 0;font-size:13px;color:#536978">Đăng ký hoặc đăng nhập bằng chính email này rồi nhập mã mời. Lời mời có hiệu lực 7 ngày.</p>`,
+      );
       await send(to, subject, text, html);
     },
   };

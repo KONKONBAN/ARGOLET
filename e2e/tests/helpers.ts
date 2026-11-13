@@ -32,7 +32,12 @@ export async function expectClean(w: { problems: string[] }, info?: TestInfo): P
  */
 export async function settled(page: Page, title?: string | RegExp): Promise<string> {
   const h1 = page.locator('h1').first();
-  if (title !== undefined) await expect(h1).toHaveText(typeof title === 'string' ? new RegExp(`^\\s*${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) : title);
+  if (title !== undefined)
+    await expect(h1).toHaveText(
+      typeof title === 'string'
+        ? new RegExp(`^\\s*${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`)
+        : title,
+    );
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   await expect(h1).toBeVisible();
   return (await h1.textContent())?.trim() ?? '';

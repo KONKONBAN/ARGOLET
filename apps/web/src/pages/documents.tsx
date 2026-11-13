@@ -1,35 +1,86 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, CircleCheck, Copy, FileSpreadsheet, FileText, Info, Landmark, ListFilter, MonitorSmartphone, Plus, ScanLine, Store, Truck, Files, Receipt, CloudUpload, TriangleAlert, History } from 'lucide-react';
+import {
+  Camera,
+  CircleCheck,
+  Copy,
+  FileSpreadsheet,
+  FileText,
+  Info,
+  Landmark,
+  ListFilter,
+  MonitorSmartphone,
+  Plus,
+  ScanLine,
+  Store,
+  Truck,
+  Files,
+  Receipt,
+  CloudUpload,
+  TriangleAlert,
+  History,
+} from 'lucide-react';
 import { formatVnd, formatDate } from '@argolet/core';
 import { ApiError } from '../api/backend';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
-import { Alert, Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, Pagination, SearchBox, TextInput, Timeline, readFileAsBase64, useToast } from '../ui/components';
-import { useListState } from '../ui/paging';
+import {
+  Alert,
+  Button,
+  Card,
+  Chip,
+  DataTable,
+  ErrorNote,
+  KpiRow,
+  Modal,
+  PageHeader,
+  PageLoading,
+  Pagination,
+  SearchBox,
+  TextInput,
+  Timeline,
+  readFileAsBase64,
+  useToast,
+} from '../ui/components';
+import { useListState, useSearchText } from '../ui/paging';
 import { PageFoot, usePeriodLabel } from './overview';
 
-const toneOf = (status: string) => (status === 'VALIDATED' ? 'success' : status === 'NEEDS_REVIEW' || status === 'NEEDS_RECON' ? 'warning' : 'neutral');
+const toneOf = (status: string) =>
+  status === 'VALIDATED'
+    ? 'success'
+    : status === 'NEEDS_REVIEW' || status === 'NEEDS_RECON'
+      ? 'warning'
+      : 'neutral';
 
 // ───────── 11 · Chứng từ ─────────
 export function DocumentsPage() {
   const navigate = useNavigate();
   const list = useListState(20);
-  const [q, setQ] = useState(list.get('q'));
+  const [q, setQ] = useSearchText(list);
   const status = list.get('status') as '' | 'review' | 'done';
-  const data = useQuery('documents.list', { q: list.get('q') || undefined, status: status || undefined, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
+  const data = useQuery(
+    'documents.list',
+    { q: list.get('q') || undefined, status: status || undefined, page: list.page, pageSize: list.pageSize },
+    { keepPrevious: true },
+  );
   const period = usePeriodLabel();
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (q !== list.get('q')) list.setFilter('q', q);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [q, list]);
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const d = data.data;
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Chứng từ" subtitle="Một nơi lưu trữ, tìm kiếm và kiểm tra nguồn gốc." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Chứng từ"
+        subtitle="Một nơi lưu trữ, tìm kiếm và kiểm tra nguồn gốc."
+        period={period}
+      />
       <KpiRow
         items={[
           { label: 'Tất cả chứng từ', value: d.kpis.total },
@@ -52,7 +103,13 @@ export function DocumentsPage() {
             <label className="sr-only" htmlFor="doc-status">
               Lọc trạng thái
             </label>
-            <select id="doc-status" className="select" style={{ height: 44, width: 180 }} value={status} onChange={(e) => list.setFilter('status', e.target.value)}>
+            <select
+              id="doc-status"
+              className="select"
+              style={{ height: 44, width: 180 }}
+              value={status}
+              onChange={(e) => list.setFilter('status', e.target.value)}
+            >
               <option value="">Tất cả trạng thái</option>
               <option value="review">Cần kiểm tra</option>
               <option value="done">Đã xác nhận</option>
@@ -62,16 +119,31 @@ export function DocumentsPage() {
         <DataTable
           rows={d.items}
           rowKey={(r) => r.id}
-          onRowClick={(r) => navigate(r.status === 'VALIDATED' ? `/evidence/${r.id}` : `/documents/${r.id}/review`)}
+          onRowClick={(r) =>
+            navigate(r.status === 'VALIDATED' ? `/evidence/${r.id}` : `/documents/${r.id}/review`)
+          }
           columns={[
             { key: 'label', header: 'Chứng từ / đối tác', render: (r) => r.label, strong: true },
             { key: 'source', header: 'Nguồn', render: (r) => r.source },
             { key: 'date', header: 'Ngày', render: (r) => r.dateLabel },
             { key: 'amount', header: 'Giá trị', render: (r) => r.amountLabel, align: 'right' },
-            { key: 'status', header: 'Trạng thái', render: (r) => <Chip tone={toneOf(r.status)}>{r.statusLabel}</Chip> },
+            {
+              key: 'status',
+              header: 'Trạng thái',
+              render: (r) => <Chip tone={toneOf(r.status)}>{r.statusLabel}</Chip>,
+            },
           ]}
         />
-        <Pagination page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="chứng từ" busy={data.fetching} />
+        <Pagination
+          page={d.page}
+          pageCount={d.pageCount}
+          total={d.total}
+          pageSize={d.pageSize}
+          onPage={list.setPage}
+          onPageSize={list.setPageSize}
+          unit="chứng từ"
+          busy={data.fetching}
+        />
       </Card>
       <PageFoot />
     </div>
@@ -85,8 +157,10 @@ export function CapturePage() {
   const { ctx } = useSession();
   // Receiving units: stores/branches, or the legal entity itself when the organisation has no branches.
   const allSites = ctx?.entities.filter((e) => e.kind === 'SITE') ?? [];
-  const sites = allSites.length ? allSites : ctx?.entities.filter((e) => e.kind === 'LEGAL_ENTITY') ?? [];
-  const [entityId, setEntityId] = useState(ctx?.scope.entityId !== '*' ? ctx?.scope.entityId ?? '' : sites[0]?.id ?? '');
+  const sites = allSites.length ? allSites : (ctx?.entities.filter((e) => e.kind === 'LEGAL_ENTITY') ?? []);
+  const [entityId, setEntityId] = useState(
+    ctx?.scope.entityId !== '*' ? (ctx?.scope.entityId ?? '') : (sites[0]?.id ?? ''),
+  );
   const [location, setLocation] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [drag, setDrag] = useState(false);
@@ -103,8 +177,8 @@ export function CapturePage() {
     try {
       const payload = await Promise.all(
         files.map(async (f) => {
-          const isText = /\.(xml|csv)$/i.test(f.name);
-          return isText ? { name: f.name, mime: f.type, text: await f.text() } : { name: f.name, mime: f.type, contentBase64: await readFileAsBase64(f) };
+          // Raw bytes for every file: the fingerprint must cover exactly what was received.
+          return { name: f.name, mime: f.type, contentBase64: await readFileAsBase64(f) };
         }),
       );
       const r = await intake.mutate({ entityId, location, files: payload });
@@ -117,7 +191,12 @@ export function CapturePage() {
   };
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Tiếp nhận chứng từ" subtitle="Chụp ảnh, tải tệp hoặc tiếp nhận theo lô." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Tiếp nhận chứng từ"
+        subtitle="Chụp ảnh, tải tệp hoặc tiếp nhận theo lô."
+        period={period}
+      />
       <div className="grid split-main">
         <Card title="Thêm chứng từ vào hồ sơ" subtitle="Ảnh, PDF, XML, Excel · Nhiều tệp trong cùng một lô">
           <div
@@ -144,15 +223,34 @@ export function CapturePage() {
                 Chụp ảnh
               </Button>
             </div>
-            <input ref={inputRef} type="file" multiple hidden accept=".xml,.csv,.pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.json" onChange={(e) => add(e.target.files)} />
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => add(e.target.files)} />
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              hidden
+              accept=".xml,.csv,.pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.json"
+              onChange={(e) => add(e.target.files)}
+            />
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={(e) => add(e.target.files)}
+            />
           </div>
           {files.length > 0 && (
             <div className="mt-16">
               {files.map((f, i) => (
-                <div key={i} className="row-between" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                <div
+                  key={i}
+                  className="row-between"
+                  style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}
+                >
                   <span className="row" style={{ minWidth: 0 }}>
-                    <FileText size={16} color="#536978" /> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+                    <FileText size={16} color="#536978" />{' '}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
                   </span>
                   <span className="row">
                     <span className="muted small">{Math.max(1, Math.round(f.size / 1024))} KB</span>
@@ -167,7 +265,12 @@ export function CapturePage() {
           <div className="grid grid-2 mt-24">
             <div className="field">
               <label htmlFor="site">Cơ sở nhận dữ liệu</label>
-              <select id="site" className="select" value={entityId} onChange={(e) => setEntityId(e.target.value)}>
+              <select
+                id="site"
+                className="select"
+                value={entityId}
+                onChange={(e) => setEntityId(e.target.value)}
+              >
                 {sites.map((s) => (
                   <option key={s.id} value={s.id}>
                     {(ctx?.entities.find((x) => x.id === s.parentId)?.shortName ?? '') + ' · ' + s.shortName}
@@ -175,23 +278,45 @@ export function CapturePage() {
                 ))}
               </select>
             </div>
-            <TextInput label="Mã lô / vị trí bản giấy" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="VD: Kệ A-02, hộp tháng này" />
+            <TextInput
+              label="Mã lô / vị trí bản giấy"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="VD: Kệ A-02, hộp tháng này"
+            />
           </div>
           {intake.error && <ErrorNote error={intake.error} />}
-          <Button variant="primary" block size="lg" disabled={files.length === 0} loading={intake.loading} onClick={submit} icon={<CloudUpload size={18} />}>
+          <Button
+            variant="primary"
+            block
+            size="lg"
+            disabled={files.length === 0}
+            loading={intake.loading}
+            onClick={submit}
+            icon={<CloudUpload size={18} />}
+          >
             Tiếp nhận {files.length ? `${files.length} tệp` : ''}
           </Button>
           {result && (
             <div className="mt-24">
               <Alert tone={result.needsReview ? 'warning' : 'success'} title={`Lô ${result.code}`}>
-                {result.normalized} tệp sẵn sàng · {result.needsReview} cần kiểm tra · {result.duplicates} tệp trùng đã tách
+                {result.normalized} tệp sẵn sàng · {result.needsReview} cần kiểm tra · {result.duplicates} tệp
+                trùng đã tách
               </Alert>
               {result.files.map((f, i) => (
                 <div key={i} className="list-item">
-                  <span className={`icon-tile${f.duplicate || f.status === 'NEEDS_REVIEW' ? ' warn' : ''}`}>{f.duplicate ? <Copy size={18} /> : <FileText size={18} />}</span>
+                  <span className={`icon-tile${f.duplicate || f.status === 'NEEDS_REVIEW' ? ' warn' : ''}`}>
+                    {f.duplicate ? <Copy size={18} /> : <FileText size={18} />}
+                  </span>
                   <span>
                     <div className="li-title">{f.duplicate ? f.filename : `${f.code} · ${f.filename}`}</div>
-                    <div className="li-sub">{f.duplicate ? 'Trùng dấu vân tay với chứng từ đã tiếp nhận' : f.status === 'NEEDS_REVIEW' ? 'Cần kiểm tra trường dữ liệu' : 'Sẵn sàng xác nhận'}</div>
+                    <div className="li-sub">
+                      {f.duplicate
+                        ? 'Trùng dấu vân tay với chứng từ đã tiếp nhận'
+                        : f.status === 'NEEDS_REVIEW'
+                          ? 'Cần kiểm tra trường dữ liệu'
+                          : 'Sẵn sàng xác nhận'}
+                    </div>
                   </span>
                   {!f.duplicate && (
                     <Button size="sm" onClick={() => navigate(`/documents/${f.documentId}/review`)}>
@@ -206,15 +331,40 @@ export function CapturePage() {
         <div className="stack">
           <Card title="Tiếp nhận theo nhu cầu">
             {[
-              { icon: Camera, t: 'Chụp chứng từ', s: 'Chụp từng trang và kiểm tra ảnh', act: () => cameraRef.current?.click() },
-              { icon: FileSpreadsheet, t: 'Nhập tệp nguồn', s: 'Sao kê, POS hoặc dữ liệu nền tảng', act: () => inputRef.current?.click() },
-              { icon: Receipt, t: 'Hóa đơn điện tử', s: 'Tải XML và bản thể hiện', act: () => inputRef.current?.click() },
+              {
+                icon: Camera,
+                t: 'Chụp chứng từ',
+                s: 'Chụp từng trang và kiểm tra ảnh',
+                act: () => cameraRef.current?.click(),
+              },
+              {
+                icon: FileSpreadsheet,
+                t: 'Nhập tệp nguồn',
+                s: 'Sao kê, POS hoặc dữ liệu nền tảng',
+                act: () => inputRef.current?.click(),
+              },
+              {
+                icon: Receipt,
+                t: 'Hóa đơn điện tử',
+                s: 'Tải XML và bản thể hiện',
+                act: () => inputRef.current?.click(),
+              },
             ].map((x) => (
-              <div key={x.t} className="list-item clickable" onClick={x.act} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && x.act()} style={{ gridTemplateColumns: '24px 1fr' }}>
+              <div
+                key={x.t}
+                className="list-item clickable"
+                onClick={x.act}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && x.act()}
+                style={{ gridTemplateColumns: '24px 1fr' }}
+              >
                 <x.icon size={18} color="#536978" />
                 <span>
                   <div style={{ fontSize: 13 }}>{x.t}</div>
-                  <div className="li-sub" style={{ fontSize: 11 }}>{x.s}</div>
+                  <div className="li-sub" style={{ fontSize: 11 }}>
+                    {x.s}
+                  </div>
                 </span>
               </div>
             ))}
@@ -245,21 +395,39 @@ export function ReviewPage() {
   const doc = useQuery('documents.get', { documentId: id });
   const save = useMutation('documents.saveDraft');
   const confirm = useMutation('documents.confirm', { silent: true });
-  const [fields, setFields] = useState<{ supplier: string; documentNo: string; documentDate: string; total: string; taxCode?: string | undefined } | null>(null);
+  const [fields, setFields] = useState<{
+    supplier: string;
+    documentNo: string;
+    documentDate: string;
+    total: string;
+    taxCode?: string | undefined;
+  } | null>(null);
   const [ack, setAck] = useState(false);
   const period = usePeriodLabel();
   useEffect(() => {
     if (doc.data && !fields) {
       const f = doc.data.document.fields;
-      setFields({ ...f, documentDate: f.documentDate ? formatDate(f.documentDate) : '', total: f.total ? formatVnd(f.total) : '' });
+      setFields({
+        ...f,
+        documentDate: f.documentDate ? formatDate(f.documentDate) : '',
+        total: f.total ? formatVnd(f.total) : '',
+      });
     }
   }, [doc.data, fields]);
-  if (!doc.data || !fields) return doc.error ? <div className="page"><ErrorNote error={doc.error} /></div> : <PageLoading />;
+  if (!doc.data || !fields)
+    return doc.error ? (
+      <div className="page">
+        <ErrorNote error={doc.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const d = doc.data.document;
   const issues = d.issues;
   const plain = () => ({ ...fields, total: fields.total.replace(/[^\d]/g, '') });
   const fieldIssue = (name: string) => issues.find((i) => i.field === name);
-  const set = (k: keyof typeof fields) => (e: React.ChangeEvent<HTMLInputElement>) => setFields({ ...fields, [k]: e.target.value });
+  const set = (k: keyof typeof fields) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setFields({ ...fields, [k]: e.target.value });
   const doConfirm = async () => {
     try {
       const r = await confirm.mutate({ documentId: d.id, fields: plain(), acknowledgeWarnings: ack });
@@ -295,39 +463,94 @@ export function ReviewPage() {
         }
       />
       <div className="grid split-even">
-        <Card title={`Bản gốc · ${d.code}`} subtitle={`${d.sourceLabel} · Tiếp nhận ${formatDate(d.receivedAt)}, ${new Date(Date.parse(d.receivedAt) + 7 * 3600e3).toISOString().slice(11, 16)}`}>
+        <Card
+          title={`Bản gốc · ${d.code}`}
+          subtitle={`${d.sourceLabel} · Tiếp nhận ${formatDate(d.receivedAt)}, ${new Date(Date.parse(d.receivedAt) + 7 * 3600e3).toISOString().slice(11, 16)}`}
+        >
           <OriginalPreview doc={d} artifact={doc.data.artifact} />
         </Card>
         <Card title="Nội dung trích xuất" subtitle="Đối chiếu từng trường trước khi xác nhận">
-          <TextInput label="Nhà cung cấp" value={fields.supplier} onChange={set('supplier')} disabled={readOnly} error={fieldIssue('supplier')?.message} />
-          <TextInput label="Số chứng từ" value={fields.documentNo} onChange={set('documentNo')} disabled={readOnly} error={fieldIssue('documentNo')?.severity === 'error' ? fieldIssue('documentNo')?.message : undefined} />
-          <TextInput label="Ngày chứng từ" value={fields.documentDate} onChange={set('documentDate')} placeholder="dd/mm/yyyy" disabled={readOnly} error={fieldIssue('documentDate')?.severity === 'error' ? fieldIssue('documentDate')?.message : undefined} />
-          <TextInput label="Tổng thanh toán" value={fields.total} onChange={set('total')} inputMode="numeric" disabled={readOnly} error={fieldIssue('total')?.severity === 'error' ? fieldIssue('total')?.message : undefined} />
-          {issues.filter((i) => i.severity === 'warning').map((i, k) => (
-            <div className="mb-16" key={k}>
-              <Alert>{i.message}</Alert>
-            </div>
-          ))}
+          <TextInput
+            label="Nhà cung cấp"
+            value={fields.supplier}
+            onChange={set('supplier')}
+            disabled={readOnly}
+            error={fieldIssue('supplier')?.message}
+          />
+          <TextInput
+            label="Số chứng từ"
+            value={fields.documentNo}
+            onChange={set('documentNo')}
+            disabled={readOnly}
+            error={
+              fieldIssue('documentNo')?.severity === 'error' ? fieldIssue('documentNo')?.message : undefined
+            }
+          />
+          <TextInput
+            label="Ngày chứng từ"
+            value={fields.documentDate}
+            onChange={set('documentDate')}
+            placeholder="dd/mm/yyyy"
+            disabled={readOnly}
+            error={
+              fieldIssue('documentDate')?.severity === 'error'
+                ? fieldIssue('documentDate')?.message
+                : undefined
+            }
+          />
+          <TextInput
+            label="Tổng thanh toán"
+            value={fields.total}
+            onChange={set('total')}
+            inputMode="numeric"
+            disabled={readOnly}
+            error={fieldIssue('total')?.severity === 'error' ? fieldIssue('total')?.message : undefined}
+          />
+          {issues
+            .filter((i) => i.severity === 'warning')
+            .map((i, k) => (
+              <div className="mb-16" key={k}>
+                <Alert>{i.message}</Alert>
+              </div>
+            ))}
           {confirm.error && (
             <div className="mb-16">
               <ErrorNote error={confirm.error} />
               {confirm.error.details?.needsAcknowledge === true && (
                 <label className="checkbox mt-8">
-                  <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> Tôi đã kiểm tra và xác nhận cảnh báo trên
+                  <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> Tôi đã
+                  kiểm tra và xác nhận cảnh báo trên
                 </label>
               )}
             </div>
           )}
           {d.status === 'VALIDATED' ? (
-            <Button block size="lg" icon={<History size={18} />} onClick={() => navigate(`/evidence/${d.id}`)}>
+            <Button
+              block
+              size="lg"
+              icon={<History size={18} />}
+              onClick={() => navigate(`/evidence/${d.id}`)}
+            >
               Xem bằng chứng & lịch sử
             </Button>
           ) : (
-            <Button variant="primary" block size="lg" icon={<CircleCheck size={18} />} loading={confirm.loading} disabled={readOnly} onClick={doConfirm}>
+            <Button
+              variant="primary"
+              block
+              size="lg"
+              icon={<CircleCheck size={18} />}
+              loading={confirm.loading}
+              disabled={readOnly}
+              onClick={doConfirm}
+            >
               Xác nhận chứng từ
             </Button>
           )}
-          {!doc.data.canValidate && d.status !== 'VALIDATED' && <p className="muted small mt-8">Vai trò hiện tại chỉ được lưu nháp; người có quyền kế toán sẽ xác nhận.</p>}
+          {!doc.data.canValidate && d.status !== 'VALIDATED' && (
+            <p className="muted small mt-8">
+              Vai trò hiện tại chỉ được lưu nháp; người có quyền kế toán sẽ xác nhận.
+            </p>
+          )}
         </Card>
       </div>
       <PageFoot />
@@ -335,7 +558,21 @@ export function ReviewPage() {
   );
 }
 
-function OriginalPreview({ doc, artifact }: { doc: { title: string; counterparty: string; date: string; fields: { documentNo: string; total: string }; lines: { description: string; amount: string }[]; rows: { code: string; date: string; amount: string }[]; sourceKind: string }; artifact: { filename: string; content: string | null; rawSha256: string } | null }) {
+function OriginalPreview({
+  doc,
+  artifact,
+}: {
+  doc: {
+    title: string;
+    counterparty: string;
+    date: string;
+    fields: { documentNo: string; total: string };
+    lines: { description: string; amount: string }[];
+    rows: { code: string; date: string; amount: string }[];
+    sourceKind: string;
+  };
+  artifact: { filename: string; content: string | null; rawSha256: string } | null;
+}) {
   if (doc.rows.length) {
     return (
       <div className="receipt" style={{ maxWidth: '100%' }}>
@@ -383,7 +620,14 @@ function OriginalPreview({ doc, artifact }: { doc: { title: string; counterparty
 }
 
 // ───────── 37 · Nhập dữ liệu ─────────
-const SOURCE_ICON = { POS: Store, PLATFORM: Truck, BANK: Landmark, EINVOICE: FileText, PAPER: ScanLine, EXCEL: Files } as const;
+const SOURCE_ICON = {
+  POS: Store,
+  PLATFORM: Truck,
+  BANK: Landmark,
+  EINVOICE: FileText,
+  PAPER: ScanLine,
+  EXCEL: Files,
+} as const;
 
 export function IngestionPage() {
   const navigate = useNavigate();
@@ -393,20 +637,39 @@ export function IngestionPage() {
   const setInt = useMutation('org.setIntegration');
   const [source, setSource] = useState<string | null>(null);
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const b = data.data.latest;
   const sel = data.data.sources.find((s) => s.id === source);
   const stage = b ? (b.needsReview ? 2 : 4) : -1;
   const steps = ['Tiếp nhận', 'Trích xuất', 'Kiểm tra', 'Chuẩn hóa', 'Lưu phiên bản'];
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Nhập dữ liệu" subtitle="Trích xuất, kiểm tra, chống trùng và lưu nguồn dữ liệu." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Nhập dữ liệu"
+        subtitle="Trích xuất, kiểm tra, chống trùng và lưu nguồn dữ liệu."
+        period={period}
+      />
       <div className="grid split-even">
         <Card title="Nguồn dữ liệu được phép sử dụng" subtitle="Ảnh · PDF · XML · Excel / CSV">
           {data.data.sources.map((s) => {
             const Icon = SOURCE_ICON[s.kind as keyof typeof SOURCE_ICON] ?? Files;
             return (
-              <div key={s.id} className="list-item clickable" onClick={() => setSource(s.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setSource(s.id)}>
+              <div
+                key={s.id}
+                className="list-item clickable"
+                onClick={() => setSource(s.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setSource(s.id)}
+              >
                 <span className="icon-tile" style={{ borderRadius: '50%' }}>
                   <Icon size={18} />
                 </span>
@@ -414,16 +677,23 @@ export function IngestionPage() {
                   <div className="li-title">{s.name}</div>
                   <div className="li-sub">{s.description}</div>
                 </span>
-                <Chip tone={s.status === 'CONNECTED' ? 'success' : 'neutral'}>{s.status === 'CONNECTED' ? 'Đã kết nối' : 'Chưa kết nối'}</Chip>
+                <Chip tone={s.status === 'CONNECTED' ? 'success' : 'neutral'}>
+                  {s.status === 'CONNECTED' ? 'Đã kết nối' : 'Chưa kết nối'}
+                </Chip>
               </div>
             );
           })}
         </Card>
-        <Card title={b ? `Lô ${b.code}` : 'Chưa có lô dữ liệu'} subtitle={b ? `${b.entityLabel} · ${b.fileCount} tệp đã tiếp nhận` : 'Tiếp nhận tệp để bắt đầu'}>
+        <Card
+          title={b ? `Lô ${b.code}` : 'Chưa có lô dữ liệu'}
+          subtitle={b ? `${b.entityLabel} · ${b.fileCount} tệp đã tiếp nhận` : 'Tiếp nhận tệp để bắt đầu'}
+        >
           {b && (
             <>
               <div className="kpi highlight" style={{ marginBottom: 18 }}>
-                <div className="kpi-label">{b.needsReview ? 'Đã chuẩn hóa, sẵn sàng' : 'Đã chuẩn hóa toàn bộ'}</div>
+                <div className="kpi-label">
+                  {b.needsReview ? 'Đã chuẩn hóa, sẵn sàng' : 'Đã chuẩn hóa toàn bộ'}
+                </div>
                 <div className="kpi-value">{b.normalized} tệp</div>
                 <div className="kpi-note">
                   {b.needsReview} tệp cần rà soát · {b.duplicates} tệp trùng
@@ -459,7 +729,13 @@ export function IngestionPage() {
                 </span>
                 <span />
               </div>
-              <Button variant="primary" block size="lg" className="mt-16" onClick={() => navigate('/documents')}>
+              <Button
+                variant="primary"
+                block
+                size="lg"
+                className="mt-16"
+                onClick={() => navigate('/documents')}
+              >
                 Rà soát các trường cần kiểm tra
               </Button>
             </>
@@ -491,7 +767,10 @@ export function IngestionPage() {
                 loading={setInt.loading}
                 onClick={async () => {
                   await setInt.mutate({ integrationId: sel.id, connect: sel.status !== 'CONNECTED' });
-                  toast('success', sel.status === 'CONNECTED' ? 'Đã tạm ngắt kết nối' : 'Đã cấp kết nối nguồn');
+                  toast(
+                    'success',
+                    sel.status === 'CONNECTED' ? 'Đã tạm ngắt kết nối' : 'Đã cấp kết nối nguồn',
+                  );
                   setSource(null);
                 }}
               >
@@ -502,7 +781,10 @@ export function IngestionPage() {
         }
       >
         <p className="muted">{sel?.description}</p>
-        <p className="mt-16 small">Kết nối được cấp theo tổ chức, pháp nhân và phạm vi dữ liệu. ARGOLET chỉ đọc nguồn đã được cấp quyền và lưu bản gốc cùng SHA-256.</p>
+        <p className="mt-16 small">
+          Kết nối được cấp theo tổ chức, pháp nhân và phạm vi dữ liệu. ARGOLET chỉ đọc nguồn đã được cấp quyền
+          và lưu bản gốc cùng SHA-256.
+        </p>
       </Modal>
       <PageFoot />
     </div>

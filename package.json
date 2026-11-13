@@ -5,7 +5,7 @@
   "description": "ARGOLET – nền tảng tiếp nhận chứng từ, đối soát đa nguồn, phê duyệt, chốt kỳ và bằng chứng toàn vẹn (Web · Android · iOS)",
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "scripts": {
     "dev:web": "pnpm --filter @argolet/web dev",
@@ -16,22 +16,24 @@
     "lint": "eslint . --max-warnings=0",
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm --filter @argolet/e2e e2e",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e"
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build && pnpm test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
-    "eslint": "^9.39.5",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "prettier": "^3.10.1",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "typescript-eslint": "^8.72.2",
     "vitest": "^5.1.0"
   },
   "pnpm": {
     "overrides": {
-      "react": "19.3.0",
-      "react-dom": "19.3.0"
+      "react": "19.3.1",
+      "react-dom": "19.3.1"
     },
     "onlyBuiltDependencies": [
       "esbuild",

@@ -16,13 +16,16 @@ export interface SqlClient {
 export interface SqlDriver {
   readonly kind: string;
   /** Run `fn` inside one database transaction. */
-  transaction<T>(fn: (client: SqlClient) => Promise<T>, isolation: 'serializable' | 'read committed'): Promise<T>;
+  transaction<T>(
+    fn: (client: SqlClient) => Promise<T>,
+    isolation: 'serializable' | 'read committed',
+  ): Promise<T>;
   /** Non-transactional reads. */
   client(): SqlClient;
   close(): Promise<void>;
 }
 
-export const SCHEMA_SQL = `
+const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS argolet_rows (
   collection  text        NOT NULL,
   tenant_id   text        NOT NULL,
@@ -98,8 +101,13 @@ export class PgStore implements Store {
   async migrate(): Promise<void> {
     await this.driver.transaction(async (c) => {
       await c.query('SELECT pg_advisory_xact_lock(424242)');
-      for (const stmt of SCHEMA_SQL.split(/;\s*\n/).map((s) => s.trim()).filter(Boolean)) await c.query(stmt);
-      await c.query(`INSERT INTO argolet_meta(key, value) VALUES ('schema_version', '1') ON CONFLICT (key) DO NOTHING`);
+      for (const stmt of SCHEMA_SQL.split(/;\s*\n/)
+        .map((s) => s.trim())
+        .filter(Boolean))
+        await c.query(stmt);
+      await c.query(
+        `INSERT INTO argolet_meta(key, value) VALUES ('schema_version', '1') ON CONFLICT (key) DO NOTHING`,
+      );
     }, 'read committed');
   }
 
@@ -113,7 +121,10 @@ export class PgStore implements Store {
   private makeTx(c: SqlClient, writable: boolean): Tx {
     const tx: Tx = {
       get: async (col, tenantId, id) => {
-        const r = await c.query<{ data: unknown }>('SELECT data FROM argolet_rows WHERE collection = $1 AND tenant_id = $2 AND id = $3', [col, tenantId, id]);
+        const r = await c.query<{ data: unknown }>(
+          'SELECT data FROM argolet_rows WHERE collection = $1 AND tenant_id = $2 AND id = $3',
+          [col, tenantId, id],
+        );
         return (r.rows[0]?.data ?? undefined) as never;
       },
       list: async (col, tenantId, filter) => {
@@ -124,10 +135,17 @@ export class PgStore implements Store {
         return r.rows.map((x) => x.data) as never;
       },
       findGlobal: async (col, filter) => {
-        const r = await c.query<{ data: unknown }>('SELECT data FROM argolet_rows WHERE collection = $1 AND data @> $2::jsonb ORDER BY created_at, id', [col, JSON.stringify(cleanFilter(filter))]);
+        const r = await c.query<{ data: unknown }>(
+          'SELECT data FROM argolet_rows WHERE collection = $1 AND data @> $2::jsonb ORDER BY created_at, id',
+          [col, JSON.stringify(cleanFilter(filter))],
+        );
         return r.rows.map((x) => x.data) as never;
       },
-      put: async <K extends CollectionName>(col: K, row: NewRow<K> | Collections[K], opts?: { expectedRev?: number }) => {
+      put: async <K extends CollectionName>(
+        col: K,
+        row: NewRow<K> | Collections[K],
+        opts?: { expectedRev?: number },
+      ) => {
         if (!writable) throw new Error('Read-only transaction');
         const r = row as unknown as RowShape;
         if (!r.id || !r.tenantId) throw new Error(`Thiếu id/tenantId khi ghi ${col}`);
@@ -136,9 +154,10 @@ export class PgStore implements Store {
           [col, r.tenantId, r.id],
         );
         const prev = existing.rows[0];
-        if (opts?.expectedRev !== undefined && (prev?.rev ?? 0) !== opts.expectedRev) throw new ConcurrencyError();
+        if (opts?.expectedRev !== undefined && (prev?.rev ?? 0) !== opts.expectedRev)
+          throw new ConcurrencyError();
         const now = this.tick();
-        const createdAt = prev ? new Date(prev.created_at).toISOString() : r.createdAt ?? now;
+        const createdAt = prev ? new Date(prev.created_at).toISOString() : r.createdAt || now;
         const rev = (prev?.rev ?? 0) + 1;
         const saved = { ...stripUndefined(row as object), createdAt, updatedAt: now, rev };
         await c.query(
@@ -151,7 +170,11 @@ export class PgStore implements Store {
       },
       delete: async (col, tenantId, id) => {
         if (!writable) throw new Error('Read-only transaction');
-        await c.query('DELETE FROM argolet_rows WHERE collection = $1 AND tenant_id = $2 AND id = $3', [col, tenantId, id]);
+        await c.query('DELETE FROM argolet_rows WHERE collection = $1 AND tenant_id = $2 AND id = $3', [
+          col,
+          tenantId,
+          id,
+        ]);
       },
     };
     return tx;
@@ -196,15 +219,23 @@ function stripUndefined<T extends object>(row: T): T {
 /** node-postgres pool driver (production). */
 export async function pgDriver(connectionString: string): Promise<SqlDriver> {
   const pg = await import('pg');
-  const pool = new pg.default.Pool({ connectionString, max: Number(process.env.PG_POOL_MAX ?? 10), ssl: process.env.PGSSL === 'require' ? { rejectUnauthorized: false } : undefined });
+  const pool = new pg.default.Pool({
+    connectionString,
+    max: Number(process.env.PG_POOL_MAX ?? 10),
+    ssl: process.env.PGSSL === 'require' ? { rejectUnauthorized: false } : undefined,
+  });
   return {
     kind: 'pg',
     client: () => ({ query: (text, params) => pool.query(text, params as unknown[]) as never }),
     async transaction(fn, isolation) {
       const client = await pool.connect();
       try {
-        await client.query(`BEGIN ISOLATION LEVEL ${isolation === 'serializable' ? 'SERIALIZABLE' : 'READ COMMITTED'}`);
-        const result = await fn({ query: (text, params) => client.query(text, params as unknown[]) as never });
+        await client.query(
+          `BEGIN ISOLATION LEVEL ${isolation === 'serializable' ? 'SERIALIZABLE' : 'READ COMMITTED'}`,
+        );
+        const result = await fn({
+          query: (text, params) => client.query(text, params as unknown[]) as never,
+        });
         await client.query('COMMIT');
         return result;
       } catch (e) {
@@ -230,7 +261,8 @@ export async function pgliteDriver(dataDir?: string): Promise<SqlDriver> {
     kind: dataDir ? 'pglite-file' : 'pglite-memory',
     client: () => client,
     transaction(fn) {
-      const run = () => db.transaction((tx) => fn({ query: (text, params) => tx.query(text, params) as never }));
+      const run = () =>
+        db.transaction((tx) => fn({ query: (text, params) => tx.query(text, params) as never }));
       const p = queue.then(run, run);
       queue = p.catch(() => undefined);
       return p as never;

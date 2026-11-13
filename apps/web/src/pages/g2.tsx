@@ -1,7 +1,23 @@
 import { useState } from 'react';
 import { ListFilter, Plus } from 'lucide-react';
 import { useMutation, useQuery } from '../api/hooks';
-import { Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, MoneyInput, PageHeader, PageLoading, Pagination, SearchBox, SelectInput, TextInput, useToast } from '../ui/components';
+import {
+  Button,
+  Card,
+  Chip,
+  DataTable,
+  ErrorNote,
+  KpiRow,
+  Modal,
+  MoneyInput,
+  PageHeader,
+  PageLoading,
+  Pagination,
+  SearchBox,
+  SelectInput,
+  TextInput,
+  useToast,
+} from '../ui/components';
 import { useListState } from '../ui/paging';
 import { PageFoot, usePeriodLabel } from './overview';
 import { ModuleTabs } from './g1';
@@ -21,12 +37,24 @@ export function ClientsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', scope: '1 cơ sở', closeDue: '' });
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const d = data.data;
   const rows = d.items.filter((r) => !onlyMissing || r.tone === 'warning');
   return (
     <div className="page">
-      <PageHeader eyebrow="G2 · Doanh nghiệp" title="Không gian khách hàng" subtitle="Quản lý hồ sơ theo từng phạm vi ủy quyền." period={period} />
+      <PageHeader
+        eyebrow="G2 · Doanh nghiệp"
+        title="Không gian khách hàng"
+        subtitle="Quản lý hồ sơ theo từng phạm vi ủy quyền."
+        period={period}
+      />
       <ModuleTabs tabs={G2_TABS} current="/clients" />
       <KpiRow
         items={d.kpis}
@@ -41,7 +69,11 @@ export function ClientsPage() {
       <Card>
         <div className="toolbar">
           <SearchBox value={q} onChange={setQ} />
-          <Button icon={<ListFilter size={18} />} onClick={() => setOnlyMissing((s) => !s)} aria-pressed={onlyMissing}>
+          <Button
+            icon={<ListFilter size={18} />}
+            onClick={() => setOnlyMissing((s) => !s)}
+            aria-pressed={onlyMissing}
+          >
             {onlyMissing ? 'Đang thiếu hồ sơ' : 'Bộ lọc'}
           </Button>
         </div>
@@ -83,9 +115,22 @@ export function ClientsPage() {
           </Button>
         }
       >
-        <TextInput label="Tên khách hàng" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <TextInput label="Phạm vi ủy quyền" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} />
-        <TextInput label="Hạn chốt" type="date" value={form.closeDue} onChange={(e) => setForm({ ...form, closeDue: e.target.value })} />
+        <TextInput
+          label="Tên khách hàng"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+        />
+        <TextInput
+          label="Phạm vi ủy quyền"
+          value={form.scope}
+          onChange={(e) => setForm({ ...form, scope: e.target.value })}
+        />
+        <TextInput
+          label="Hạn chốt"
+          type="date"
+          value={form.closeDue}
+          onChange={(e) => setForm({ ...form, closeDue: e.target.value })}
+        />
         {add.error && <ErrorNote error={add.error} />}
       </Modal>
       <PageFoot />
@@ -97,25 +142,50 @@ export function ClientsPage() {
 export function SalesPage() {
   const toast = useToast();
   const list = useListState(20);
-  const data = useQuery('modules.sales', { page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
+  const data = useQuery(
+    'modules.sales',
+    { page: list.page, pageSize: list.pageSize },
+    { keepPrevious: true },
+  );
   const create = useMutation('modules.createDeal', { silent: true });
   const move = useMutation('modules.updateDealStage', { silent: true });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ customer: '', value: '' });
-  const [editing, setEditing] = useState<{ id: string; label: string; stage: string; done: boolean } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; label: string; stage: string; done: boolean } | null>(
+    null,
+  );
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const d = data.data;
   return (
     <div className="page">
-      <PageHeader eyebrow="G2 · Doanh nghiệp" title="Bán hàng & thu nợ" subtitle="Nối cơ hội, hợp đồng, giao nhận và thu tiền." period={period} />
+      <PageHeader
+        eyebrow="G2 · Doanh nghiệp"
+        title="Bán hàng & thu nợ"
+        subtitle="Nối cơ hội, hợp đồng, giao nhận và thu tiền."
+        period={period}
+      />
       <ModuleTabs tabs={G2_TABS} current="/sales" />
       <KpiRow items={d.kpis} />
       <Card title="Chuỗi bán hàng & thu nợ">
         <DataTable
           rows={d.items}
           rowKey={(r) => r.id}
-          onRowClick={d.canWrite ? (r) => { move.reset(); setEditing({ id: r.id, label: r.label, stage: r.stageCode, done: false }); } : undefined}
+          onRowClick={
+            d.canWrite
+              ? (r) => {
+                  move.reset();
+                  setEditing({ id: r.id, label: r.label, stage: r.stageCode, done: false });
+                }
+              : undefined
+          }
           columns={[
             { key: 'l', header: 'Khách hàng / hợp đồng', render: (r) => r.label, strong: true },
             { key: 's', header: 'Bước hiện tại', render: (r) => r.stage },
@@ -124,8 +194,19 @@ export function SalesPage() {
           ]}
           empty="Chưa có cơ hội bán hàng đang mở"
         />
-        <Pagination page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="cơ hội" busy={data.fetching} />
-        {d.canWrite && d.items.length > 0 && <p className="table-foot">Chọn một dòng để chuyển bước hoặc đánh dấu hoàn tất.</p>}
+        <Pagination
+          page={d.page}
+          pageCount={d.pageCount}
+          total={d.total}
+          pageSize={d.pageSize}
+          onPage={list.setPage}
+          onPageSize={list.setPageSize}
+          unit="cơ hội"
+          busy={data.fetching}
+        />
+        {d.canWrite && d.items.length > 0 && (
+          <p className="table-foot">Chọn một dòng để chuyển bước hoặc đánh dấu hoàn tất.</p>
+        )}
       </Card>
       {d.canWrite && (
         <div className="row mt-24" style={{ justifyContent: 'flex-end' }}>
@@ -157,8 +238,16 @@ export function SalesPage() {
           </Button>
         }
       >
-        <TextInput label="Khách hàng" value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} />
-        <MoneyInput label="Giá trị dự kiến" value={form.value} onChange={(v) => setForm({ ...form, value: v })} />
+        <TextInput
+          label="Khách hàng"
+          value={form.customer}
+          onChange={(e) => setForm({ ...form, customer: e.target.value })}
+        />
+        <MoneyInput
+          label="Giá trị dự kiến"
+          value={form.value}
+          onChange={(v) => setForm({ ...form, value: v })}
+        />
         {create.error && <ErrorNote error={create.error} />}
       </Modal>
       <Modal
@@ -174,7 +263,11 @@ export function SalesPage() {
               onClick={async () => {
                 if (!editing) return;
                 try {
-                  await move.mutate({ dealId: editing.id, stage: editing.stage as never, done: editing.done });
+                  await move.mutate({
+                    dealId: editing.id,
+                    stage: editing.stage as never,
+                    done: editing.done,
+                  });
                   toast('success', editing.done ? 'Đã đánh dấu hoàn tất' : 'Đã cập nhật bước bán hàng');
                   setEditing(null);
                 } catch {
@@ -189,9 +282,19 @@ export function SalesPage() {
       >
         {editing && (
           <>
-            <SelectInput label="Bước hiện tại" value={editing.stage} onChange={(v) => setEditing({ ...editing, stage: v })} options={d.stages.map((x) => ({ value: x.code, label: x.label }))} />
+            <SelectInput
+              label="Bước hiện tại"
+              value={editing.stage}
+              onChange={(v) => setEditing({ ...editing, stage: v })}
+              options={d.stages.map((x) => ({ value: x.code, label: x.label }))}
+            />
             <label className="checkbox" style={{ display: 'flex', margin: '6px 0 12px' }}>
-              <input type="checkbox" checked={editing.done} onChange={(e) => setEditing({ ...editing, done: e.target.checked })} /> Đã thu đủ tiền / hoàn tất hợp đồng
+              <input
+                type="checkbox"
+                checked={editing.done}
+                onChange={(e) => setEditing({ ...editing, done: e.target.checked })}
+              />{' '}
+              Đã thu đủ tiền / hoàn tất hợp đồng
             </label>
             {move.error && <ErrorNote error={move.error} />}
           </>

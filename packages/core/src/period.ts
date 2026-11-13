@@ -34,25 +34,45 @@ export interface ChecklistItem {
   detail: string;
 }
 
-export function closeChecklist(i: CloseChecklistInput): { items: ChecklistItem[]; blocking: number; ready: boolean } {
+export function closeChecklist(i: CloseChecklistInput): {
+  items: ChecklistItem[];
+  blocking: number;
+  ready: boolean;
+} {
   const items: ChecklistItem[] = [
     {
       key: 'documents',
       done: i.documentsValidated === i.documentsTotal,
-      title: i.documentsValidated === i.documentsTotal ? `${i.documentsValidated} chứng từ đã xác nhận` : `${i.documentsTotal - i.documentsValidated} chứng từ cần kiểm tra`,
-      detail: i.documentsValidated === i.documentsTotal ? 'Nguồn gốc và thông tin đã được rà soát' : 'Xác nhận chứng từ trước khi chốt',
+      title:
+        i.documentsValidated === i.documentsTotal
+          ? `${i.documentsValidated} chứng từ đã xác nhận`
+          : `${i.documentsTotal - i.documentsValidated} chứng từ cần kiểm tra`,
+      detail:
+        i.documentsValidated === i.documentsTotal
+          ? 'Nguồn gốc và thông tin đã được rà soát'
+          : 'Xác nhận chứng từ trước khi chốt',
     },
     {
       key: 'reconciliation',
       done: i.unexplainedDiscrepancies === 0 && i.groupsConfirmed === i.groupsTotal,
-      title: i.unexplainedDiscrepancies === 0 && i.groupsConfirmed === i.groupsTotal ? `${i.groupsConfirmed} nhóm đã đối soát` : `${i.groupsTotal - i.groupsConfirmed} nhóm đối soát chưa xác nhận`,
-      detail: i.unexplainedDiscrepancies === 0 ? 'Không có chênh lệch chưa giải thích' : `${i.unexplainedDiscrepancies} chênh lệch chưa giải thích`,
+      title:
+        i.unexplainedDiscrepancies === 0 && i.groupsConfirmed === i.groupsTotal
+          ? `${i.groupsConfirmed} nhóm đã đối soát`
+          : `${i.groupsTotal - i.groupsConfirmed} nhóm đối soát chưa xác nhận`,
+      detail:
+        i.unexplainedDiscrepancies === 0
+          ? 'Không có chênh lệch chưa giải thích'
+          : `${i.unexplainedDiscrepancies} chênh lệch chưa giải thích`,
     },
     {
       key: 'approvals',
       done: i.pendingApprovals === 0,
-      title: i.pendingApprovals === 0 ? 'Không còn hồ sơ chờ phê duyệt' : `${i.pendingApprovals} hồ sơ chờ phê duyệt`,
-      detail: i.pendingApprovals === 0 ? 'Mọi hồ sơ đã có quyết định' : 'Mở công việc để hoàn tất trước khi chốt',
+      title:
+        i.pendingApprovals === 0
+          ? 'Không còn hồ sơ chờ phê duyệt'
+          : `${i.pendingApprovals} hồ sơ chờ phê duyệt`,
+      detail:
+        i.pendingApprovals === 0 ? 'Mọi hồ sơ đã có quyết định' : 'Mở công việc để hoàn tất trước khi chốt',
     },
     {
       key: 'memo',
@@ -86,7 +106,9 @@ export function buildSnapshotManifest(p: {
   members: SnapshotMemberInput[];
   approvals: { approvalId: string; digest: string; actorId: string }[];
 }): SnapshotManifest {
-  const revenue = sum(p.members.filter((m) => m.kind === 'REVENUE' || m.kind === 'ORDER').map((m) => m.amount));
+  const revenue = sum(
+    p.members.filter((m) => m.kind === 'REVENUE' || m.kind === 'ORDER').map((m) => m.amount),
+  );
   const expense = sum(p.members.filter((m) => m.kind === 'EXPENSE').map((m) => m.amount));
   const sources = new Map<string, string>();
   for (const m of p.members) if (m.artifactId && m.rawSha256) sources.set(m.artifactId, m.rawSha256);
@@ -100,9 +122,17 @@ export function buildSnapshotManifest(p: {
     previousCloseId: p.previousCloseId,
     rulesVersion: p.rulesVersion,
     members: p.members
-      .map((m) => ({ recordId: m.recordId, recordVersion: m.recordVersion, digest: sha256Hex(canonicalize({ id: m.recordId, v: m.recordVersion, kind: m.kind, amount: dec(m.amount) })) }))
+      .map((m) => ({
+        recordId: m.recordId,
+        recordVersion: m.recordVersion,
+        digest: sha256Hex(
+          canonicalize({ id: m.recordId, v: m.recordVersion, kind: m.kind, amount: dec(m.amount) }),
+        ),
+      }))
       .sort((a, b) => a.recordId.localeCompare(b.recordId)),
-    sources: [...sources.entries()].map(([artifactId, rawSha256]) => ({ artifactId, rawSha256 })).sort((a, b) => a.artifactId.localeCompare(b.artifactId)),
+    sources: [...sources.entries()]
+      .map(([artifactId, rawSha256]) => ({ artifactId, rawSha256 }))
+      .sort((a, b) => a.artifactId.localeCompare(b.artifactId)),
     approvals: p.approvals.slice().sort((a, b) => a.approvalId.localeCompare(b.approvalId)),
     totals: { revenue: dec(revenue), expense: dec(expense), net: dec(D(revenue).minus(expense)) },
   };

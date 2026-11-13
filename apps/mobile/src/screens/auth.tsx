@@ -1,7 +1,26 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Image, ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import {
+  Image,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Building2, ChevronRight, Landmark, MailCheck, Plus, Server, Store, Upload } from 'lucide-react-native';
+import {
+  Building2,
+  ChevronRight,
+  Landmark,
+  MailCheck,
+  Plus,
+  Server,
+  Store,
+  Upload,
+} from 'lucide-react-native';
 import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
 import { saveServer, getSavedServer } from '../backend';
 import { useSession } from '../session';
@@ -13,11 +32,33 @@ import type { ScreenProps } from '../App';
 function AuthFrame({ children, title, subtitle }: { children: ReactNode; title: string; subtitle: string }) {
   const insets = useSafeAreaInsets();
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <ImageBackground source={require('../../assets/banner.jpg')} style={{ height: 96, borderRadius: 14, overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 10 }} imageStyle={{ borderRadius: 14 }} resizeMode="cover">
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#fff' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ImageBackground
+          source={require('../../assets/banner.jpg')}
+          style={{
+            height: 96,
+            borderRadius: 14,
+            overflow: 'hidden',
+            justifyContent: 'center',
+            paddingHorizontal: 10,
+          }}
+          imageStyle={{ borderRadius: 14 }}
+          resizeMode="cover"
+        >
           <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 6, width: 108 }}>
-            <Image source={require('../../assets/logo.jpg')} style={{ width: 96, height: 64 }} resizeMode="contain" accessibilityLabel="ARGOLET" />
+            <Image
+              source={require('../../assets/logo.jpg')}
+              style={{ width: 96, height: 64 }}
+              resizeMode="contain"
+              accessibilityLabel="ARGOLET"
+            />
           </View>
         </ImageBackground>
         <Gap h={20} />
@@ -31,7 +72,8 @@ function AuthFrame({ children, title, subtitle }: { children: ReactNode; title: 
   );
 }
 
-const fieldErr = (e: ApiError | undefined, f: string) => (e && e.details?.field === f ? e.message : undefined);
+const fieldErr = (e: ApiError | undefined, f: string) =>
+  e && e.details?.field === f ? e.message : undefined;
 
 // 01 · Đăng nhập
 export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
@@ -50,30 +92,65 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
       await refresh();
     } catch (e) {
       if (e instanceof ApiError && e.details?.reason === 'MFA_REQUIRED') setNeedTotp(true);
-      if (e instanceof ApiError && e.details?.reason === 'UNVERIFIED') navigation.navigate('Verify', { contact });
+      if (e instanceof ApiError && e.details?.reason === 'UNVERIFIED')
+        navigation.navigate('Verify', { contact });
     }
   };
   return (
     <AuthFrame title="Đăng nhập" subtitle="Đăng nhập vào không gian làm việc của bạn.">
-      <Input label="Email" value={contact} onChangeText={setContact} keyboardType="email-address" autoComplete="email" placeholder="ketoan@minhan.example" />
-      <Input label="Mật khẩu" value={password} onChangeText={setPassword} secure autoComplete="password" placeholder="••••••••••••" />
+      <Input
+        label="Email"
+        value={contact}
+        onChangeText={setContact}
+        keyboardType="email-address"
+        autoComplete="email"
+        placeholder="ketoan@minhan.example"
+      />
+      <Input
+        label="Mật khẩu"
+        value={password}
+        onChangeText={setPassword}
+        secure
+        autoComplete="password"
+        placeholder="••••••••••••"
+      />
       {needTotp && (
         <View style={{ marginBottom: 14 }}>
           <Text style={[T.body, { marginBottom: 8 }]}>Mã xác thực (Authenticator)</Text>
           <OtpInput value={totp} onChange={setTotp} />
         </View>
       )}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 18,
+        }}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Switch value={remember} onValueChange={setRemember} trackColor={{ true: C.action, false: C.line }} accessibilityLabel="Giữ đăng nhập" />
+          <Switch
+            value={remember}
+            onValueChange={setRemember}
+            trackColor={{ true: C.action, false: C.line }}
+            accessibilityLabel="Giữ đăng nhập"
+          />
           <Text style={T.small}>Giữ đăng nhập</Text>
         </View>
         <Pressable onPress={() => navigation.navigate('Reset')} accessibilityRole="link">
           <Text style={{ color: C.action, fontSize: 12 }}>Quên mật khẩu?</Text>
         </Pressable>
       </View>
-      {login.error && login.error.details?.reason !== 'MFA_REQUIRED' && <Notice tone="danger">{login.error.message}</Notice>}
-      <Button title="Đăng nhập" variant="primary" loading={login.loading} disabled={!contact || !password} onPress={submit} />
+      {login.error && login.error.details?.reason !== 'MFA_REQUIRED' && (
+        <Notice tone="danger">{login.error.message}</Notice>
+      )}
+      <Button
+        title="Đăng nhập"
+        variant="primary"
+        loading={login.loading}
+        disabled={!contact || !password}
+        onPress={submit}
+      />
       <Gap />
       <Button title="Tạo tài khoản" onPress={() => navigation.navigate('Register')} />
       {demo && (
@@ -82,7 +159,15 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
             setContact(demo.email);
             setPassword(demo.password);
           }}
-          style={{ marginTop: 18, padding: 12, borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: '#B9D8CB', backgroundColor: '#F3F8F6' }}
+          style={{
+            marginTop: 18,
+            padding: 12,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderStyle: 'dashed',
+            borderColor: '#B9D8CB',
+            backgroundColor: '#F3F8F6',
+          }}
           accessibilityRole="button"
         >
           <Text style={{ fontSize: 12, color: '#2C5B4B', lineHeight: 18 }}>
@@ -92,7 +177,13 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
         </Pressable>
       )}
       <Gap h={18} />
-      <Row icon={<Server size={18} color={C.action} />} title="Máy chủ ARGOLET" subtitle={backend.info.label} onPress={() => navigation.navigate('Server')} chevron />
+      <Row
+        icon={<Server size={18} color={C.action} />}
+        title="Máy chủ ARGOLET"
+        subtitle={backend.info.label}
+        onPress={() => navigation.navigate('Server')}
+        chevron
+      />
     </AuthFrame>
   );
 }
@@ -109,9 +200,18 @@ export function ServerScreen() {
   }, []);
   return (
     <ScrollView contentContainerStyle={{ padding: 16 }}>
-      <Text style={T.muted}>Nhập địa chỉ máy chủ ARGOLET của tổ chức (ví dụ https://api.argolet.vn). Để trống để dùng dữ liệu mẫu trên thiết bị.</Text>
+      <Text style={T.muted}>
+        Nhập địa chỉ máy chủ ARGOLET của tổ chức (ví dụ https://api.argolet.vn). Để trống để dùng dữ liệu mẫu
+        trên thiết bị.
+      </Text>
       <Gap />
-      <Input label="Địa chỉ máy chủ" value={url} onChangeText={setUrl} keyboardType="url" placeholder="https://..." />
+      <Input
+        label="Địa chỉ máy chủ"
+        value={url}
+        onChangeText={setUrl}
+        keyboardType="url"
+        placeholder="https://..."
+      />
       <Button
         title="Lưu & khởi động lại kết nối"
         variant="primary"
@@ -120,7 +220,11 @@ export function ServerScreen() {
           setSaved(url.trim() || null);
         }}
       />
-      {saved !== null && <Notice tone="info">Đã lưu. Đóng và mở lại ứng dụng để áp dụng máy chủ {saved || '(dữ liệu mẫu)'}.</Notice>}
+      {saved !== null && (
+        <Notice tone="info">
+          Đã lưu. Đóng và mở lại ứng dụng để áp dụng máy chủ {saved || '(dữ liệu mẫu)'}.
+        </Notice>
+      )}
     </ScrollView>
   );
 }
@@ -134,11 +238,37 @@ export function RegisterScreen({ navigation, route }: ScreenProps<'Register'>) {
   const reg = useMutation('auth.register', { silent: true });
   return (
     <AuthFrame title="Tạo tài khoản" subtitle="Bắt đầu bằng tài khoản cá nhân của bạn.">
-      <Input label="Họ và tên" value={fullName} onChangeText={setFullName} autoCapitalize="words" placeholder="Nguyễn Minh Anh" error={fieldErr(reg.error, 'Họ và tên')} />
-      <Input label="Email hoặc số điện thoại" value={contact} onChangeText={setContact} keyboardType="email-address" placeholder="ketoan@minhan.example" error={fieldErr(reg.error, 'contact')} />
-      <Input label="Mật khẩu" value={password} onChangeText={setPassword} secure hint="Sử dụng ít nhất 12 ký tự." error={fieldErr(reg.error, 'password')} />
+      <Input
+        label="Họ và tên"
+        value={fullName}
+        onChangeText={setFullName}
+        autoCapitalize="words"
+        placeholder="Nguyễn Minh Anh"
+        error={fieldErr(reg.error, 'Họ và tên')}
+      />
+      <Input
+        label="Email hoặc số điện thoại"
+        value={contact}
+        onChangeText={setContact}
+        keyboardType="email-address"
+        placeholder="ketoan@minhan.example"
+        error={fieldErr(reg.error, 'contact')}
+      />
+      <Input
+        label="Mật khẩu"
+        value={password}
+        onChangeText={setPassword}
+        secure
+        hint="Sử dụng ít nhất 12 ký tự."
+        error={fieldErr(reg.error, 'password')}
+      />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <Switch value={accept} onValueChange={setAccept} trackColor={{ true: C.action, false: C.line }} accessibilityLabel="Đồng ý điều khoản" />
+        <Switch
+          value={accept}
+          onValueChange={setAccept}
+          trackColor={{ true: C.action, false: C.line }}
+          accessibilityLabel="Đồng ý điều khoản"
+        />
         <Text style={[T.small, { flex: 1 }]}>Đồng ý Điều khoản và Chính sách bảo mật.</Text>
       </View>
       {reg.error && !reg.error.details?.field && <Notice tone="danger">{reg.error.message}</Notice>}
@@ -149,7 +279,13 @@ export function RegisterScreen({ navigation, route }: ScreenProps<'Register'>) {
         disabled={!fullName || !contact || !password || !accept}
         onPress={async () => {
           try {
-            const r = await reg.mutate({ fullName, contact, password, acceptTerms: accept, invitationCode: route.params?.invite ?? null });
+            const r = await reg.mutate({
+              fullName,
+              contact,
+              password,
+              acceptTerms: accept,
+              invitationCode: route.params?.invite ?? null,
+            });
             navigation.navigate('Verify', { contact: r.sentTo, devCode: r.devCode });
           } catch {
             /* inline */
@@ -210,7 +346,9 @@ export function VerifyScreen({ route }: ScreenProps<'Verify'>) {
           }
         }}
       />
-      <Text style={[T.small, { marginTop: 18 }]}>Quyền truy cập tổ chức được xác định theo lời mời hoặc ủy quyền.</Text>
+      <Text style={[T.small, { marginTop: 18 }]}>
+        Quyền truy cập tổ chức được xác định theo lời mời hoặc ủy quyền.
+      </Text>
       {devCode ? <Notice tone="info">{`Môi trường thử nghiệm · mã xác minh: ${devCode}`}</Notice> : null}
     </AuthFrame>
   );
@@ -230,7 +368,13 @@ export function ResetScreen({ navigation }: ScreenProps<'Reset'>) {
     <AuthFrame title="Khôi phục mật khẩu" subtitle="Nhận liên kết đặt lại mật khẩu qua email.">
       {stage === 'request' ? (
         <>
-          <Input label="Email tài khoản" value={contact} onChangeText={setContact} keyboardType="email-address" placeholder="ketoan@minhan.example" />
+          <Input
+            label="Email tài khoản"
+            value={contact}
+            onChangeText={setContact}
+            keyboardType="email-address"
+            placeholder="ketoan@minhan.example"
+          />
           <Button
             title="Gửi liên kết khôi phục"
             variant="primary"
@@ -252,8 +396,17 @@ export function ResetScreen({ navigation }: ScreenProps<'Reset'>) {
           <Notice tone="info">Nếu email tồn tại, mã đặt lại đã được gửi (hiệu lực 10 phút).</Notice>
           <OtpInput value={code} onChange={setCode} />
           <Gap />
-          <Input label="Mật khẩu mới" value={pw} onChangeText={setPw} secure hint="Sử dụng ít nhất 12 ký tự." error={fieldErr(confirm.error, 'newPassword')} />
-          {confirm.error && confirm.error.details?.field !== 'newPassword' && <Notice tone="danger">{confirm.error.message}</Notice>}
+          <Input
+            label="Mật khẩu mới"
+            value={pw}
+            onChangeText={setPw}
+            secure
+            hint="Sử dụng ít nhất 12 ký tự."
+            error={fieldErr(confirm.error, 'newPassword')}
+          />
+          {confirm.error && confirm.error.details?.field !== 'newPassword' && (
+            <Notice tone="danger">{confirm.error.message}</Notice>
+          )}
           <Button
             title="Đặt mật khẩu mới"
             variant="primary"
@@ -281,7 +434,9 @@ export function WorkspacesScreen({ navigation }: ScreenProps<'Workspaces'>) {
   const [busy, setBusy] = useState<string | null>(null);
   return (
     <AuthFrame title="Không gian làm việc" subtitle="Mỗi tổ chức có dữ liệu và quyền truy cập riêng.">
-      {list.data?.length === 0 && <Notice tone="info">Bạn chưa thuộc tổ chức nào. Tạo tổ chức mới hoặc nhập mã mời.</Notice>}
+      {list.data?.length === 0 && (
+        <Notice tone="info">Bạn chưa thuộc tổ chức nào. Tạo tổ chức mới hoặc nhập mã mời.</Notice>
+      )}
       {list.data?.map((w) => (
         <Card key={w.tenantId} style={{ padding: 4, paddingHorizontal: 12 }}>
           <Row
@@ -304,7 +459,12 @@ export function WorkspacesScreen({ navigation }: ScreenProps<'Workspaces'>) {
         </Card>
       ))}
       <Gap />
-      <Button title="Tạo tổ chức mới" variant="primary" icon={<Plus size={18} color="#fff" />} onPress={() => navigation.navigate('CreateOrg')} />
+      <Button
+        title="Tạo tổ chức mới"
+        variant="primary"
+        icon={<Plus size={18} color="#fff" />}
+        onPress={() => navigation.navigate('CreateOrg')}
+      />
       <Gap />
       <Button title="Tôi có mã mời" onPress={() => navigation.navigate('Invite')} />
       <Gap />
@@ -322,10 +482,26 @@ export function CreateOrgScreen() {
   const create = useMutation('org.createOrganization', { silent: true });
   return (
     <AuthFrame title="Tạo tổ chức" subtitle="Thiết lập thông tin và phạm vi sử dụng ARGOLET.">
-      <Input label="Tên tổ chức" value={name} onChangeText={setName} autoCapitalize="words" placeholder="Minh An Commerce" error={fieldErr(create.error, 'Tên tổ chức')} />
+      <Input
+        label="Tên tổ chức"
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="words"
+        placeholder="Minh An Commerce"
+        error={fieldErr(create.error, 'Tên tổ chức')}
+      />
       <Input label="Loại hình" value={orgType} onChangeText={setOrgType} autoCapitalize="sentences" />
-      <Input label="Mã số thuế / mã đơn vị" value={taxCode} onChangeText={setTaxCode} keyboardType="number-pad" placeholder="Nhập để xác minh thông tin" error={fieldErr(create.error, 'taxCode')} />
-      <Text style={[T.small, { marginBottom: 18 }]}>Bạn quản trị tổ chức do mình tạo. Thành viên nhận quyền theo lời mời được xác nhận.</Text>
+      <Input
+        label="Mã số thuế / mã đơn vị"
+        value={taxCode}
+        onChangeText={setTaxCode}
+        keyboardType="number-pad"
+        placeholder="Nhập để xác minh thông tin"
+        error={fieldErr(create.error, 'taxCode')}
+      />
+      <Text style={[T.small, { marginBottom: 18 }]}>
+        Bạn quản trị tổ chức do mình tạo. Thành viên nhận quyền theo lời mời được xác nhận.
+      </Text>
       {create.error && !create.error.details?.field && <Notice tone="danger">{create.error.message}</Notice>}
       <Button
         title="Tạo tổ chức & tiếp tục"
@@ -349,19 +525,35 @@ export function InviteScreen({ route }: ScreenProps<'Invite'>) {
   const inv = useQuery('org.getInvitation', { code: lookup }, { enabled: !!lookup });
   const respond = useMutation('org.respondInvitation', { silent: true });
   return (
-    <AuthFrame title={inv.data ? 'Bạn được mời tham gia' : 'Nhập mã mời'} subtitle="Xem rõ vai trò và phạm vi trước khi chấp nhận.">
+    <AuthFrame
+      title={inv.data ? 'Bạn được mời tham gia' : 'Nhập mã mời'}
+      subtitle="Xem rõ vai trò và phạm vi trước khi chấp nhận."
+    >
       {!inv.data && (
         <>
-          <Input label="Mã mời" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="MOI-2026" />
+          <Input
+            label="Mã mời"
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="characters"
+            placeholder="MOI-2026"
+          />
           {inv.error && <Notice tone="danger">{inv.error.message}</Notice>}
-          <Button title="Xem lời mời" variant="primary" disabled={!code.trim()} onPress={() => setLookup(code.trim())} />
+          <Button
+            title="Xem lời mời"
+            variant="primary"
+            disabled={!code.trim()}
+            onPress={() => setLookup(code.trim())}
+          />
         </>
       )}
       {inv.data && (
         <>
           <Card>
             <Text style={[T.h2]}>{inv.data.orgName}</Text>
-            <Text style={[T.small, { marginTop: 4, marginBottom: 8 }]}>Người mời: {inv.data.inviterName}</Text>
+            <Text style={[T.small, { marginTop: 4, marginBottom: 8 }]}>
+              Người mời: {inv.data.inviterName}
+            </Text>
             <KV
               rows={[
                 { label: 'Vai trò', value: inv.data.roleLabel },
@@ -414,8 +606,19 @@ export function ConnectScreen({ navigation }: ScreenProps<'Connect'>) {
   return (
     <AuthFrame title="Kết nối dữ liệu" subtitle="Chọn nguồn hoặc tải tệp để bắt đầu làm việc.">
       {options.map((o) => (
-        <Card key={o.kind} style={{ padding: 4, paddingHorizontal: 12, borderColor: sel.includes(o.kind) ? C.action : C.line }}>
-          <Row icon={<o.icon size={18} color={C.action} />} title={o.title} subtitle={o.sub} onPress={() => setSel((s) => (s.includes(o.kind) ? s.filter((k) => k !== o.kind) : [...s, o.kind]))} right={sel.includes(o.kind) ? <ChevronRight size={16} color={C.action} /> : undefined} />
+        <Card
+          key={o.kind}
+          style={{ padding: 4, paddingHorizontal: 12, borderColor: sel.includes(o.kind) ? C.action : C.line }}
+        >
+          <Row
+            icon={<o.icon size={18} color={C.action} />}
+            title={o.title}
+            subtitle={o.sub}
+            onPress={() =>
+              setSel((s) => (s.includes(o.kind) ? s.filter((k) => k !== o.kind) : [...s, o.kind]))
+            }
+            right={sel.includes(o.kind) ? <ChevronRight size={16} color={C.action} /> : undefined}
+          />
         </Card>
       ))}
       <Gap />
@@ -426,7 +629,8 @@ export function ConnectScreen({ navigation }: ScreenProps<'Connect'>) {
         onPress={async () => {
           for (const k of sel) {
             const i = settings.data?.integrations.find((x) => x.kind === k);
-            if (i && i.status !== 'CONNECTED' && settings.data?.canManage) await setInt.mutate({ integrationId: i.id, connect: true });
+            if (i && i.status !== 'CONNECTED' && settings.data?.canManage)
+              await setInt.mutate({ integrationId: i.id, connect: true });
           }
           navigation.navigate('Main');
         }}

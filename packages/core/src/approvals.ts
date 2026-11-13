@@ -14,7 +14,14 @@ export interface ApprovalRequest {
   approvalId: string;
   tenantId: string;
   entityId: string;
-  targetType: 'EXPENSE' | 'MATCH_GROUP' | 'PERIOD_CLOSE' | 'DECISION_PACK' | 'TOOL_PROPOSAL' | 'ALLOCATION' | 'DAILY_CLOSE';
+  targetType:
+    | 'EXPENSE'
+    | 'MATCH_GROUP'
+    | 'PERIOD_CLOSE'
+    | 'DECISION_PACK'
+    | 'TOOL_PROPOSAL'
+    | 'ALLOCATION'
+    | 'DAILY_CLOSE';
   targetId: string;
   targetVersion: number;
   digest: string;
@@ -56,15 +63,24 @@ export function decide(req: ApprovalRequest, ctx: AccessContext, input: Decision
     makerId: req.makerId,
   });
   if (!decisionAuth.allowed) {
-    throw new ApprovalError(decisionAuth.requiresStepUp ? 'STEP_UP_REQUIRED' : 'FORBIDDEN', decisionAuth.reason);
+    throw new ApprovalError(
+      decisionAuth.requiresStepUp ? 'STEP_UP_REQUIRED' : 'FORBIDDEN',
+      decisionAuth.reason,
+    );
   }
-  if (input.seenDigest !== req.digest) throw new ApprovalError('DIGEST_MISMATCH', 'Nội dung bạn xem khác nội dung đã trình duyệt');
+  if (input.seenDigest !== req.digest)
+    throw new ApprovalError('DIGEST_MISMATCH', 'Nội dung bạn xem khác nội dung đã trình duyệt');
   if (input.currentDigest !== req.digest || input.currentVersion !== req.targetVersion) {
     throw new ApprovalError('STALE_TARGET', 'Hồ sơ đã thay đổi sau khi trình duyệt, cần trình lại');
   }
   return {
     ...req,
-    status: input.decision === 'APPROVE' ? 'APPROVED' : input.decision === 'REJECT' ? 'REJECTED' : 'CHANGES_REQUESTED',
+    status:
+      input.decision === 'APPROVE'
+        ? 'APPROVED'
+        : input.decision === 'REJECT'
+          ? 'REJECTED'
+          : 'CHANGES_REQUESTED',
     decidedAt: input.now,
     actorId: ctx.userId,
     comment: input.comment,
@@ -73,7 +89,8 @@ export function decide(req: ApprovalRequest, ctx: AccessContext, input: Decision
 
 export class ApprovalError extends Error {
   constructor(
-    public readonly code: 'ALREADY_DECIDED' | 'DIGEST_MISMATCH' | 'STALE_TARGET' | 'FORBIDDEN' | 'STEP_UP_REQUIRED',
+    public readonly code:
+      'ALREADY_DECIDED' | 'DIGEST_MISMATCH' | 'STALE_TARGET' | 'FORBIDDEN' | 'STEP_UP_REQUIRED',
     message: string,
   ) {
     super(message);

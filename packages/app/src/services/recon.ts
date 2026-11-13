@@ -1,6 +1,18 @@
 import {
-  canonicalize, D, DEFAULT_RULES, formatDate, formatVnd, newId, nextCode, runReconciliation, sha256Hex, sum, targetDigest, APPROVAL_POLICY_VERSION,
-  type ReconOrder, type ReconTxn,
+  canonicalize,
+  D,
+  DEFAULT_RULES,
+  formatDate,
+  formatVnd,
+  newId,
+  nextCode,
+  runReconciliation,
+  sha256Hex,
+  sum,
+  targetDigest,
+  APPROVAL_POLICY_VERSION,
+  type ReconOrder,
+  type ReconTxn,
 } from '@argolet/core';
 import { type AppCore, actor, paginate, requireFound, type PageParams } from '../core';
 import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
@@ -10,7 +22,7 @@ import { inScope, scoped } from './documents';
 import { closingUnits } from './close';
 import { scopeLabel } from './org';
 
-export const GROUP_STATUS_LABEL = (g: Pick<MatchGroupRow, 'status' | 'residual'>): string =>
+const GROUP_STATUS_LABEL = (g: Pick<MatchGroupRow, 'status' | 'residual'>): string =>
   g.status === 'CONFIRMED'
     ? 'Đã xác nhận'
     : g.status === 'DISCREPANCY'
@@ -43,8 +55,13 @@ const squash = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
  * transfer description ("GF-PAY-1106 thanh toan don hang"). A credit is linked to a batch when
  * its description or reference contains a batch code that the platform's own orders carry.
  */
-export function linkPayoutBatches(txns: BusinessRecordRow[], orders: { payoutBatch?: string | undefined }[]): BusinessRecordRow[] {
-  const batches = [...new Set(orders.map((o) => o.payoutBatch).filter((b): b is string => !!b && squash(b).length >= 3))].sort((a, b) => squash(b).length - squash(a).length);
+function linkPayoutBatches(
+  txns: BusinessRecordRow[],
+  orders: { payoutBatch?: string | undefined }[],
+): BusinessRecordRow[] {
+  const batches = [
+    ...new Set(orders.map((o) => o.payoutBatch).filter((b): b is string => !!b && squash(b).length >= 3)),
+  ].sort((a, b) => squash(b).length - squash(a).length);
   return txns.map((t) => {
     if (t.payoutBatch) return t;
     const text = squash(`${t.description ?? ''} ${t.reference}`);
@@ -67,7 +84,15 @@ const toTxn = (r: BusinessRecordRow): ReconTxn => ({
 });
 
 export function groupDigest(g: MatchGroupRow): string {
-  return targetDigest({ code: g.code, version: g.version, links: g.links, net: g.net, received: g.received, residual: g.residual, rulesVersion: g.rulesVersion });
+  return targetDigest({
+    code: g.code,
+    version: g.version,
+    links: g.links,
+    net: g.net,
+    received: g.received,
+    residual: g.residual,
+    rulesVersion: g.rulesVersion,
+  });
 }
 
 export class ReconService {
@@ -85,7 +110,9 @@ export class ReconService {
         rows = rows.filter((g) => `${g.code} ${g.sourceLabel}`.toLowerCase().includes(q));
       }
       rows.sort((a, b) => b.code.localeCompare(a.code, undefined, { numeric: true }));
-      const openOrders = (await scoped(tx, ws, 'records')).filter((r) => r.kind === 'ORDER' && !r.matchGroupId);
+      const openOrders = (await scoped(tx, ws, 'records')).filter(
+        (r) => r.kind === 'ORDER' && !r.matchGroupId,
+      );
       const pg = paginate(rows, p, 20);
       return {
         kpis: {
@@ -95,7 +122,10 @@ export class ReconService {
           unmatchedOrders: openOrders.length,
         },
         canRun: this.core.can(ws, 'recon.run'),
-        firstOpenId: groups.filter((g) => g.status === 'PROPOSED').sort((x, y) => y.code.localeCompare(x.code, undefined, { numeric: true }))[0]?.id ?? null,
+        firstOpenId:
+          groups
+            .filter((g) => g.status === 'PROPOSED')
+            .sort((x, y) => y.code.localeCompare(x.code, undefined, { numeric: true }))[0]?.id ?? null,
         page: pg.page,
         pageSize: pg.pageSize,
         total: pg.total,
@@ -111,7 +141,14 @@ export class ReconService {
           receivedLabel: formatVnd(g.received),
           status: g.status,
           statusLabel: GROUP_STATUS_LABEL(g),
-          tone: g.status === 'CONFIRMED' ? 'success' : g.status === 'DISCREPANCY' ? 'warning' : g.status === 'PENDING_APPROVAL' ? 'success' : 'warning',
+          tone:
+            g.status === 'CONFIRMED'
+              ? 'success'
+              : g.status === 'DISCREPANCY'
+                ? 'warning'
+                : g.status === 'PENDING_APPROVAL'
+                  ? 'success'
+                  : 'warning',
         })),
       };
     });
@@ -125,7 +162,9 @@ export class ReconService {
       const recs = async (ids: string[]) => {
         const out: BusinessRecordRow[] = [];
         for (const id of ids) {
-          const r = (await tx.get('records', ws.tenantId, id)) ?? (await tx.list('recordHistory', ws.tenantId, { recordId: id }))[0];
+          const r =
+            (await tx.get('records', ws.tenantId, id)) ??
+            (await tx.list('recordHistory', ws.tenantId, { recordId: id }))[0];
           if (r) out.push(r);
         }
         return out;
@@ -161,9 +200,28 @@ export class ReconService {
           entityLabel: await scopeLabel(tx, ws.tenantId, g.entityId),
           approvalStatus: approval?.status ?? null,
         },
-        orders: orders.map((o) => ({ id: o.recordId, code: o.code, date: o.date, dateLabel: formatDate(o.date), gross: o.amount, fee: o.fee, refund: o.refund, channel: o.channel })),
-        receipts: txns.map((t) => ({ id: t.recordId, code: t.code, date: t.date, dateLabel: formatDate(t.date), amount: t.amount, source: t.kind === 'CASH' ? 'Tiền mặt' : 'Ngân hàng', reference: t.payoutBatch || t.reference })),
-        canConfirm: this.core.can(ws, 'recon.confirm', g.entityId) && (g.status === 'PROPOSED' || g.status === 'DISCREPANCY'),
+        orders: orders.map((o) => ({
+          id: o.recordId,
+          code: o.code,
+          date: o.date,
+          dateLabel: formatDate(o.date),
+          gross: o.amount,
+          fee: o.fee,
+          refund: o.refund,
+          channel: o.channel,
+        })),
+        receipts: txns.map((t) => ({
+          id: t.recordId,
+          code: t.code,
+          date: t.date,
+          dateLabel: formatDate(t.date),
+          amount: t.amount,
+          source: t.kind === 'CASH' ? 'Tiền mặt' : 'Ngân hàng',
+          reference: t.payoutBatch || t.reference,
+        })),
+        canConfirm:
+          this.core.can(ws, 'recon.confirm', g.entityId) &&
+          (g.status === 'PROPOSED' || g.status === 'DISCREPANCY'),
       };
     });
   }
@@ -175,8 +233,19 @@ export class ReconService {
       const tenant = requireFound(await tx.get('tenants', ws0.tenantId, ws0.tenantId), 'tổ chức');
       const periodId = p.periodId ?? tenant.settings.currentPeriod;
       // One run per unit: a specific unit, the member's own scope, or every unit when viewing the whole organisation.
-      const units = p.entityId ? [p.entityId] : ws0.entityId !== '*' ? [ws0.entityId] : await closingUnits(tx, ws0.tenantId);
-      const total = { groups: 0, unmatchedOrders: 0, unmatchedTxns: 0, pendingSources: 0, runIds: [] as string[], inputSnapshotDigest: '' };
+      const units = p.entityId
+        ? [p.entityId]
+        : ws0.entityId !== '*'
+          ? [ws0.entityId]
+          : await closingUnits(tx, ws0.tenantId);
+      const total = {
+        groups: 0,
+        unmatchedOrders: 0,
+        unmatchedTxns: 0,
+        pendingSources: 0,
+        runIds: [] as string[],
+        inputSnapshotDigest: '',
+      };
       for (const entityId of units) {
         const ws = await this.core.requireWorkspace(tx, call, 'recon.run', { entityId });
         const r = await this.runUnit(tx, em, now, ws, entityId, periodId);
@@ -187,76 +256,135 @@ export class ReconService {
         total.runIds.push(r.runId);
         total.inputSnapshotDigest = r.inputSnapshotDigest;
       }
-      return { runId: total.runIds[0] ?? '', runIds: total.runIds, units: units.length, groups: total.groups, unmatchedOrders: total.unmatchedOrders, unmatchedTxns: total.unmatchedTxns, pendingSources: total.pendingSources, inputSnapshotDigest: total.inputSnapshotDigest };
+      return {
+        runId: total.runIds[0] ?? '',
+        runIds: total.runIds,
+        units: units.length,
+        groups: total.groups,
+        unmatchedOrders: total.unmatchedOrders,
+        unmatchedTxns: total.unmatchedTxns,
+        pendingSources: total.pendingSources,
+        inputSnapshotDigest: total.inputSnapshotDigest,
+      };
     });
   }
 
-  private async runUnit(tx: Tx, em: Emitter, now: string, ws: WorkspaceState, entityId: string, periodId: string) {
-      const open = (await tx.list('records', ws.tenantId, { entityId })).filter((r) => !r.matchGroupId && r.periodId === periodId);
-      const orders = open.filter((r) => r.kind === 'ORDER').map(toOrder);
-      const txns = linkPayoutBatches(open.filter((r) => r.kind === 'BANK_TXN' || r.kind === 'CASH'), orders).map(toTxn);
-      const inputSnapshotDigest = sha256Hex(canonicalize({ orders, txns, periodId, entityId }));
-      const result = runReconciliation(orders, txns, DEFAULT_RULES);
-      const runId = newId('run');
-      let codes = (await tx.list('matchGroups', ws.tenantId)).map((g) => g.code);
-      const groupIds: string[] = [];
-      for (const g of result.groups) {
-        const code = nextCode('DS', codes);
-        codes = [...codes, code];
-        const id = newId('grp');
-        const sources = new Set(g.txnIds.map((tid) => open.find((r) => r.recordId === tid)?.kind));
-        const channels = new Set(g.orderIds.map((oid) => open.find((r) => r.recordId === oid)?.channel));
-        const feePct = D(g.gross).isZero() ? D(0) : D(g.fee).div(g.gross).times(100);
-        const row: MatchGroupRow = {
-          id,
-          tenantId: ws.tenantId,
-          code,
-          runId,
-          entityId,
-          periodId,
-          kind: g.kind,
-          status: g.status === 'MATCHED' ? 'PROPOSED' : 'DISCREPANCY',
-          sourceLabel: sources.has('CASH') ? 'Tiền mặt' : [...channels].some((c) => c && /nền tảng|grab|shopee|food|be/i.test(c)) ? 'Nền tảng' : 'Ngân hàng',
-          orderIds: g.orderIds,
-          txnIds: g.txnIds,
-          gross: g.gross,
-          fee: g.fee,
-          refund: g.refund,
-          discount: g.discount,
-          adjustment: g.adjustment,
-          net: g.net,
-          received: g.received,
-          residual: g.residual,
-          score: g.score,
-          links: g.links,
-          allocations: g.allocations,
-          explanation: g.explanation,
-          basis: g.basis,
-          feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',')}% · ${result.rulesVersion}`,
-          inputSnapshotVersion: inputSnapshotDigest.slice(0, 16),
-          rulesVersion: result.rulesVersion,
-          confirmedBy: null,
-          confirmedAt: null,
-          approvalId: null,
-          version: 1,
-          createdAt: now,
-          updatedAt: now,
-          rev: 0,
-        };
-        await tx.put('matchGroups', row);
-        groupIds.push(id);
-        // Lock records to the proposed group (prevents double allocation in later runs).
-        for (const rid of [...g.orderIds, ...g.txnIds]) {
-          const rec = await tx.get('records', ws.tenantId, rid);
-          if (rec) await tx.put('records', { ...rec, matchGroupId: id });
-        }
+  private async runUnit(
+    tx: Tx,
+    em: Emitter,
+    now: string,
+    ws: WorkspaceState,
+    entityId: string,
+    periodId: string,
+  ) {
+    const open = (await tx.list('records', ws.tenantId, { entityId })).filter(
+      (r) => !r.matchGroupId && r.periodId === periodId,
+    );
+    const orders = open.filter((r) => r.kind === 'ORDER').map(toOrder);
+    const txns = linkPayoutBatches(
+      open.filter((r) => r.kind === 'BANK_TXN' || r.kind === 'CASH'),
+      orders,
+    ).map(toTxn);
+    const inputSnapshotDigest = sha256Hex(canonicalize({ orders, txns, periodId, entityId }));
+    const result = runReconciliation(orders, txns, DEFAULT_RULES);
+    const runId = newId('run');
+    let codes = (await tx.list('matchGroups', ws.tenantId)).map((g) => g.code);
+    const groupIds: string[] = [];
+    for (const g of result.groups) {
+      const code = nextCode('DS', codes);
+      codes = [...codes, code];
+      const id = newId('grp');
+      const sources = new Set(g.txnIds.map((tid) => open.find((r) => r.recordId === tid)?.kind));
+      const channels = new Set(g.orderIds.map((oid) => open.find((r) => r.recordId === oid)?.channel));
+      const feePct = D(g.gross).isZero() ? D(0) : D(g.fee).div(g.gross).times(100);
+      const row: MatchGroupRow = {
+        id,
+        tenantId: ws.tenantId,
+        code,
+        runId,
+        entityId,
+        periodId,
+        kind: g.kind,
+        status: g.status === 'MATCHED' ? 'PROPOSED' : 'DISCREPANCY',
+        sourceLabel: sources.has('CASH')
+          ? 'Tiền mặt'
+          : [...channels].some((c) => c && /nền tảng|grab|shopee|food|be/i.test(c))
+            ? 'Nền tảng'
+            : 'Ngân hàng',
+        orderIds: g.orderIds,
+        txnIds: g.txnIds,
+        gross: g.gross,
+        fee: g.fee,
+        refund: g.refund,
+        discount: g.discount,
+        adjustment: g.adjustment,
+        net: g.net,
+        received: g.received,
+        residual: g.residual,
+        score: g.score,
+        links: g.links,
+        allocations: g.allocations,
+        explanation: g.explanation,
+        basis: g.basis,
+        feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',')}% · ${result.rulesVersion}`,
+        inputSnapshotVersion: inputSnapshotDigest.slice(0, 16),
+        rulesVersion: result.rulesVersion,
+        confirmedBy: null,
+        confirmedAt: null,
+        approvalId: null,
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+        rev: 0,
+      };
+      await tx.put('matchGroups', row);
+      groupIds.push(id);
+      // Lock records to the proposed group (prevents double allocation in later runs).
+      for (const rid of [...g.orderIds, ...g.txnIds]) {
+        const rec = await tx.get('records', ws.tenantId, rid);
+        if (rec) await tx.put('records', { ...rec, matchGroupId: id });
       }
-      await tx.put('reconRuns', { id: runId, tenantId: ws.tenantId, entityId, periodId, inputSnapshotDigest, rulesVersion: result.rulesVersion, groupIds, unmatchedOrders: result.unmatchedOrders, unmatchedTxns: result.unmatchedTxns, createdBy: ws.user.id });
-      await em.emit({ type: 'ReconciliationProposed', tenantId: ws.tenantId, entityId, aggregateType: 'ReconRun', aggregateId: runId, actorId: ws.user.id, dataRef: `recon-run/${runId}`, dataVersion: 1, data: { runId, groups: groupIds.length } });
-      await em.audit(ws.tenantId, actor(ws), 'recon.run', runId, `${groupIds.length} nhóm đề xuất`);
-      // Source files (POS / platform / bank) only feed the engine once someone has confirmed them.
-      const pendingSources = (await tx.list('documents', ws.tenantId, { entityId })).filter((d) => (d.rowKind === 'POS' || d.rowKind === 'BANK') && d.date.slice(0, 7) === periodId && d.status !== 'VALIDATED' && d.status !== 'REJECTED').length;
-      return { runId, groups: groupIds.length, unmatchedOrders: result.unmatchedOrders.length, unmatchedTxns: result.unmatchedTxns.length, pendingSources, inputSnapshotDigest };
+    }
+    await tx.put('reconRuns', {
+      id: runId,
+      tenantId: ws.tenantId,
+      entityId,
+      periodId,
+      inputSnapshotDigest,
+      rulesVersion: result.rulesVersion,
+      groupIds,
+      unmatchedOrders: result.unmatchedOrders,
+      unmatchedTxns: result.unmatchedTxns,
+      createdBy: ws.user.id,
+    });
+    await em.emit({
+      type: 'ReconciliationProposed',
+      tenantId: ws.tenantId,
+      entityId,
+      aggregateType: 'ReconRun',
+      aggregateId: runId,
+      actorId: ws.user.id,
+      dataRef: `recon-run/${runId}`,
+      dataVersion: 1,
+      data: { runId, groups: groupIds.length },
+    });
+    await em.audit(ws.tenantId, actor(ws), 'recon.run', runId, `${groupIds.length} nhóm đề xuất`);
+    // Source files (POS / platform / bank) only feed the engine once someone has confirmed them.
+    const pendingSources = (await tx.list('documents', ws.tenantId, { entityId })).filter(
+      (d) =>
+        (d.rowKind === 'POS' || d.rowKind === 'BANK') &&
+        d.date.slice(0, 7) === periodId &&
+        d.status !== 'VALIDATED' &&
+        d.status !== 'REJECTED',
+    ).length;
+    return {
+      runId,
+      groups: groupIds.length,
+      unmatchedOrders: result.unmatchedOrders.length,
+      unmatchedTxns: result.unmatchedTxns.length,
+      pendingSources,
+      inputSnapshotDigest,
+    };
   }
 
   /** "Kế toán xác nhận kết quả đối soát" → MatchResolved. */
@@ -265,18 +393,48 @@ export class ReconService {
       const ws0 = await this.core.requireWorkspace(tx, call, 'recon.read');
       const g = await findGroup(tx, ws0.tenantId, p.groupId);
       const ws = await this.core.requireWorkspace(tx, call, 'recon.confirm', { entityId: g.entityId });
-      if (g.status === 'PENDING_APPROVAL') throw new AppError('CONFLICT', 'Nhóm đang chờ phê duyệt, hãy xử lý trong hộp công việc');
+      if (g.status === 'PENDING_APPROVAL')
+        throw new AppError('CONFLICT', 'Nhóm đang chờ phê duyệt, hãy xử lý trong hộp công việc');
       return this.confirmInTx(tx, ws, g, p.digest, now, em, p.note);
     });
   }
 
-  async confirmInTx(tx: Tx, ws: WorkspaceState, g: MatchGroupRow, digest: string, now: string, em: Emitter, note?: string) {
+  async confirmInTx(
+    tx: Tx,
+    ws: WorkspaceState,
+    g: MatchGroupRow,
+    digest: string,
+    now: string,
+    em: Emitter,
+    note?: string,
+  ) {
     if (g.status === 'CONFIRMED') throw new AppError('CONFLICT', 'Nhóm đã được xác nhận');
-    if (digest !== groupDigest(g)) throw new AppError('CONFLICT', 'Phương án ghép đã thay đổi, vui lòng tải lại trước khi xác nhận');
-    if (g.status === 'DISCREPANCY' && !note) throw new AppError('VALIDATION', 'Nhóm còn chênh lệch: cần ghi chú giải thích trước khi xác nhận', { field: 'note' });
-    const next: MatchGroupRow = { ...g, status: 'CONFIRMED', confirmedBy: ws.user.id, confirmedAt: now, version: g.version + 1, basis: note ? [...g.basis, `Ghi chú xác nhận: ${note}`] : g.basis };
+    if (digest !== groupDigest(g))
+      throw new AppError('CONFLICT', 'Phương án ghép đã thay đổi, vui lòng tải lại trước khi xác nhận');
+    if (g.status === 'DISCREPANCY' && !note)
+      throw new AppError('VALIDATION', 'Nhóm còn chênh lệch: cần ghi chú giải thích trước khi xác nhận', {
+        field: 'note',
+      });
+    const next: MatchGroupRow = {
+      ...g,
+      status: 'CONFIRMED',
+      confirmedBy: ws.user.id,
+      confirmedAt: now,
+      version: g.version + 1,
+      basis: note ? [...g.basis, `Ghi chú xác nhận: ${note}`] : g.basis,
+    };
     await tx.put('matchGroups', next);
-    await em.emit({ type: 'MatchResolved', tenantId: ws.tenantId, entityId: g.entityId, aggregateType: 'MatchGroup', aggregateId: g.id, actorId: ws.user.id, dataRef: `match-group/${g.id}`, dataVersion: next.version, data: { groupId: g.id, code: g.code, net: g.net, received: g.received } });
+    await em.emit({
+      type: 'MatchResolved',
+      tenantId: ws.tenantId,
+      entityId: g.entityId,
+      aggregateType: 'MatchGroup',
+      aggregateId: g.id,
+      actorId: ws.user.id,
+      dataRef: `match-group/${g.id}`,
+      dataVersion: next.version,
+      data: { groupId: g.id, code: g.code, net: g.net, received: g.received },
+    });
     await em.audit(ws.tenantId, actor(ws), 'recon.confirm', g.code);
     return { ok: true, status: next.status };
   }
@@ -289,7 +447,8 @@ export class ReconService {
       const ws = await this.core.requireWorkspace(tx, call, 'approval.request', { entityId: g.entityId });
       if (g.status === 'CONFIRMED') throw new AppError('CONFLICT', 'Nhóm đã được xác nhận');
       if (g.status === 'PENDING_APPROVAL') throw new AppError('CONFLICT', 'Nhóm đang chờ phê duyệt');
-      if (g.status === 'DISCREPANCY') throw new AppError('VALIDATION', 'Nhóm còn chênh lệch, cần giải thích trước khi gửi duyệt');
+      if (g.status === 'DISCREPANCY')
+        throw new AppError('VALIDATION', 'Nhóm còn chênh lệch, cần giải thích trước khi gửi duyệt');
       const approvalId = newId('apv');
       const entityLabel = await scopeLabel(tx, ws.tenantId, g.entityId);
       await tx.put('approvals', {
@@ -320,7 +479,17 @@ export class ReconService {
         createdAt: now,
       });
       await tx.put('matchGroups', { ...g, status: 'PENDING_APPROVAL', approvalId });
-      await em.emit({ type: 'ApprovalRequested', tenantId: ws.tenantId, entityId: g.entityId, aggregateType: 'Approval', aggregateId: approvalId, actorId: ws.user.id, dataRef: `approval/${approvalId}`, dataVersion: 1, data: { approvalId, targetType: 'MATCH_GROUP', code: g.code } });
+      await em.emit({
+        type: 'ApprovalRequested',
+        tenantId: ws.tenantId,
+        entityId: g.entityId,
+        aggregateType: 'Approval',
+        aggregateId: approvalId,
+        actorId: ws.user.id,
+        dataRef: `approval/${approvalId}`,
+        dataVersion: 1,
+        data: { approvalId, targetType: 'MATCH_GROUP', code: g.code },
+      });
       await em.audit(ws.tenantId, actor(ws), 'approval.request', g.code);
       return { approvalId };
     });

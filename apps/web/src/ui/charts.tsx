@@ -25,7 +25,8 @@ export function CashflowLineChart({ data, unit = 'triệu đồng' }: { data: Li
   const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step);
   const x = (i: number) => pad.l + (data.length <= 1 ? 0 : (i * (W - pad.l - pad.r)) / (data.length - 1));
   const y = (v: number) => pad.t + (H - pad.t - pad.b) * (1 - v / top);
-  const path = (key: 'inflow' | 'outflow') => data.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ');
+  const path = (key: 'inflow' | 'outflow') =>
+    data.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ');
   const last = data.length - 1;
   const series = useMemo(
     () => [
@@ -45,7 +46,15 @@ export function CashflowLineChart({ data, unit = 'triệu đồng' }: { data: Li
   };
   return (
     <div style={{ position: 'relative' }}>
-      <svg ref={ref} className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Dòng tiền thu và chi theo ngày, đơn vị ${unit}`} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+      <svg
+        ref={ref}
+        className="chart"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`Dòng tiền thu và chi theo ngày, đơn vị ${unit}`}
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
+      >
         {ticks.map((t) => (
           <g key={t}>
             <line className="grid-line" x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} />
@@ -59,15 +68,36 @@ export function CashflowLineChart({ data, unit = 'triệu đồng' }: { data: Li
             {d.label}
           </text>
         ))}
-        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="#b9c7cf" strokeWidth={1} />}
+        {hover !== null && (
+          <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="#b9c7cf" strokeWidth={1} />
+        )}
         {series.map((s) => (
           <g key={s.key}>
-            <path d={path(s.key)} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            <path
+              d={path(s.key)}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
             {data.map((d, i) => (
-              <circle key={i} cx={x(i)} cy={y(d[s.key])} r={hover === i ? 5 : 4} fill={s.color} stroke="#fff" strokeWidth={2} />
+              <circle
+                key={i}
+                cx={x(i)}
+                cy={y(d[s.key])}
+                r={hover === i ? 5 : 4}
+                fill={s.color}
+                stroke="#fff"
+                strokeWidth={2}
+              />
             ))}
             {last >= 0 && (
-              <text x={x(last) + 10} y={y(data[last]![s.key]) + 4} style={{ fill: 'var(--text)', fontWeight: 600 }}>
+              <text
+                x={x(last) + 10}
+                y={y(data[last]![s.key]) + 4}
+                style={{ fill: 'var(--text)', fontWeight: 600 }}
+              >
                 {s.name} {fmt(data[last]![s.key])}
               </text>
             )}
@@ -76,11 +106,20 @@ export function CashflowLineChart({ data, unit = 'triệu đồng' }: { data: Li
         <rect x={pad.l} y={pad.t} width={W - pad.l - pad.r} height={H - pad.t - pad.b} fill="transparent" />
       </svg>
       {hover !== null && data[hover] && (
-        <div className="chart-tip" style={{ left: `${(x(hover) / W) * 100}%`, top: `${(Math.min(y(data[hover]!.inflow), y(data[hover]!.outflow)) / H) * 100}%` }}>
-          <div className="strong" style={{ marginBottom: 4 }}>{data[hover]!.label}</div>
+        <div
+          className="chart-tip"
+          style={{
+            left: `${(x(hover) / W) * 100}%`,
+            top: `${(Math.min(y(data[hover]!.inflow), y(data[hover]!.outflow)) / H) * 100}%`,
+          }}
+        >
+          <div className="strong" style={{ marginBottom: 4 }}>
+            {data[hover]!.label}
+          </div>
           {series.map((s) => (
             <div className="tip-row" key={s.key}>
-              <i style={{ background: s.color }} /> {s.name}: {fmt(data[hover]![s.key])} {unit === 'triệu đồng' ? 'tr' : unit}
+              <i style={{ background: s.color }} /> {s.name}: {fmt(data[hover]![s.key])}{' '}
+              {unit === 'triệu đồng' ? 'tr' : unit}
             </div>
           ))}
         </div>
@@ -135,7 +174,12 @@ export function CashflowColumns({ flows }: { flows: number[] }) {
   const [hover, setHover] = useState<number | null>(null);
   return (
     <div style={{ position: 'relative' }}>
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Dòng tiền dự án theo năm, đơn vị triệu đồng">
+      <svg
+        className="chart"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label="Dòng tiền dự án theo năm, đơn vị triệu đồng"
+      >
         <line className="grid-line" x1={0} x2={W} y1={zeroY} y2={zeroY} />
         {flows.map((f, i) => {
           const cx = slot * i + slot / 2;
@@ -154,7 +198,12 @@ export function CashflowColumns({ flows }: { flows: number[] }) {
                 fill={color}
                 opacity={hover === null || hover === i ? 1 : 0.55}
               />
-              <text x={cx} y={f >= 0 ? yTop - 8 : zeroY + h + 14} textAnchor="middle" style={{ fill: 'var(--text)' }}>
+              <text
+                x={cx}
+                y={f >= 0 ? yTop - 8 : zeroY + h + 14}
+                textAnchor="middle"
+                style={{ fill: 'var(--text)' }}
+              >
                 {f > 0 ? '+' : f < 0 ? '−' : ''}
                 {Math.abs(f).toLocaleString('vi-VN')}
               </text>

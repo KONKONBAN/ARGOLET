@@ -193,19 +193,25 @@ describe('core flows through the UI', () => {
     const doc = docs.items.find((d) => d.code === 'CT-1028')!;
     renderAt(backend, `#/documents/${doc.id}/review`);
     await settled();
-    const confirm = () => screen.getAllByRole('button').find((b) => /Xác nhận/.test(b.textContent ?? '') && !(b as HTMLButtonElement).disabled);
+    const confirm = () =>
+      screen
+        .getAllByRole('button')
+        .find((b) => /Xác nhận/.test(b.textContent ?? '') && !(b as HTMLButtonElement).disabled);
     await act(async () => {
       fireEvent.click(confirm()!);
     });
     // A date warning must be acknowledged with a second confirmation.
-    await waitFor(async () => {
-      const after = await backend.call('documents.get', { documentId: doc.id });
-      if (after.document.status !== 'VALIDATED') {
-        const again = confirm();
-        if (again) fireEvent.click(again);
-      }
-      expect(after.document.status).toBe('VALIDATED');
-    }, { timeout: 15000 });
+    await waitFor(
+      async () => {
+        const after = await backend.call('documents.get', { documentId: doc.id });
+        if (after.document.status !== 'VALIDATED') {
+          const again = confirm();
+          if (again) fireEvent.click(again);
+        }
+        expect(after.document.status).toBe('VALIDATED');
+      },
+      { timeout: 15000 },
+    );
     const ev = await backend.call('evidence.document', { documentId: doc.id });
     expect(ev).toBeTruthy();
   });

@@ -1,6 +1,13 @@
 import type { ExtractionProvider } from '@argolet/core';
 import { AppCore } from './core';
-import { DEFAULT_CONFIG, type AppConfig, type AppDeps, type LlmClient, type Notifier, type PasswordHasher } from './runtime';
+import {
+  DEFAULT_CONFIG,
+  type AppConfig,
+  type AppDeps,
+  type LlmClient,
+  type Notifier,
+  type PasswordHasher,
+} from './runtime';
 import type { Store } from './store';
 import { AuthService } from './services/auth';
 import { OrgService } from './services/org';
@@ -53,11 +60,29 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
   const assistant = new AssistantService(core);
 
   // Event consumers (idempotent via inbox, processed in outbox commit order).
-  core.relay.on('DocumentValidated', 'evidence-documents', (e, tx, em) => evidence.onDocumentValidated(e, tx, em));
+  core.relay.on('DocumentValidated', 'evidence-documents', (e, tx, em) =>
+    evidence.onDocumentValidated(e, tx, em),
+  );
   core.relay.on('PeriodClosed', 'evidence-close', (e, tx, em) => evidence.onPeriodClosed(e, tx, em));
-  core.relay.on('MatchResolved', 'documents-after-recon', (e, tx, em) => onMatchResolvedValidateDocuments(e, tx, em));
+  core.relay.on('MatchResolved', 'documents-after-recon', (e, tx, em) =>
+    onMatchResolvedValidateDocuments(e, tx, em),
+  );
   core.relay.on('*', 'projection-dashboard', (e, tx) => dashboard.onEvent(e, tx));
   core.relay.on('*', 'notifications', (e, tx, em) => dashboard.onNotify(e, tx, em));
 
-  return { core, deps, auth, org, documents, recon, approvals, close, evidence, dashboard, finance, modules, assistant };
+  return {
+    core,
+    deps,
+    auth,
+    org,
+    documents,
+    recon,
+    approvals,
+    close,
+    evidence,
+    dashboard,
+    finance,
+    modules,
+    assistant,
+  };
 }

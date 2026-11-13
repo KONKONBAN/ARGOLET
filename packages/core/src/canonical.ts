@@ -4,12 +4,7 @@
  * so that the same content always yields the same digest on every platform.
  */
 export type Canonicalizable =
-  | null
-  | boolean
-  | number
-  | string
-  | Canonicalizable[]
-  | { [key: string]: Canonicalizable | undefined };
+  null | boolean | number | string | Canonicalizable[] | { [key: string]: Canonicalizable | undefined };
 
 export function canonicalize(value: unknown): string {
   return serialize(value, new Set());

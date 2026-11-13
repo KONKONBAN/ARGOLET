@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { SessionInfo, WorkspaceContext } from '@argolet/app';
 import { ApiError } from '../api/backend';
@@ -33,7 +42,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
   const [me, setMe] = useState<SessionInfo | null>(null);
   const [ctx, setCtx] = useState<WorkspaceContext | null>(null);
-  const [stepUp, setStepUp] = useState<{ method: 'OTP' | 'TOTP'; sentTo?: string; devCode?: string; resolve: (ok: boolean) => void } | null>(null);
+  const [stepUp, setStepUp] = useState<{
+    method: 'OTP' | 'TOTP';
+    sentTo?: string;
+    devCode?: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
   const [code, setCode] = useState('');
   const [stepErr, setStepErr] = useState<string | null>(null);
   const [stepBusy, setStepBusy] = useState(false);
@@ -73,7 +87,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status !== 'ready') return;
     const id = setInterval(() => {
-      backend.call('org.context').then(setCtx).catch(() => undefined);
+      backend
+        .call('org.context')
+        .then(setCtx)
+        .catch(() => undefined);
     }, 30_000);
     return () => clearInterval(id);
   }, [status, backend]);
@@ -111,7 +128,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const r = await backend.call('auth.startStepUp');
     setCode('');
     setStepErr(null);
-    return new Promise<boolean>((resolve) => setStepUp({ method: r.method, sentTo: 'sentTo' in r ? r.sentTo : undefined, devCode: 'devCode' in r ? r.devCode : undefined, resolve }));
+    return new Promise<boolean>((resolve) =>
+      setStepUp({
+        method: r.method,
+        sentTo: 'sentTo' in r ? r.sentTo : undefined,
+        devCode: 'devCode' in r ? r.devCode : undefined,
+        resolve,
+      }),
+    );
   }, [backend]);
 
   const withStepUp = useCallback(
@@ -147,7 +171,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo<SessionCtx>(
-    () => ({ status, me, ctx, refresh, signOut, withStepUp, can: (p) => !!ctx?.member.permissions.includes(p) }),
+    () => ({
+      status,
+      me,
+      ctx,
+      refresh,
+      signOut,
+      withStepUp,
+      can: (p) => !!ctx?.member.permissions.includes(p),
+    }),
     [status, me, ctx, refresh, signOut, withStepUp],
   );
 
@@ -178,10 +210,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       >
         <p className="muted" style={{ marginBottom: 16 }}>
-          {stepUp?.method === 'TOTP' ? 'Nhập mã 6 số từ ứng dụng xác thực.' : `Chính sách yêu cầu xác thực lại. Nhập mã đã gửi đến ${stepUp?.sentTo ?? 'email của bạn'}.`}
+          {stepUp?.method === 'TOTP'
+            ? 'Nhập mã 6 số từ ứng dụng xác thực.'
+            : `Chính sách yêu cầu xác thực lại. Nhập mã đã gửi đến ${stepUp?.sentTo ?? 'email của bạn'}.`}
         </p>
         <OtpInput value={code} onChange={setCode} autoFocus />
-        {stepUp?.devCode && <div className="demo-box">Môi trường thử nghiệm · mã xác thực: <b>{stepUp.devCode}</b></div>}
+        {stepUp?.devCode && (
+          <div className="demo-box">
+            Môi trường thử nghiệm · mã xác thực: <b>{stepUp.devCode}</b>
+          </div>
+        )}
         {stepErr && <div className="field-error mt-8">{stepErr}</div>}
       </Modal>
     </Ctx.Provider>

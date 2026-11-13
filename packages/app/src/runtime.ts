@@ -1,6 +1,16 @@
 import {
-  assertNoPii, createEvent, EventBroker, newId, SimulatedFabricLedger, type AccessContext, type DomainEvent, type EventType,
-  type ExtractionProvider, type LedgerGateway, type LedgerState, type RoleBinding,
+  assertNoPii,
+  createEvent,
+  EventBroker,
+  newId,
+  SimulatedFabricLedger,
+  type AccessContext,
+  type DomainEvent,
+  type EventType,
+  type ExtractionProvider,
+  type LedgerGateway,
+  type LedgerState,
+  type RoleBinding,
 } from '@argolet/core';
 import type { Store, Tx } from './store';
 import { GLOBAL, type MembershipRow, type SessionRow, type UserRow } from './types';
@@ -66,7 +76,10 @@ export interface Notifier {
 export interface LlmClient {
   readonly name: string;
   /** Runs a tool-using conversation and returns the final assistant text + the tool calls made. */
-  run(input: LlmRunInput): Promise<{ text: string; toolCalls: { name: string; input: Record<string, unknown>; output: unknown }[] }>;
+  run(input: LlmRunInput): Promise<{
+    text: string;
+    toolCalls: { name: string; input: Record<string, unknown>; output: unknown }[];
+  }>;
 }
 
 export interface LlmRunInput {
@@ -132,7 +145,13 @@ export interface WorkspaceState extends AuthState {
   entityId: string;
 }
 
-export function accessContext(user: UserRow, tenantId: string, bindings: RoleBinding[], session: SessionRow, now: string): AccessContext {
+export function accessContext(
+  user: UserRow,
+  tenantId: string,
+  bindings: RoleBinding[],
+  session: SessionRow,
+  now: string,
+): AccessContext {
   return { userId: user.id, tenantId, bindings, aal: session.aal, now };
 }
 
@@ -182,7 +201,13 @@ export class Emitter {
     return event;
   }
 
-  async audit(tenantId: string, actor: { id: string; name: string }, action: string, target: string, detail = ''): Promise<void> {
+  async audit(
+    tenantId: string,
+    actor: { id: string; name: string },
+    action: string,
+    target: string,
+    detail = '',
+  ): Promise<void> {
     await this.tx.put('audit', {
       id: newId('aud'),
       tenantId,
@@ -199,7 +224,10 @@ export class Emitter {
 /** Ledger persisted in the store (global network shared by tenants). */
 export class StoredLedger implements LedgerGateway {
   readonly networkName = 'Hyperledger Fabric (mô phỏng có cấp quyền)';
-  constructor(private readonly tx: Tx, private readonly clock: () => Date) {}
+  constructor(
+    private readonly tx: Tx,
+    private readonly clock: () => Date,
+  ) {}
 
   private async load(): Promise<SimulatedFabricLedger> {
     const row = await this.tx.get('ledger', GLOBAL, 'fabric');
@@ -238,7 +266,10 @@ export class OutboxRelay {
   private consumers = new Map<string, Consumer>();
   private running: Promise<void> | null = null;
 
-  constructor(private readonly store: Store, private readonly clock: () => Date) {}
+  constructor(
+    private readonly store: Store,
+    private readonly clock: () => Date,
+  ) {}
 
   on(type: EventType | '*', consumer: string, handler: Consumer): void {
     this.consumers.set(consumer, handler);
@@ -255,7 +286,11 @@ export class OutboxRelay {
       for (let round = 0; round < 10; round++) {
         const pending = await this.store.read((tx) => tx.findGlobal('outbox', { publishedAt: null }));
         if (pending.length === 0) break;
-        pending.sort((a, b) => a.event.occurredAt.localeCompare(b.event.occurredAt) || a.event.aggregateSeq - b.event.aggregateSeq);
+        pending.sort(
+          (a, b) =>
+            a.event.occurredAt.localeCompare(b.event.occurredAt) ||
+            a.event.aggregateSeq - b.event.aggregateSeq,
+        );
         for (const row of pending) {
           await this.store.transaction(async (tx) => {
             const now = this.clock().toISOString();
@@ -264,7 +299,12 @@ export class OutboxRelay {
               const inboxId = `${consumer}:${row.event.eventId}`;
               if (await tx.get('inbox', row.tenantId, inboxId)) continue;
               await this.consumers.get(consumer)!(row.event, tx, emitter);
-              await tx.put('inbox', { id: inboxId, tenantId: row.tenantId, consumer, eventId: row.event.eventId });
+              await tx.put('inbox', {
+                id: inboxId,
+                tenantId: row.tenantId,
+                consumer,
+                eventId: row.event.eventId,
+              });
             }
             const fresh = await tx.get('outbox', row.tenantId, row.id);
             if (fresh && !fresh.publishedAt) await tx.put('outbox', { ...fresh, publishedAt: now });

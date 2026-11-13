@@ -65,12 +65,19 @@ test('drill-down screens open from their lists', async ({}, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await go(page, 'documents', 'Chứng từ');
   // CT-1019 is never modified by other tests (API mode shares one database across tests).
-  await page.getByText(/^CT-1019/).first().click();
+  await page
+    .getByText(/^CT-1019/)
+    .first()
+    .click();
   await expect(page).toHaveURL(/#\/documents\/[^/]+\/review$/);
   await settled(page, /Kiểm tra chứng từ/);
 
   await go(page, 'evidence', /Bằng chứng/);
-  await page.locator('table tbody tr, .list-item.clickable, [role="row"]').filter({ hasText: 'CT-1027' }).first().click();
+  await page
+    .locator('table tbody tr, .list-item.clickable, [role="row"]')
+    .filter({ hasText: 'CT-1027' })
+    .first()
+    .click();
   await expect(page).toHaveURL(/#\/evidence\/[^/]+$/);
   await settled(page, 'Bằng chứng & lịch sử');
   await page.getByRole('button', { name: /Kiểm chứng hồ sơ/ }).click();
@@ -78,7 +85,10 @@ test('drill-down screens open from their lists', async ({}, info) => {
   await settled(page, 'Kiểm tra toàn vẹn');
 
   await go(page, 'reconciliation', 'Đối soát đa nguồn');
-  await page.getByText(/^DS-1030/).first().click();
+  await page
+    .getByText(/^DS-1030/)
+    .first()
+    .click();
   await expect(page).toHaveURL(/#\/reconciliation\/[^/]+$/);
   await settled(page, 'Chi tiết đối soát');
 
@@ -87,6 +97,34 @@ test('drill-down screens open from their lists', async ({}, info) => {
   await expect(page).toHaveURL(/#\/approvals\/[^/]+$/);
   await settled(page, 'Phê duyệt hồ sơ');
   await expect(page.getByText('Luồng phê duyệt')).toBeVisible();
+  await expectClean(w, info);
+});
+
+test('documents are paginated with page numbers; the page survives opening a record', async ({}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await go(page, 'documents', 'Chứng từ');
+  await expect(page.locator('.pager-info')).toContainText('1–20 trên 128 chứng từ');
+  await expect(page.locator('table tbody tr')).toHaveCount(20);
+  const firstOnPage1 = await page.locator('table tbody tr').first().innerText();
+  await page.getByRole('button', { name: 'Trang 2' }).click();
+  await expect(page.locator('.pager-info')).toContainText('21–40 trên 128 chứng từ');
+  await expect(page).toHaveURL(/page=2/);
+  expect(await page.locator('table tbody tr').first().innerText()).not.toBe(firstOnPage1);
+  await page.getByRole('button', { name: 'Trang sau' }).click();
+  await expect(page.locator('.pager-info')).toContainText('41–60 trên 128');
+  await page.locator('.pager-size select').selectOption('50');
+  await expect(page.locator('.pager-info')).toContainText('1–50 trên 128');
+  await page.getByRole('button', { name: 'Trang 3' }).click();
+  await expect(page.locator('.pager-info')).toContainText('101–128 trên 128');
+  await expect(page.locator('table tbody tr')).toHaveCount(28);
+  await page.locator('table tbody tr').first().click();
+  await page.goBack();
+  await expect(page.locator('.pager-info')).toContainText('101–128 trên 128');
+  await page.locator('#doc-status').selectOption('review');
+  // API mode shares one database with the flow tests, which may confirm one of these documents.
+  await expect(page.locator('.pager-info')).toContainText(/1–[34] trên [34] chứng từ/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await noHorizontalOverflow(page);
   await expectClean(w, info);
 });
 

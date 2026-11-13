@@ -3,9 +3,9 @@
 #   docker build -t argolet .
 #   docker run -p 8080:8080 -e PEPPER=$(openssl rand -hex 32) -v argolet-data:/data argolet
 
-FROM node:22-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 WORKDIR /src
-RUN corepack enable
+RUN npm install -g pnpm@10.28.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/app/package.json packages/app/
@@ -20,7 +20,7 @@ COPY apps/api apps/api
 COPY apps/web apps/web
 RUN pnpm --filter @argolet/web build && pnpm --filter @argolet/api build
 
-FROM node:22-bookworm-slim
+FROM node:26-bookworm-slim
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8080 \

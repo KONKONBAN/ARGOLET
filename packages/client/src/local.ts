@@ -1,6 +1,18 @@
 import {
-  AppError, ConcurrencyError, createArgoletApp, demoClock, DEMO_EMAIL, DEMO_PASSWORD, MemoryStore, ScryptHasher, seedDemo, operations,
-  type CallContext, type OperationName, type OpParams, type OpResult,
+  AppError,
+  ConcurrencyError,
+  createArgoletApp,
+  demoClock,
+  DEMO_EMAIL,
+  DEMO_PASSWORD,
+  MemoryStore,
+  ScryptHasher,
+  seedDemo,
+  operations,
+  type CallContext,
+  type OperationName,
+  type OpParams,
+  type OpResult,
 } from '@argolet/app';
 import { ApiError, type Backend, type TokenStore } from './backend';
 
@@ -42,14 +54,27 @@ export async function createLocalBackend(o: LocalBackendOptions): Promise<Backen
       : undefined,
     () => clock().toISOString(),
   );
-  const app = createArgoletApp({ store, hasher: new ScryptHasher(2 ** 12, 8, 1), clock, config: { exposeDevCodes: true, publicBaseUrl: o.publicBaseUrl ?? '' } });
+  const app = createArgoletApp({
+    store,
+    hasher: new ScryptHasher(2 ** 12, 8, 1),
+    clock,
+    config: { exposeDevCodes: true, publicBaseUrl: o.publicBaseUrl ?? '' },
+  });
   await seedDemo(app);
   let token = await o.tokens.get();
 
   return {
-    info: { mode: 'device', label: o.label, demo: { email: DEMO_EMAIL, password: DEMO_PASSWORD, clock: true }, assistant: 'rules' },
+    info: {
+      mode: 'device',
+      label: o.label,
+      demo: { email: DEMO_EMAIL, password: DEMO_PASSWORD, clock: true },
+      assistant: 'rules',
+    },
     async call<K extends OperationName>(name: K, params?: OpParams<K>): Promise<OpResult<K>> {
-      const def = operations[name] as unknown as { handler: (a: typeof app, c: CallContext, p: unknown) => Promise<unknown>; session?: 'issue' | 'clear' };
+      const def = operations[name] as unknown as {
+        handler: (a: typeof app, c: CallContext, p: unknown) => Promise<unknown>;
+        session?: 'issue' | 'clear';
+      };
       const call: CallContext = { sessionToken: token, channel: 'web', userAgent: o.userAgent, ip: 'local' };
       try {
         const result = (await def.handler(app, call, params ?? {})) as Record<string, unknown> | null;
@@ -57,7 +82,6 @@ export async function createLocalBackend(o: LocalBackendOptions): Promise<Backen
           token = result.token;
           await o.tokens.set(token);
           const { token: _t, ...rest } = result;
-          void _t;
           return rest as OpResult<K>;
         }
         if (def.session === 'clear') {

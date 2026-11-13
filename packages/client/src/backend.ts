@@ -1,4 +1,11 @@
-import { buildPath, operations, type ApiErrorBody, type OperationName, type OpParams, type OpResult } from '@argolet/app/contract';
+import {
+  buildPath,
+  operations,
+  type ApiErrorBody,
+  type OperationName,
+  type OpParams,
+  type OpResult,
+} from '@argolet/app/contract';
 
 export type { OperationName, OpParams, OpResult };
 
@@ -79,24 +86,22 @@ export class HttpBackend implements Backend {
     } catch {
       throw new ApiError('NETWORK', 'Không kết nối được máy chủ. Kiểm tra mạng và thử lại.', 0);
     }
-    const text = await res.text();
-    let body: unknown = null;
-    try {
-      body = text ? JSON.parse(text) : null;
-    } catch {
-      throw new ApiError('INTERNAL', 'Máy chủ trả về dữ liệu không hợp lệ', res.status);
-    }
+    const body = parseJsonBody(await res.text(), res.status);
     if (!res.ok) {
       const err = (body as ApiErrorBody | null)?.error;
       if (res.status === 401 && this.opts.auth !== 'cookie') await this.opts.auth.set(null);
-      throw new ApiError(err?.code ?? 'INTERNAL', err?.message ?? 'Đã xảy ra lỗi, vui lòng thử lại', res.status, err?.details);
+      throw new ApiError(
+        err?.code ?? 'INTERNAL',
+        err?.message ?? 'Đã xảy ra lỗi, vui lòng thử lại',
+        res.status,
+        err?.details,
+      );
     }
     if (this.opts.auth !== 'cookie') {
       const r = body as Record<string, unknown> | null;
       if (def.session === 'issue' && r && typeof r.token === 'string') {
         await this.opts.auth.set(r.token);
         const { token: _t, ...restBody } = r;
-        void _t;
         return restBody as OpResult<K>;
       }
       if (def.session === 'clear') await this.opts.auth.set(null);
@@ -106,16 +111,39 @@ export class HttpBackend implements Backend {
 }
 
 /** Probe an ARGOLET API base URL. */
-export async function probeServer(baseUrl: string, timeoutMs = 2500, fetchImpl: typeof fetch = fetch): Promise<BackendInfo | null> {
+function parseJsonBody(text: string, status: number): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ApiError('INTERNAL', 'Máy chủ trả về dữ liệu không hợp lệ', status);
+  }
+}
+
+export async function probeServer(
+  baseUrl: string,
+  timeoutMs = 2500,
+  fetchImpl: typeof fetch = fetch,
+): Promise<BackendInfo | null> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     const res = await fetchImpl(`${baseUrl}/v1/meta`, { signal: ctrl.signal });
     clearTimeout(t);
     if (!res.ok || !(res.headers.get('content-type') ?? '').includes('json')) return null;
-    const meta = (await res.json()) as { name?: string; demo?: BackendInfo['demo']; assistant?: string; store?: string };
+    const meta = (await res.json()) as {
+      name?: string;
+      demo?: BackendInfo['demo'];
+      assistant?: string;
+      store?: string;
+    };
     if (meta.name !== 'ARGOLET') return null;
-    return { mode: 'server', label: `Máy chủ ARGOLET · ${meta.store ?? ''}`, demo: meta.demo ?? null, assistant: meta.assistant ?? 'rules' };
+    return {
+      mode: 'server',
+      label: `Máy chủ ARGOLET · ${meta.store ?? ''}`,
+      demo: meta.demo ?? null,
+      assistant: meta.assistant ?? 'rules',
+    };
   } catch {
     return null;
   }

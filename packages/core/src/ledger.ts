@@ -96,11 +96,20 @@ export class SimulatedFabricLedger implements LedgerGateway {
 
   async submit(req: AnchorRequest): Promise<LedgerReceipt> {
     const now = this.clock().toISOString();
-    const proposal = canonicalize({ fn: 'AnchorRoot', args: [req.batchRef, req.merkleRoot, req.schemaVersion], creator: req.submitterMsp, ts: now });
+    const proposal = canonicalize({
+      fn: 'AnchorRoot',
+      args: [req.batchRef, req.merkleRoot, req.schemaVersion],
+      creator: req.submitterMsp,
+      ts: now,
+    });
     const txId = sha256Hex(proposal + ':' + Object.keys(this.state.transactions).length);
     // 1. Execute / endorse: each peer simulates the chaincode and signs the read-write set.
     const existing = this.state.worldState[req.batchRef];
-    const rwSet = canonicalize({ key: req.batchRef, readVersion: existing?.version ?? 0, write: req.merkleRoot });
+    const rwSet = canonicalize({
+      key: req.batchRef,
+      readVersion: existing?.version ?? 0,
+      write: req.merkleRoot,
+    });
     const endorsements: Endorsement[] = this.orgs.map((org) => ({
       mspId: org.mspId,
       peer: org.peers[0] ?? org.mspId,
@@ -164,7 +173,11 @@ export class SimulatedFabricLedger implements LedgerGateway {
     let prevHash = '0'.repeat(64);
     for (const b of this.state.blocks) {
       if (b.previousHash !== prevHash) return false;
-      if (sha256Hex(canonicalize({ number: b.number, previousHash: b.previousHash, dataHash: b.dataHash })) !== b.hash) return false;
+      if (
+        sha256Hex(canonicalize({ number: b.number, previousHash: b.previousHash, dataHash: b.dataHash })) !==
+        b.hash
+      )
+        return false;
       prevHash = b.hash;
     }
     return true;

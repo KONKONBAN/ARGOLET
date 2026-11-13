@@ -104,7 +104,9 @@ export interface ReconResult {
 }
 
 /** Net receivable: Gross − refund − merchant discount − fee + signed adjustments. */
-export function computeNet(o: Pick<ReconOrder, 'gross' | 'fee' | 'refund' | 'discount' | 'adjustment'>): Decimal {
+export function computeNet(
+  o: Pick<ReconOrder, 'gross' | 'fee' | 'refund' | 'discount' | 'adjustment'>,
+): Decimal {
   return D(o.gross).minus(o.refund).minus(o.discount).minus(o.fee).plus(o.adjustment);
 }
 
@@ -123,12 +125,16 @@ export function scorePair(order: ReconOrder, txn: ReconTxn, rules: ReconRules = 
         ? 1
         : 0;
   const diff = net.minus(txn.amount).abs();
-  const amountScore = diff.lte(rules.amountTolerance) ? 1 : Math.max(0, 1 - diff.div(Decimal_max(net.abs(), 1)).toNumber());
+  const amountScore = diff.lte(rules.amountTolerance)
+    ? 1
+    : Math.max(0, 1 - diff.div(Decimal_max(net.abs(), 1)).toNumber());
   const days = daysBetween(order.date, txn.date);
   const dateScore = days > rules.dateWindowDays ? 0 : 1 - days / (rules.dateWindowDays + 1);
   const cpScore = order.counterparty && txn.counterparty && order.counterparty === txn.counterparty ? 1 : 0;
   const w = rules.weights;
-  return round4(w.reference * refScore + w.amount * amountScore + w.date * dateScore + w.counterparty * cpScore);
+  return round4(
+    w.reference * refScore + w.amount * amountScore + w.date * dateScore + w.counterparty * cpScore,
+  );
 }
 
 function Decimal_max(a: Decimal, b: number): Decimal {
@@ -323,13 +329,25 @@ function buildGroup(key: string, orders: ReconOrder[], txns: ReconTxn[], rules: 
 }
 
 /** Run the full reconciliation pipeline over a frozen input snapshot. */
-export function runReconciliation(orders: ReconOrder[], txns: ReconTxn[], rules: ReconRules = DEFAULT_RULES): ReconResult {
+export function runReconciliation(
+  orders: ReconOrder[],
+  txns: ReconTxn[],
+  rules: ReconRules = DEFAULT_RULES,
+): ReconResult {
   const groups: ProposedGroup[] = [];
   const usedOrders = new Set<string>();
   const usedTxns = new Set<string>();
   // 1. Candidate blocking by currency + payout batch / reference (prevents cross-currency matches).
-  const keyOf = (x: { currency: string; payoutBatch?: string | undefined; reference?: string | undefined }) =>
-    x.payoutBatch ? `${x.currency}|batch:${x.payoutBatch}` : x.reference ? `${x.currency}|ref:${x.reference}` : null;
+  const keyOf = (x: {
+    currency: string;
+    payoutBatch?: string | undefined;
+    reference?: string | undefined;
+  }) =>
+    x.payoutBatch
+      ? `${x.currency}|batch:${x.payoutBatch}`
+      : x.reference
+        ? `${x.currency}|ref:${x.reference}`
+        : null;
   const blocks = new Map<string, { orders: ReconOrder[]; txns: ReconTxn[] }>();
   for (const o of orders) {
     const k = keyOf(o);

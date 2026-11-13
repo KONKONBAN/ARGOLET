@@ -32,7 +32,7 @@ async function secureSet(key: string, value: string | null): Promise<void> {
   else await SecureStore.setItemAsync(key, value);
 }
 
-export const tokenStore: TokenStore = { get: () => secureGet(TOKEN_KEY), set: (t) => secureSet(TOKEN_KEY, t) };
+const tokenStore: TokenStore = { get: () => secureGet(TOKEN_KEY), set: (t) => secureSet(TOKEN_KEY, t) };
 
 export async function getSavedServer(): Promise<string | null> {
   return secureGet(SERVER_KEY);
@@ -47,7 +47,10 @@ export async function saveServer(url: string | null): Promise<void> {
  *  2. otherwise → the full ARGOLET application runs on the device with demo data (offline).
  */
 export async function createMobileBackend(): Promise<Backend> {
-  const configured = (await getSavedServer()) ?? process.env.EXPO_PUBLIC_API_URL ?? ((Constants.expoConfig?.extra as { apiUrl?: string | null } | undefined)?.apiUrl || null);
+  const configured =
+    (await getSavedServer()) ??
+    process.env.EXPO_PUBLIC_API_URL ??
+    ((Constants.expoConfig?.extra as { apiUrl?: string | null } | undefined)?.apiUrl || null);
   if (configured) {
     const info = await probeServer(configured, 4000);
     if (info) return new HttpBackend({ baseUrl: configured, info, auth: tokenStore });
@@ -56,7 +59,9 @@ export async function createMobileBackend(): Promise<Backend> {
   return createLocalBackend({
     clockStart: Date.now(),
     tokens: { get: async () => memory.local ?? null, set: async (t) => void (memory.local = t) },
-    label: configured ? `Không kết nối được ${configured} · đang dùng dữ liệu mẫu trên thiết bị` : 'Dữ liệu mẫu chạy trên thiết bị',
+    label: configured
+      ? `Không kết nối được ${configured} · đang dùng dữ liệu mẫu trên thiết bị`
+      : 'Dữ liệu mẫu chạy trên thiết bị',
     userAgent: `ARGOLET ${Platform.OS}`,
   });
 }

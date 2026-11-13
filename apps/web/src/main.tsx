@@ -10,7 +10,9 @@ function Boot() {
   const [backend, setBackend] = useState<Backend | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    detectBackend().then(setBackend, (e: unknown) => setError(e instanceof Error ? e.message : 'Không khởi động được ứng dụng'));
+    detectBackend().then(setBackend, (e: unknown) =>
+      setError(e instanceof Error ? e.message : 'Không khởi động được ứng dụng'),
+    );
   }, []);
   if (error) {
     return (

@@ -29,7 +29,10 @@ export default tseslint.config(
       globals: { ...globals.es2023 },
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none', ignoreRestSiblings: true }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none', ignoreRestSiblings: true },
+      ],
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
       'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
       eqeqeq: ['error', 'smart'],
@@ -40,7 +43,12 @@ export default tseslint.config(
   },
   // Browser / React Native UI code
   {
-    files: ['apps/web/src/**/*.{ts,tsx}', 'apps/web/test/**/*.{ts,tsx}', 'apps/mobile/src/**/*.{ts,tsx}', 'packages/client/src/**/*.{ts,tsx}'],
+    files: [
+      'apps/web/src/**/*.{ts,tsx}',
+      'apps/web/test/**/*.{ts,tsx}',
+      'apps/mobile/src/**/*.{ts,tsx}',
+      'packages/client/src/**/*.{ts,tsx}',
+    ],
     plugins: { 'react-hooks': reactHooks },
     languageOptions: { globals: { ...globals.browser } },
     rules: {
@@ -50,7 +58,13 @@ export default tseslint.config(
   },
   // Node code: API server, build scripts, tests, tooling configs
   {
-    files: ['apps/api/**/*.{ts,mjs}', 'e2e/**/*.ts', '**/*.config.{ts,mjs}', '**/*.test.ts', '**/test/**/*.ts'],
+    files: [
+      'apps/api/**/*.{ts,mjs}',
+      'e2e/**/*.ts',
+      '**/*.config.{ts,mjs}',
+      '**/*.test.ts',
+      '**/test/**/*.ts',
+    ],
     languageOptions: { globals: { ...globals.node } },
   },
   // Playwright fixtures are destructured even when unused: test('x', async ({}, info) => …)

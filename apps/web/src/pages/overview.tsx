@@ -1,23 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ChevronRight, CircleCheck, FileSearch, Files, GitCompareArrows, ListFilter, Plus } from 'lucide-react';
+import {
+  ArrowUpRight,
+  ChevronRight,
+  CircleCheck,
+  FileSearch,
+  Files,
+  GitCompareArrows,
+  ListFilter,
+  Plus,
+} from 'lucide-react';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
 import { CashflowLineChart, ChartLegend } from '../ui/charts';
-import { Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, Pagination, SearchBox, useToast } from '../ui/components';
-import { useListState } from '../ui/paging';
-
-/** Search box text → URL filter after a short pause (keeps paging state in the URL). */
-function useDebouncedFilter(list: ReturnType<typeof useListState>, key = 'q') {
-  const [text, setText] = useState(list.get(key));
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (text !== list.get(key)) list.setFilter(key, text);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [text, list, key]);
-  return [text, setText] as const;
-}
+import {
+  Button,
+  Card,
+  Chip,
+  DataTable,
+  ErrorNote,
+  KpiRow,
+  Modal,
+  PageHeader,
+  PageLoading,
+  Pagination,
+  SearchBox,
+  useToast,
+} from '../ui/components';
+import { useListState, useSearchText } from '../ui/paging';
 
 export function usePeriodLabel(): string {
   const { ctx } = useSession();
@@ -34,7 +44,14 @@ export function PageFoot() {
 export function OverviewPage() {
   const navigate = useNavigate();
   const q = useQuery('dashboard.overview');
-  if (!q.data) return q.error ? <div className="page"><ErrorNote error={q.error} /></div> : <PageLoading />;
+  if (!q.data)
+    return q.error ? (
+      <div className="page">
+        <ErrorNote error={q.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const o = q.data;
   const maxChannel = 250_000_000;
   const icons = [CircleCheck, GitCompareArrows, FileSearch];
@@ -83,7 +100,14 @@ export function OverviewPage() {
           {o.tasks.map((t, i) => {
             const Icon = icons[i] ?? CircleCheck;
             return (
-              <div key={t.key} className="list-item clickable" role="link" tabIndex={0} onClick={() => navigate(t.route)} onKeyDown={(e) => e.key === 'Enter' && navigate(t.route)}>
+              <div
+                key={t.key}
+                className="list-item clickable"
+                role="link"
+                tabIndex={0}
+                onClick={() => navigate(t.route)}
+                onKeyDown={(e) => e.key === 'Enter' && navigate(t.route)}
+              >
                 <span className="icon-tile">
                   <Icon size={18} />
                 </span>
@@ -110,7 +134,13 @@ export function OverviewPage() {
           <div className="barlist-row" key={c.key}>
             <span className="strong">{c.label}</span>
             <div className="bar-track" role="img" aria-label={`${c.label}: ${c.amountLabel}`}>
-              <div className="bar-fill" style={{ width: `${Math.min(100, (Number(c.amount) / maxChannel) * 100)}%`, background: c.key === 'counter' ? 'var(--action)' : 'var(--info)' }} />
+              <div
+                className="bar-fill"
+                style={{
+                  width: `${Math.min(100, (Number(c.amount) / maxChannel) * 100)}%`,
+                  background: c.key === 'counter' ? 'var(--action)' : 'var(--info)',
+                }}
+              />
             </div>
             <span className="strong num" style={{ color: 'var(--brand)', textAlign: 'right' }}>
               {c.amountLabel}
@@ -141,17 +171,38 @@ export function InboxPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const list = useListState(20);
-  const [q, setQ] = useDebouncedFilter(list);
+  const [q, setQ] = useSearchText(list);
   const filter = (list.get('kind') || 'ALL') as 'ALL' | 'APPROVAL' | 'MATCH' | 'DOCUMENT' | 'PERIOD';
   const [filterOpen, setFilterOpen] = useState(false);
-  const data = useQuery('approvals.inbox', { q: list.get('q') || undefined, kind: filter === 'ALL' ? undefined : filter, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
+  const data = useQuery(
+    'approvals.inbox',
+    {
+      q: list.get('q') || undefined,
+      kind: filter === 'ALL' ? undefined : filter,
+      page: list.page,
+      pageSize: list.pageSize,
+    },
+    { keepPrevious: true },
+  );
   const markRead = useMutation('dashboard.markRead');
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const items = data.data.items;
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Việc cần xử lý" subtitle="Ưu tiên các hồ sơ cần bạn xử lý." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Việc cần xử lý"
+        subtitle="Ưu tiên các hồ sơ cần bạn xử lý."
+        period={period}
+      />
       <KpiRow
         items={[
           { label: 'Cần tôi phê duyệt', value: data.data.kpis.toApprove },
@@ -163,7 +214,10 @@ export function InboxPage() {
             loading={markRead.loading}
             onClick={async () => {
               const r = await markRead.mutate({});
-              toast('success', r.updated ? `Đã đánh dấu ${r.updated} thông báo là đã đọc` : 'Không có thông báo chưa đọc');
+              toast(
+                'success',
+                r.updated ? `Đã đánh dấu ${r.updated} thông báo là đã đọc` : 'Không có thông báo chưa đọc',
+              );
             }}
           >
             Đánh dấu đã đọc
@@ -190,9 +244,27 @@ export function InboxPage() {
           ]}
           empty="Không còn việc cần xử lý"
         />
-        <Pagination page={data.data.page} pageCount={data.data.pageCount} total={data.data.total} pageSize={data.data.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="việc" busy={data.fetching} />
+        <Pagination
+          page={data.data.page}
+          pageCount={data.data.pageCount}
+          total={data.data.total}
+          pageSize={data.data.pageSize}
+          onPage={list.setPage}
+          onPageSize={list.setPageSize}
+          unit="việc"
+          busy={data.fetching}
+        />
       </Card>
-      <Modal open={filterOpen} onClose={() => setFilterOpen(false)} title="Bộ lọc công việc" footer={<Button variant="primary" onClick={() => setFilterOpen(false)}>Áp dụng</Button>}>
+      <Modal
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        title="Bộ lọc công việc"
+        footer={
+          <Button variant="primary" onClick={() => setFilterOpen(false)}>
+            Áp dụng
+          </Button>
+        }
+      >
         {(
           [
             ['ALL', 'Tất cả'],
@@ -203,7 +275,13 @@ export function InboxPage() {
           ] as const
         ).map(([k, label]) => (
           <label key={k} className="checkbox" style={{ display: 'flex', padding: '8px 0' }}>
-            <input type="radio" name="inbox-filter" checked={filter === k} onChange={() => list.setFilter('kind', k === 'ALL' ? '' : k)} /> {label}
+            <input
+              type="radio"
+              name="inbox-filter"
+              checked={filter === k}
+              onChange={() => list.setFilter('kind', k === 'ALL' ? '' : k)}
+            />{' '}
+            {label}
           </label>
         ))}
       </Modal>
@@ -217,16 +295,37 @@ export function NotificationsPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const list = useListState(20);
-  const [q, setQ] = useDebouncedFilter(list);
+  const [q, setQ] = useSearchText(list);
   const onlyUnread = list.get('unread') === '1';
-  const data = useQuery('dashboard.notifications', { q: list.get('q') || undefined, unread: onlyUnread || undefined, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
+  const data = useQuery(
+    'dashboard.notifications',
+    {
+      q: list.get('q') || undefined,
+      unread: onlyUnread || undefined,
+      page: list.page,
+      pageSize: list.pageSize,
+    },
+    { keepPrevious: true },
+  );
   const mark = useMutation('dashboard.markRead');
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const items = data.data.items;
   return (
     <div className="page">
-      <PageHeader eyebrow="Quản trị" title="Thông báo" subtitle="Theo dõi các thay đổi liên quan đến bạn." period={period} />
+      <PageHeader
+        eyebrow="Quản trị"
+        title="Thông báo"
+        subtitle="Theo dõi các thay đổi liên quan đến bạn."
+        period={period}
+      />
       <KpiRow
         items={[
           { label: 'Chưa đọc', value: data.data.kpis.unread },
@@ -248,7 +347,11 @@ export function NotificationsPage() {
       <Card>
         <div className="toolbar">
           <SearchBox value={q} onChange={setQ} />
-          <Button icon={<ListFilter size={18} />} onClick={() => list.setFilter('unread', onlyUnread ? '' : '1')} aria-pressed={onlyUnread}>
+          <Button
+            icon={<ListFilter size={18} />}
+            onClick={() => list.setFilter('unread', onlyUnread ? '' : '1')}
+            aria-pressed={onlyUnread}
+          >
             {onlyUnread ? 'Chỉ chưa đọc' : 'Bộ lọc'}
           </Button>
         </div>
@@ -264,11 +367,30 @@ export function NotificationsPage() {
             { key: 'u', header: 'Đơn vị', render: (r) => r.unit },
             { key: 'time', header: 'Thời gian', render: (r) => r.time },
             { key: 'ref', header: 'Hồ sơ', render: (r) => r.ref },
-            { key: 's', header: 'Trạng thái', render: (r) => <Chip tone={r.status === 'READ' ? 'neutral' : r.statusLabel === 'Cần xem' ? 'warning' : 'success'}>{r.statusLabel}</Chip> },
+            {
+              key: 's',
+              header: 'Trạng thái',
+              render: (r) => (
+                <Chip
+                  tone={r.status === 'READ' ? 'neutral' : r.statusLabel === 'Cần xem' ? 'warning' : 'success'}
+                >
+                  {r.statusLabel}
+                </Chip>
+              ),
+            },
           ]}
           empty="Không có thông báo"
         />
-        <Pagination page={data.data.page} pageCount={data.data.pageCount} total={data.data.total} pageSize={data.data.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="thông báo" busy={data.fetching} />
+        <Pagination
+          page={data.data.page}
+          pageCount={data.data.pageCount}
+          total={data.data.total}
+          pageSize={data.data.pageSize}
+          onPage={list.setPage}
+          onPageSize={list.setPageSize}
+          unit="thông báo"
+          busy={data.fetching}
+        />
       </Card>
       <PageFoot />
     </div>

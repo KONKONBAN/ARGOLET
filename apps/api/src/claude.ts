@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { ExtractionProvider, ExtractionResult } from '@argolet/core';
 import type { LlmClient, LlmRunInput } from '@argolet/app';
 
-export const CLAUDE_MODEL = process.env.ARGOLET_CLAUDE_MODEL ?? 'claude-opus-5-5';
+const CLAUDE_MODEL = process.env.ARGOLET_CLAUDE_MODEL ?? 'claude-opus-5-5';
 
 /**
  * Claude-backed assistant (board 08 "AI có kiểm soát"). Manual tool loop so that every
@@ -17,14 +17,20 @@ export class ClaudeLlmClient implements LlmClient {
     this.client = new Anthropic(apiKey ? { apiKey } : {});
   }
 
-  async run(input: LlmRunInput): Promise<{ text: string; toolCalls: { name: string; input: Record<string, unknown>; output: unknown }[] }> {
+  async run(input: LlmRunInput): Promise<{
+    text: string;
+    toolCalls: { name: string; input: Record<string, unknown>; output: unknown }[];
+  }> {
     const tools: Anthropic.Beta.BetaTool[] = input.tools.map((t) => ({
       name: t.name,
       description: t.description,
       input_schema: t.input_schema as Anthropic.Beta.BetaTool.InputSchema,
       strict: true,
     }));
-    const messages: Anthropic.Beta.BetaMessageParam[] = input.messages.map((m) => ({ role: m.role, content: m.content }));
+    const messages: Anthropic.Beta.BetaMessageParam[] = input.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     const toolCalls: { name: string; input: Record<string, unknown>; output: unknown }[] = [];
     for (let turn = 0; turn < 6; turn++) {
       const response = await this.client.beta.messages.create({
@@ -45,7 +51,9 @@ export class ClaudeLlmClient implements LlmClient {
         messages.push({ role: 'assistant', content: response.content });
         continue;
       }
-      const uses = response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use');
+      const uses = response.content.filter(
+        (b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use',
+      );
       if (response.stop_reason !== 'tool_use' || uses.length === 0) {
         const text = response.content
           .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
@@ -67,7 +75,12 @@ export class ClaudeLlmClient implements LlmClient {
           isError = true;
         }
         toolCalls.push({ name: use.name, input: args, output });
-        results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify(output), is_error: isError });
+        results.push({
+          type: 'tool_result',
+          tool_use_id: use.id,
+          content: JSON.stringify(output),
+          is_error: isError,
+        });
       }
       messages.push({ role: 'user', content: results });
     }
@@ -93,7 +106,12 @@ const EXTRACTION_SCHEMA = {
     },
     confidence: {
       type: 'object',
-      properties: { supplier: { type: 'number' }, documentNo: { type: 'number' }, documentDate: { type: 'number' }, total: { type: 'number' } },
+      properties: {
+        supplier: { type: 'number' },
+        documentNo: { type: 'number' },
+        documentDate: { type: 'number' },
+        total: { type: 'number' },
+      },
       required: ['supplier', 'documentNo', 'documentDate', 'total'],
       additionalProperties: false,
     },
@@ -123,7 +141,9 @@ export class ClaudeVisionExtractionProvider implements ExtractionProvider {
   async extract(input: { bytes: Uint8Array; mime: string; filename: string }): Promise<ExtractionResult> {
     const data = Buffer.from(input.bytes).toString('base64');
     const isPdf = input.mime === 'application/pdf' || input.filename.toLowerCase().endsWith('.pdf');
-    const media = (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(input.mime) ? input.mime : 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+    const media = (
+      ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(input.mime) ? input.mime : 'image/jpeg'
+    ) as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
     const source: Anthropic.Beta.BetaContentBlockParam = isPdf
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } }
       : { type: 'image', source: { type: 'base64', media_type: media, data } };
@@ -147,18 +167,33 @@ export class ClaudeVisionExtractionProvider implements ExtractionProvider {
       ],
     } as Anthropic.Beta.MessageCreateParamsNonStreaming);
     if (response.stop_reason === 'refusal') throw new Error('Không thể trích xuất chứng từ này');
-    const text = response.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')?.text ?? '{}';
+    const text =
+      response.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')?.text ?? '{}';
     const parsed = JSON.parse(text) as Extracted;
     const clamp = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
     return {
       modelVersion: this.modelVersion,
       fields: [
         { name: 'supplier', value: parsed.supplier ?? '', confidence: clamp(parsed.confidence?.supplier) },
-        { name: 'documentNo', value: parsed.documentNo ?? '', confidence: clamp(parsed.confidence?.documentNo) },
-        { name: 'documentDate', value: /^\d{4}-\d{2}-\d{2}$/.test(parsed.documentDate ?? '') ? parsed.documentDate : '', confidence: clamp(parsed.confidence?.documentDate) },
-        { name: 'total', value: (parsed.total ?? '').replace(/\D/g, ''), confidence: clamp(parsed.confidence?.total) },
+        {
+          name: 'documentNo',
+          value: parsed.documentNo ?? '',
+          confidence: clamp(parsed.confidence?.documentNo),
+        },
+        {
+          name: 'documentDate',
+          value: /^\d{4}-\d{2}-\d{2}$/.test(parsed.documentDate ?? '') ? parsed.documentDate : '',
+          confidence: clamp(parsed.confidence?.documentDate),
+        },
+        {
+          name: 'total',
+          value: (parsed.total ?? '').replace(/\D/g, ''),
+          confidence: clamp(parsed.confidence?.total),
+        },
       ],
-      lines: (parsed.lines ?? []).map((l) => ({ description: l.description, amount: l.amount.replace(/\D/g, '') })).filter((l) => l.amount),
+      lines: (parsed.lines ?? [])
+        .map((l) => ({ description: l.description, amount: l.amount.replace(/\D/g, '') }))
+        .filter((l) => l.amount),
     };
   }
 }

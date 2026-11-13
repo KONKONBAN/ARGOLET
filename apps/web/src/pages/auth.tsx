@@ -7,7 +7,8 @@ import { AuthLayout } from '../app/layouts';
 import { useSession } from '../app/session';
 import { Alert, Button, KeyValues, OtpInput, PasswordInput, TextInput, useToast } from '../ui/components';
 
-const fieldError = (err: ApiError | undefined, field: string) => (err && err.details?.field === field ? err.message : undefined);
+const fieldError = (err: ApiError | undefined, field: string) =>
+  err && err.details?.field === field ? err.message : undefined;
 
 // ───────── 01 · Đăng nhập ─────────
 export function LoginPage() {
@@ -30,7 +31,8 @@ export function LoginPage() {
       else navigate(r.session.activeTenantId ? '/overview' : '/workspaces');
     } catch (err) {
       if (err instanceof ApiError && err.details?.reason === 'MFA_REQUIRED') setNeedTotp(true);
-      if (err instanceof ApiError && err.details?.reason === 'UNVERIFIED') navigate(`/verify?contact=${encodeURIComponent(contact)}`);
+      if (err instanceof ApiError && err.details?.reason === 'UNVERIFIED')
+        navigate(`/verify?contact=${encodeURIComponent(contact)}`);
     }
   };
   return (
@@ -38,8 +40,23 @@ export function LoginPage() {
       <h1 className="auth-title">Đăng nhập</h1>
       <p className="auth-sub">Đăng nhập vào không gian làm việc của bạn.</p>
       <form onSubmit={submit} noValidate>
-        <TextInput label="Email" type="email" autoComplete="username" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="ketoan@minhan.example" required />
-        <PasswordInput label="Mật khẩu" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••••" required />
+        <TextInput
+          label="Email"
+          type="email"
+          autoComplete="username"
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="ketoan@minhan.example"
+          required
+        />
+        <PasswordInput
+          label="Mật khẩu"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••••••"
+          required
+        />
         {needTotp && (
           <div className="field">
             <span className="field-label">Mã xác thực (Authenticator)</span>
@@ -48,7 +65,8 @@ export function LoginPage() {
         )}
         <div className="row-between" style={{ margin: '4px 0 24px' }}>
           <label className="checkbox">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Giữ đăng nhập
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Giữ
+            đăng nhập
           </label>
           <Link to="/reset" className="small">
             Quên mật khẩu?
@@ -59,7 +77,14 @@ export function LoginPage() {
             <Alert tone="danger">{login.error.message}</Alert>
           </div>
         )}
-        <Button type="submit" variant="primary" block size="lg" loading={login.loading} disabled={!contact || !password}>
+        <Button
+          type="submit"
+          variant="primary"
+          block
+          size="lg"
+          loading={login.loading}
+          disabled={!contact || !password}
+        >
           Đăng nhập
         </Button>
       </form>
@@ -114,18 +139,47 @@ export function RegisterPage() {
       <h1 className="auth-title">Tạo tài khoản</h1>
       <p className="auth-sub">Bắt đầu bằng tài khoản cá nhân của bạn.</p>
       <form onSubmit={submit} noValidate>
-        <TextInput label="Họ và tên" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nguyễn Minh Anh" error={fieldError(reg.error, 'Họ và tên')} />
-        <TextInput label="Email hoặc số điện thoại" autoComplete="email" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="ketoan@minhan.example" error={fieldError(reg.error, 'contact')} />
-        <PasswordInput label="Mật khẩu" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} hint="Sử dụng ít nhất 12 ký tự." error={fieldError(reg.error, 'password')} />
+        <TextInput
+          label="Họ và tên"
+          autoComplete="name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Nguyễn Minh Anh"
+          error={fieldError(reg.error, 'Họ và tên')}
+        />
+        <TextInput
+          label="Email hoặc số điện thoại"
+          autoComplete="email"
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="ketoan@minhan.example"
+          error={fieldError(reg.error, 'contact')}
+        />
+        <PasswordInput
+          label="Mật khẩu"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          hint="Sử dụng ít nhất 12 ký tự."
+          error={fieldError(reg.error, 'password')}
+        />
         <label className="checkbox" style={{ margin: '4px 0 26px' }}>
-          <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} /> Tôi đồng ý với Điều khoản sử dụng và Chính sách bảo mật.
+          <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} /> Tôi đồng ý
+          với Điều khoản sử dụng và Chính sách bảo mật.
         </label>
         {reg.error && !reg.error.details?.field?.toString().match(/Họ và tên|contact|password/) && (
           <div className="mb-16">
             <Alert tone="danger">{reg.error.message}</Alert>
           </div>
         )}
-        <Button type="submit" variant="primary" block size="lg" loading={reg.loading} disabled={!fullName || !contact || !password || !accept}>
+        <Button
+          type="submit"
+          variant="primary"
+          block
+          size="lg"
+          loading={reg.loading}
+          disabled={!fullName || !contact || !password || !accept}
+        >
           Tạo tài khoản
         </Button>
       </form>
@@ -161,7 +215,11 @@ export function VerifyPage() {
       sessionStorage.removeItem('argolet.devCode');
       await refresh();
       toast('success', 'Tài khoản đã được xác minh');
-      navigate(r.pendingInvitationCode ? `/invite?code=${encodeURIComponent(r.pendingInvitationCode)}` : '/workspaces');
+      navigate(
+        r.pendingInvitationCode
+          ? `/invite?code=${encodeURIComponent(r.pendingInvitationCode)}`
+          : '/workspaces',
+      );
     } catch {
       /* inline */
     }
@@ -184,7 +242,14 @@ export function VerifyPage() {
         </div>
       )}
       <div style={{ marginTop: 30 }}>
-        <Button variant="primary" block size="lg" loading={verify.loading} disabled={code.length !== 6 || !contact} onClick={submit}>
+        <Button
+          variant="primary"
+          block
+          size="lg"
+          loading={verify.loading}
+          disabled={code.length !== 6 || !contact}
+          onClick={submit}
+        >
           Xác minh &amp; tiếp tục
         </Button>
       </div>
@@ -246,7 +311,13 @@ export function ResetPage() {
             }
           }}
         >
-          <TextInput label="Email tài khoản" type="email" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="ketoan@minhan.example" />
+          <TextInput
+            label="Email tài khoản"
+            type="email"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            placeholder="ketoan@minhan.example"
+          />
           {req.error && <Alert tone="danger">{req.error.message}</Alert>}
           <div style={{ marginTop: 28 }}>
             <Button type="submit" variant="primary" block size="lg" loading={req.loading} disabled={!contact}>
@@ -265,15 +336,34 @@ export function ResetPage() {
             }
           }}
         >
-          <Alert tone="info">Nếu email tồn tại trong hệ thống, liên kết và mã đặt lại đã được gửi. Mã có hiệu lực trong 10 phút.</Alert>
+          <Alert tone="info">
+            Nếu email tồn tại trong hệ thống, liên kết và mã đặt lại đã được gửi. Mã có hiệu lực trong 10
+            phút.
+          </Alert>
           <div className="field mt-16">
             <span className="field-label">Mã đặt lại</span>
             <OtpInput value={code} onChange={setCode} />
           </div>
-          <PasswordInput label="Mật khẩu mới" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} hint="Sử dụng ít nhất 12 ký tự." error={fieldError(confirm.error, 'newPassword')} />
-          {confirm.error && confirm.error.details?.field !== 'newPassword' && <Alert tone="danger">{confirm.error.message}</Alert>}
+          <PasswordInput
+            label="Mật khẩu mới"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            hint="Sử dụng ít nhất 12 ký tự."
+            error={fieldError(confirm.error, 'newPassword')}
+          />
+          {confirm.error && confirm.error.details?.field !== 'newPassword' && (
+            <Alert tone="danger">{confirm.error.message}</Alert>
+          )}
           <div style={{ marginTop: 24 }}>
-            <Button type="submit" variant="primary" block size="lg" loading={confirm.loading} disabled={code.length !== 6 || newPassword.length < 12}>
+            <Button
+              type="submit"
+              variant="primary"
+              block
+              size="lg"
+              loading={confirm.loading}
+              disabled={code.length !== 6 || newPassword.length < 12}
+            >
               Đặt mật khẩu mới
             </Button>
           </div>
@@ -305,7 +395,9 @@ export function WorkspacesPage() {
       <h1 className="auth-title">Chọn không gian làm việc</h1>
       <p className="auth-sub">Mỗi tổ chức có dữ liệu và quyền truy cập riêng.</p>
       {list.loading && <p className="muted">Đang tải…</p>}
-      {list.data?.length === 0 && <Alert tone="info">Bạn chưa thuộc tổ chức nào. Tạo tổ chức mới hoặc nhập mã mời.</Alert>}
+      {list.data?.length === 0 && (
+        <Alert tone="info">Bạn chưa thuộc tổ chức nào. Tạo tổ chức mới hoặc nhập mã mời.</Alert>
+      )}
       {list.data?.map((w, i) => (
         <button
           key={w.tenantId}
@@ -329,11 +421,21 @@ export function WorkspacesPage() {
               {w.roleLabel} · {w.scopeLabel}
             </div>
           </span>
-          {busy === w.tenantId ? <span className="spinner dark" /> : <ChevronRight size={16} color="#536978" />}
+          {busy === w.tenantId ? (
+            <span className="spinner dark" />
+          ) : (
+            <ChevronRight size={16} color="#536978" />
+          )}
         </button>
       ))}
       <div style={{ marginTop: 28 }}>
-        <Button variant="primary" block size="lg" icon={<Plus size={18} />} onClick={() => navigate('/create-org')}>
+        <Button
+          variant="primary"
+          block
+          size="lg"
+          icon={<Plus size={18} />}
+          onClick={() => navigate('/create-org')}
+        >
           Tạo tổ chức mới
         </Button>
       </div>
@@ -373,10 +475,21 @@ export function CreateOrgPage() {
           }
         }}
       >
-        <TextInput label="Tên tổ chức" value={name} onChange={(e) => setName(e.target.value)} placeholder="Minh An Commerce" error={fieldError(create.error, 'Tên tổ chức')} />
+        <TextInput
+          label="Tên tổ chức"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Minh An Commerce"
+          error={fieldError(create.error, 'Tên tổ chức')}
+        />
         <div className="field">
           <label htmlFor="orgType">Loại hình</label>
-          <select id="orgType" className="select" value={orgType} onChange={(e) => setOrgType(e.target.value)}>
+          <select
+            id="orgType"
+            className="select"
+            value={orgType}
+            onChange={(e) => setOrgType(e.target.value)}
+          >
             <option>Doanh nghiệp thương mại</option>
             <option>Hộ kinh doanh</option>
             <option>Dịch vụ kế toán</option>
@@ -384,7 +497,14 @@ export function CreateOrgPage() {
             <option>Nhóm công ty</option>
           </select>
         </div>
-        <TextInput label="Mã số thuế / mã đơn vị" value={taxCode} onChange={(e) => setTaxCode(e.target.value)} placeholder="Nhập để xác minh thông tin" error={fieldError(create.error, 'taxCode')} inputMode="numeric" />
+        <TextInput
+          label="Mã số thuế / mã đơn vị"
+          value={taxCode}
+          onChange={(e) => setTaxCode(e.target.value)}
+          placeholder="Nhập để xác minh thông tin"
+          error={fieldError(create.error, 'taxCode')}
+          inputMode="numeric"
+        />
         <p className="small" style={{ marginTop: 26 }}>
           Vai trò khởi tạo: quản trị tổ chức
         </p>
@@ -435,10 +555,22 @@ export function InvitePage() {
             setLookup(code.trim());
           }}
         >
-          <TextInput label="Mã mời" value={code} onChange={(e) => setCode(e.target.value)} placeholder="VD: MOI-2026" />
+          <TextInput
+            label="Mã mời"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="VD: MOI-2026"
+          />
           {inv.error && <Alert tone="danger">{inv.error.message}</Alert>}
           <div className="mt-16">
-            <Button type="submit" variant="primary" block size="lg" disabled={!code.trim()} loading={inv.loading}>
+            <Button
+              type="submit"
+              variant="primary"
+              block
+              size="lg"
+              disabled={!code.trim()}
+              loading={inv.loading}
+            >
               Xem lời mời
             </Button>
           </div>
@@ -462,7 +594,9 @@ export function InvitePage() {
           </div>
           {inv.data.status !== 'PENDING' && (
             <div className="mt-16">
-              <Alert tone="danger">Lời mời đã {inv.data.status === 'EXPIRED' ? 'hết hạn' : 'được xử lý'}.</Alert>
+              <Alert tone="danger">
+                Lời mời đã {inv.data.status === 'EXPIRED' ? 'hết hạn' : 'được xử lý'}.
+              </Alert>
             </div>
           )}
         </div>
@@ -506,11 +640,13 @@ export function ConnectPage() {
     { kind: 'EINVOICE', title: 'Tải chứng từ', sub: 'Ảnh, PDF hoặc hóa đơn điện tử XML', icon: Upload },
   ];
   const integrations = settings.data?.integrations ?? [];
-  const toggle = (kind: string) => setSelected((s) => (s.includes(kind) ? s.filter((k) => k !== kind) : [...s, kind]));
+  const toggle = (kind: string) =>
+    setSelected((s) => (s.includes(kind) ? s.filter((k) => k !== kind) : [...s, kind]));
   const finish = async () => {
     for (const kind of selected) {
       const integ = integrations.find((i) => i.kind === kind);
-      if (integ && integ.status !== 'CONNECTED' && settings.data?.canManage) await setInt.mutate({ integrationId: integ.id, connect: true });
+      if (integ && integ.status !== 'CONNECTED' && settings.data?.canManage)
+        await setInt.mutate({ integrationId: integ.id, connect: true });
     }
     if (selected.length) toast('success', 'Đã kết nối nguồn dữ liệu');
     navigate(selected.includes('EINVOICE') ? '/capture' : '/overview');
@@ -522,7 +658,12 @@ export function ConnectPage() {
       {options.map((o) => {
         const connected = integrations.find((i) => i.kind === o.kind)?.status === 'CONNECTED';
         return (
-          <button key={o.kind} className={`choice${selected.includes(o.kind) ? ' selected' : ''}`} onClick={() => toggle(o.kind)} aria-pressed={selected.includes(o.kind)}>
+          <button
+            key={o.kind}
+            className={`choice${selected.includes(o.kind) ? ' selected' : ''}`}
+            onClick={() => toggle(o.kind)}
+            aria-pressed={selected.includes(o.kind)}
+          >
             <o.icon size={22} color="#087452" />
             <span>
               <div className="choice-title">{o.title}</div>

@@ -7,10 +7,18 @@ import { GLOBAL, type CollectionName, type Collections, type NewRow } from './ty
  */
 export interface Tx {
   get<K extends CollectionName>(col: K, tenantId: string, id: string): Promise<Collections[K] | undefined>;
-  list<K extends CollectionName>(col: K, tenantId: string, filter?: Partial<Collections[K]>): Promise<Collections[K][]>;
+  list<K extends CollectionName>(
+    col: K,
+    tenantId: string,
+    filter?: Partial<Collections[K]>,
+  ): Promise<Collections[K][]>;
   /** Cross-tenant lookup — only for global identity tables (users, invitations, sessions). */
   findGlobal<K extends CollectionName>(col: K, filter: Partial<Collections[K]>): Promise<Collections[K][]>;
-  put<K extends CollectionName>(col: K, row: NewRow<K> | Collections[K], opts?: { expectedRev?: number }): Promise<Collections[K]>;
+  put<K extends CollectionName>(
+    col: K,
+    row: NewRow<K> | Collections[K],
+    opts?: { expectedRev?: number },
+  ): Promise<Collections[K]>;
   delete<K extends CollectionName>(col: K, tenantId: string, id: string): Promise<void>;
 }
 
@@ -113,18 +121,30 @@ export class MemoryStore implements Store {
       get: async (col, tenantId, id) => clone(readRow(col, key(tenantId, id))) as never,
       list: async (col, tenantId, filter) =>
         allRows(col)
-          .filter((r) => (r as { tenantId: string }).tenantId === tenantId && matches(r as object, filter as object))
+          .filter(
+            (r) =>
+              (r as { tenantId: string }).tenantId === tenantId && matches(r as object, filter as object),
+          )
           .map(clone) as never,
-      findGlobal: async (col, filter) => allRows(col).filter((r) => matches(r as object, filter as object)).map(clone) as never,
+      findGlobal: async (col, filter) =>
+        allRows(col)
+          .filter((r) => matches(r as object, filter as object))
+          .map(clone) as never,
       put: async (col, row, opts) => {
         if (!writes) throw new Error('Read-only transaction');
         const r = row as unknown as { id: string; tenantId: string; rev?: number; createdAt?: string };
         if (!r.id || !r.tenantId) throw new Error(`Thiếu id/tenantId khi ghi ${col}`);
         const k = key(r.tenantId, r.id);
         const existing = readRow(col, k) as { rev: number; createdAt: string } | undefined;
-        if (opts?.expectedRev !== undefined && (existing?.rev ?? 0) !== opts.expectedRev) throw new ConcurrencyError();
+        if (opts?.expectedRev !== undefined && (existing?.rev ?? 0) !== opts.expectedRev)
+          throw new ConcurrencyError();
         const now = this.tick();
-        const saved = { ...clone(row), createdAt: existing?.createdAt ?? r.createdAt ?? now, updatedAt: now, rev: (existing?.rev ?? 0) + 1 };
+        const saved = {
+          ...clone(row),
+          createdAt: existing?.createdAt || r.createdAt || now,
+          updatedAt: now,
+          rev: (existing?.rev ?? 0) + 1,
+        };
         if (!writes.has(col)) writes.set(col, new Map());
         writes.get(col)!.set(k, saved);
         return clone(saved) as never;

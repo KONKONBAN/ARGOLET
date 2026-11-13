@@ -36,7 +36,9 @@ export function detectFormat(filename: string, mime = ''): SourceFormat {
 
 /** Parser chosen by file type, source and template (board 02 "Chọn bộ phân tích"). */
 export function chooseParser(format: SourceFormat): 'structured' | 'ocr_vlm' {
-  return format === 'XML' || format === 'CSV' || format === 'EXCEL' || format === 'JSON' ? 'structured' : 'ocr_vlm';
+  return format === 'XML' || format === 'CSV' || format === 'EXCEL' || format === 'JSON'
+    ? 'structured'
+    : 'ocr_vlm';
 }
 
 // ───────────── CSV ─────────────
@@ -217,10 +219,14 @@ const decodeEntities = (s: string) =>
 
 /** Minimal, dependency-free XML parser (no DTD/entities expansion → safe against XXE). */
 export function parseXml(xml: string): XmlNode {
-  const src = xml.replace(/<\?xml[^>]*\?>/g, '').replace(/<!--[\s\S]*?-->/g, '').replace(/<!DOCTYPE[^>]*>/gi, '');
+  const src = xml
+    .replace(/<\?xml[^>]*\?>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<!DOCTYPE[^>]*>/gi, '');
   const root: XmlNode = { name: '#root', attrs: {}, children: [], text: '' };
   const stack: XmlNode[] = [root];
-  const re = /<!\[CDATA\[([\s\S]*?)\]\]>|<\/([\w:.-]+)\s*>|<([\w:.-]+)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
+  const re =
+    /<!\[CDATA\[([\s\S]*?)\]\]>|<\/([\w:.-]+)\s*>|<([\w:.-]+)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) {
     const top = stack[stack.length - 1]!;
@@ -336,36 +342,63 @@ export function isValidTaxCode(code: string): boolean {
 
 export function validateFields(
   f: DocumentFields,
-  opts: { today?: string; periodId?: string; knownDocumentKeys?: string[]; lowConfidence?: (keyof DocumentFields)[] } = {},
+  opts: {
+    today?: string;
+    periodId?: string;
+    knownDocumentKeys?: string[];
+    lowConfidence?: (keyof DocumentFields)[];
+  } = {},
 ): FieldIssue[] {
   const issues: FieldIssue[] = [];
-  if (!f.supplier.trim()) issues.push({ field: 'supplier', severity: 'error', message: 'Thiếu nhà cung cấp' });
-  if (!f.documentNo.trim()) issues.push({ field: 'documentNo', severity: 'error', message: 'Thiếu số chứng từ' });
+  if (!f.supplier.trim())
+    issues.push({ field: 'supplier', severity: 'error', message: 'Thiếu nhà cung cấp' });
+  if (!f.documentNo.trim())
+    issues.push({ field: 'documentNo', severity: 'error', message: 'Thiếu số chứng từ' });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(f.documentDate) || Number.isNaN(Date.parse(f.documentDate))) {
     issues.push({ field: 'documentDate', severity: 'error', message: 'Ngày chứng từ không hợp lệ' });
   } else {
-    if (opts.today && f.documentDate > opts.today) issues.push({ field: 'documentDate', severity: 'error', message: 'Ngày chứng từ ở tương lai' });
+    if (opts.today && f.documentDate > opts.today)
+      issues.push({ field: 'documentDate', severity: 'error', message: 'Ngày chứng từ ở tương lai' });
     if (opts.periodId && !f.documentDate.startsWith(opts.periodId)) {
-      issues.push({ field: 'documentDate', severity: 'warning', message: 'Ngày chứng từ nằm ngoài kỳ dữ liệu' });
+      issues.push({
+        field: 'documentDate',
+        severity: 'warning',
+        message: 'Ngày chứng từ nằm ngoài kỳ dữ liệu',
+      });
     }
   }
   try {
-    if (D(f.total).lte(0)) issues.push({ field: 'total', severity: 'error', message: 'Tổng thanh toán phải lớn hơn 0' });
+    if (D(f.total).lte(0))
+      issues.push({ field: 'total', severity: 'error', message: 'Tổng thanh toán phải lớn hơn 0' });
     if (f.lines?.length) {
       const lineSum = sum(f.lines.map((l) => l.amount));
       if (!lineSum.eq(f.total)) {
-        issues.push({ field: 'total', severity: 'error', message: `Tổng các dòng (${dec(lineSum)}) khác tổng thanh toán (${dec(f.total)})` });
+        issues.push({
+          field: 'total',
+          severity: 'error',
+          message: `Tổng các dòng (${dec(lineSum)}) khác tổng thanh toán (${dec(f.total)})`,
+        });
       }
     }
   } catch {
     issues.push({ field: 'total', severity: 'error', message: 'Tổng thanh toán không phải số hợp lệ' });
   }
-  if (f.taxCode && !isValidTaxCode(f.taxCode)) issues.push({ field: 'taxCode', severity: 'error', message: 'Mã số thuế phải gồm 10 hoặc 13 chữ số' });
+  if (f.taxCode && !isValidTaxCode(f.taxCode))
+    issues.push({ field: 'taxCode', severity: 'error', message: 'Mã số thuế phải gồm 10 hoặc 13 chữ số' });
   const key = documentKey(f);
-  if (opts.knownDocumentKeys?.includes(key)) issues.push({ field: 'duplicate', severity: 'error', message: 'Chứng từ trùng số và nhà cung cấp đã tiếp nhận' });
+  if (opts.knownDocumentKeys?.includes(key))
+    issues.push({
+      field: 'duplicate',
+      severity: 'error',
+      message: 'Chứng từ trùng số và nhà cung cấp đã tiếp nhận',
+    });
   for (const field of opts.lowConfidence ?? []) {
     if (!issues.some((i) => i.field === field)) {
-      issues.push({ field, severity: 'warning', message: 'Độ tin cậy trích xuất thấp, cần kiểm tra lại trên ảnh gốc' });
+      issues.push({
+        field,
+        severity: 'warning',
+        message: 'Độ tin cậy trích xuất thấp, cần kiểm tra lại trên ảnh gốc',
+      });
     }
   }
   return issues;
@@ -392,5 +425,10 @@ export interface ExtractionResult {
 
 export interface ExtractionProvider {
   readonly modelVersion: string;
-  extract(input: { bytes: Uint8Array; mime: string; filename: string; hints?: Partial<DocumentFields> }): Promise<ExtractionResult>;
+  extract(input: {
+    bytes: Uint8Array;
+    mime: string;
+    filename: string;
+    hints?: Partial<DocumentFields>;
+  }): Promise<ExtractionResult>;
 }

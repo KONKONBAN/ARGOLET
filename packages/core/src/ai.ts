@@ -67,10 +67,16 @@ export function validateArgs(def: ToolDefinition, args: Record<string, unknown>)
 
 export class ToolGateway {
   private readonly defs = new Map<string, ToolDefinition>();
-  private readonly impls = new Map<string, (args: Record<string, unknown>, ctx: AccessContext) => Promise<unknown>>();
+  private readonly impls = new Map<
+    string,
+    (args: Record<string, unknown>, ctx: AccessContext) => Promise<unknown>
+  >();
   readonly audit: ToolAuditEntry[] = [];
 
-  register(def: ToolDefinition, impl: (args: Record<string, unknown>, ctx: AccessContext) => Promise<unknown>): void {
+  register(
+    def: ToolDefinition,
+    impl: (args: Record<string, unknown>, ctx: AccessContext) => Promise<unknown>,
+  ): void {
     this.defs.set(def.name, def);
     this.impls.set(def.name, impl);
   }
@@ -84,10 +90,22 @@ export class ToolGateway {
     return this.definitions().filter((d) => authorize(ctx, { action: d.permission }).allowed);
   }
 
-  async handle(call: ToolCallProposal, ctx: AccessContext, now = new Date().toISOString()): Promise<GatewayOutcome> {
+  async handle(
+    call: ToolCallProposal,
+    ctx: AccessContext,
+    now = new Date().toISOString(),
+  ): Promise<GatewayOutcome> {
     const def = this.defs.get(call.toolName);
     const log = (outcome: GatewayOutcome, detail: string) => {
-      this.audit.push({ at: now, userId: ctx.userId, tenantId: ctx.tenantId, tool: call.toolName, args: call.args, outcome: outcome.status, detail });
+      this.audit.push({
+        at: now,
+        userId: ctx.userId,
+        tenantId: ctx.tenantId,
+        tool: call.toolName,
+        args: call.args,
+        outcome: outcome.status,
+        detail,
+      });
       return outcome;
     };
     if (!def) return log({ status: 'rejected', reason: 'Công cụ không tồn tại' }, 'unknown tool');
@@ -97,7 +115,11 @@ export class ToolGateway {
     if (!auth.allowed) return log({ status: 'rejected', reason: auth.reason }, 'permission');
     if (def.kind === 'write') {
       return log(
-        { status: 'needs_approval', proposal: call, impact: `Thực hiện "${def.description}" cần người có quyền phê duyệt theo phiên bản dữ liệu hiện tại.` },
+        {
+          status: 'needs_approval',
+          proposal: call,
+          impact: `Thực hiện "${def.description}" cần người có quyền phê duyệt theo phiên bản dữ liệu hiện tại.`,
+        },
         'proposal',
       );
     }

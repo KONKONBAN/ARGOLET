@@ -1,4 +1,16 @@
-import { appraiseProject, compareScenarios, D, formatMillions, formatPercent, formatNumber, makeCalcRun, newId, nextCode, npvSensitivity, type ProjectAssumptions } from '@argolet/core';
+import {
+  appraiseProject,
+  compareScenarios,
+  D,
+  formatMillions,
+  formatPercent,
+  formatNumber,
+  makeCalcRun,
+  newId,
+  nextCode,
+  npvSensitivity,
+  type ProjectAssumptions,
+} from '@argolet/core';
 import { type AppCore, actor, requireFound, requireText } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { Tx } from '../store';
@@ -8,10 +20,13 @@ const years = (v: string | null) => (v === null ? 'Không hoàn vốn' : `${form
 
 function validateAssumptions(a: ProjectAssumptions): ProjectAssumptions {
   const num = (v: unknown, label: string, min: number, max: number) => {
-    const s = String(v ?? '').replace(',', '.').trim();
+    const s = String(v ?? '')
+      .replace(',', '.')
+      .trim();
     if (!/^-?\d+(\.\d+)?$/.test(s)) throw new AppError('VALIDATION', `${label} phải là số`, { field: label });
     const n = Number(s);
-    if (n < min || n > max) throw new AppError('VALIDATION', `${label} phải trong khoảng ${min}–${max}`, { field: label });
+    if (n < min || n > max)
+      throw new AppError('VALIDATION', `${label} phải trong khoảng ${min}–${max}`, { field: label });
     return s;
   };
   return {
@@ -27,7 +42,8 @@ export class FinanceService {
   constructor(private readonly core: AppCore) {}
 
   private async project(tx: Tx, tenantId: string, projectId?: string): Promise<FinanceProjectRow> {
-    if (projectId) return requireFound(await tx.get('financeProjects', tenantId, projectId), 'dự án tài chính');
+    if (projectId)
+      return requireFound(await tx.get('financeProjects', tenantId, projectId), 'dự án tài chính');
     const [first] = (await tx.list('financeProjects', tenantId)).sort((a, b) => a.code.localeCompare(b.code));
     return requireFound(first, 'dự án tài chính');
   }
@@ -75,11 +91,20 @@ export class FinanceService {
     const assumptions = validateAssumptions(p.assumptions);
     return this.core.command(call, async (tx, em) => {
       const ws = await this.core.requireWorkspace(tx, call, 'finance.run');
-      const code = nextCode('TD', (await tx.list('financeProjects', ws.tenantId)).map((x) => x.code), 3, 1);
+      const code = nextCode(
+        'TD',
+        (await tx.list('financeProjects', ws.tenantId)).map((x) => x.code),
+        3,
+        1,
+      );
       const cf = D(assumptions.annualCashflow);
       const id = newId('fin');
       await tx.put('financeProjects', {
-        id, tenantId: ws.tenantId, code, name, assumptions,
+        id,
+        tenantId: ws.tenantId,
+        code,
+        name,
+        assumptions,
         scenarios: [
           { name: 'Thận trọng', annualCashflow: cf.times(5).div(6).toDecimalPlaces(2).toFixed() },
           { name: 'Cơ sở', annualCashflow: cf.toFixed() },
@@ -99,12 +124,43 @@ export class FinanceService {
       const ws = await this.core.requireWorkspace(tx, call, 'finance.run');
       const proj = await this.project(tx, ws.tenantId, p.projectId);
       const result = appraiseProject(assumptions);
-      const run = makeCalcRun({ calcRunId: newId('calc'), task: 'project_appraisal', packageCode: 'G3', rulesVersion: 'finance-rules-2026.10', assumptions, method: 'NPV/IRR (chiết khấu cuối kỳ), hoàn vốn giản đơn nội suy tuyến tính, DSCR = CFADS / nghĩa vụ nợ', result, createdAt: now });
+      const run = makeCalcRun({
+        calcRunId: newId('calc'),
+        task: 'project_appraisal',
+        packageCode: 'G3',
+        rulesVersion: 'finance-rules-2026.10',
+        assumptions,
+        method:
+          'NPV/IRR (chiết khấu cuối kỳ), hoàn vốn giản đơn nội suy tuyến tính, DSCR = CFADS / nghĩa vụ nợ',
+        result,
+        createdAt: now,
+      });
       await tx.put('calcRuns', { ...run, id: run.calcRunId, tenantId: ws.tenantId, createdBy: ws.user.id });
-      const saved = (await tx.put('financeProjects', { ...proj, assumptions, lastCalcRunId: run.calcRunId })) as FinanceProjectRow;
-      await em.emit({ type: 'CalcRunCompleted', tenantId: ws.tenantId, entityId: null, aggregateType: 'FinanceProject', aggregateId: proj.id, actorId: ws.user.id, dataRef: `calc/${run.calcRunId}`, dataVersion: 1, data: { calcRunId: run.calcRunId, engineVersion: run.engineVersion } });
+      const saved = (await tx.put('financeProjects', {
+        ...proj,
+        assumptions,
+        lastCalcRunId: run.calcRunId,
+      })) as FinanceProjectRow;
+      await em.emit({
+        type: 'CalcRunCompleted',
+        tenantId: ws.tenantId,
+        entityId: null,
+        aggregateType: 'FinanceProject',
+        aggregateId: proj.id,
+        actorId: ws.user.id,
+        dataRef: `calc/${run.calcRunId}`,
+        dataVersion: 1,
+        data: { calcRunId: run.calcRunId, engineVersion: run.engineVersion },
+      });
       await em.audit(ws.tenantId, actor(ws), 'finance.recalculate', proj.code, run.calcRunId);
-      return { ...this.present(saved), calcRun: { id: run.calcRunId, engineVersion: run.engineVersion, inputSnapshotDigest: run.inputSnapshotDigest } };
+      return {
+        ...this.present(saved),
+        calcRun: {
+          id: run.calcRunId,
+          engineVersion: run.engineVersion,
+          inputSnapshotDigest: run.inputSnapshotDigest,
+        },
+      };
     });
   }
 
@@ -115,7 +171,17 @@ export class FinanceService {
       const all = await this.list(tx, ws.tenantId);
       const projects = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.name}` }));
       const found = (p.projectId ? all.find((x) => x.id === p.projectId) : undefined) ?? all[0];
-      if (!found) return { empty: true as const, projects, scenarios: [], sensitivity: '', npvPerMillion: '0', projectId: '', projectName: '', ratePct: '' };
+      if (!found)
+        return {
+          empty: true as const,
+          projects,
+          scenarios: [],
+          sensitivity: '',
+          npvPerMillion: '0',
+          projectId: '',
+          projectName: '',
+          ratePct: '',
+        };
       const proj = found;
       const res = compareScenarios(proj.assumptions, proj.scenarios);
       const low = res[0];
@@ -148,7 +214,16 @@ export class FinanceService {
   async calcRuns(call: CallContext) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      return (await tx.list('calcRuns', ws.tenantId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 20).map((r) => ({ id: r.id, task: r.task, engineVersion: r.engineVersion, inputSnapshotDigest: r.inputSnapshotDigest, createdAt: r.createdAt }));
+      return (await tx.list('calcRuns', ws.tenantId))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 20)
+        .map((r) => ({
+          id: r.id,
+          task: r.task,
+          engineVersion: r.engineVersion,
+          inputSnapshotDigest: r.inputSnapshotDigest,
+          createdAt: r.createdAt,
+        }));
     });
   }
 }

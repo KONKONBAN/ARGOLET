@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { ApiError, type Backend, type OperationName, type OpParams, type OpResult } from './backend';
 
 /** Global handler for errors that need app-level reaction (auth, workspace, step-up). */
@@ -52,7 +61,9 @@ export function clearCache(): void {
 }
 
 function toApiError(e: unknown): ApiError {
-  return e instanceof ApiError ? e : new ApiError('INTERNAL', e instanceof Error ? e.message : 'Lỗi không xác định', 500);
+  return e instanceof ApiError
+    ? e
+    : new ApiError('INTERNAL', e instanceof Error ? e.message : 'Lỗi không xác định', 500);
 }
 
 export interface QueryState<T> {
@@ -64,7 +75,11 @@ export interface QueryState<T> {
   refetch: () => void;
 }
 
-export function useQuery<K extends OperationName>(name: K, params?: OpParams<K>, opts: { enabled?: boolean; keepPrevious?: boolean } = {}): QueryState<OpResult<K>> {
+export function useQuery<K extends OperationName>(
+  name: K,
+  params?: OpParams<K>,
+  opts: { enabled?: boolean; keepPrevious?: boolean } = {},
+): QueryState<OpResult<K>> {
   const { backend, onError } = useBackend();
   const key = `${name}:${JSON.stringify(params ?? {})}`;
   const enabled = opts.enabled ?? true;
@@ -83,7 +98,8 @@ export function useQuery<K extends OperationName>(name: K, params?: OpParams<K>,
       })
       .catch((e: unknown) => {
         const err = toApiError(e);
-        if (!onError.current(err)) cache.set(key, { ...cache.get(key), error: err, stale: false, promise: undefined });
+        if (!onError.current(err))
+          cache.set(key, { ...cache.get(key), error: err, stale: false, promise: undefined });
         else cache.set(key, { ...cache.get(key), stale: false, promise: undefined });
       })
       .finally(emit);
@@ -117,7 +133,10 @@ export interface MutationState<K extends OperationName> {
   reset: () => void;
 }
 
-export function useMutation<K extends OperationName>(name: K, opts: { invalidate?: boolean; silent?: boolean } = {}): MutationState<K> {
+export function useMutation<K extends OperationName>(
+  name: K,
+  opts: { invalidate?: boolean; silent?: boolean } = {},
+): MutationState<K> {
   const { backend, onError } = useBackend();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | undefined>();

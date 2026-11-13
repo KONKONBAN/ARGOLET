@@ -41,9 +41,17 @@ export interface DomainEvent<T = Record<string, unknown>> {
 }
 
 export function createEvent<T extends Record<string, unknown>>(
-  e: Omit<DomainEvent<T>, 'eventId' | 'schemaVersion' | 'occurredAt'> & { occurredAt?: string; schemaVersion?: number },
+  e: Omit<DomainEvent<T>, 'eventId' | 'schemaVersion' | 'occurredAt'> & {
+    occurredAt?: string;
+    schemaVersion?: number;
+  },
 ): DomainEvent<T> {
-  return { ...e, eventId: newId('evt'), schemaVersion: e.schemaVersion ?? 1, occurredAt: e.occurredAt ?? new Date().toISOString() };
+  return {
+    ...e,
+    eventId: newId('evt'),
+    schemaVersion: e.schemaVersion ?? 1,
+    occurredAt: e.occurredAt ?? new Date().toISOString(),
+  };
 }
 
 const PII_KEYS = /^(email|phone|password|passwordHash|token|otp|fullName|address|taxCode)$/i;

@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Text } from 'react-native';
 import type { SessionInfo, WorkspaceContext } from '@argolet/app';
 import { ApiError, clearCache, invalidateAll, useBackend } from '@argolet/client';
@@ -28,7 +37,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
   const [me, setMe] = useState<SessionInfo | null>(null);
   const [ctx, setCtx] = useState<WorkspaceContext | null>(null);
-  const [step, setStep] = useState<{ method: 'OTP' | 'TOTP'; devCode?: string | undefined; resolve: (ok: boolean) => void } | null>(null);
+  const [step, setStep] = useState<{
+    method: 'OTP' | 'TOTP';
+    devCode?: string | undefined;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
   const [code, setCode] = useState('');
   const [stepErr, setStepErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,7 +108,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const r = await backend.call('auth.startStepUp');
         setCode('');
         setStepErr(null);
-        const ok = await new Promise<boolean>((resolve) => setStep({ method: r.method, devCode: 'devCode' in r ? r.devCode : undefined, resolve }));
+        const ok = await new Promise<boolean>((resolve) =>
+          setStep({ method: r.method, devCode: 'devCode' in r ? r.devCode : undefined, resolve }),
+        );
         if (!ok) throw new ApiError('CANCELLED', 'Đã hủy xác thực bổ sung', 0);
         return fn();
       }
@@ -103,7 +118,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [backend],
   );
 
-  const value = useMemo<SessionCtx>(() => ({ status, me, ctx, refresh, signOut, withStepUp, can: (p) => !!ctx?.member.permissions.includes(p) }), [status, me, ctx, refresh, signOut, withStepUp]);
+  const value = useMemo<SessionCtx>(
+    () => ({
+      status,
+      me,
+      ctx,
+      refresh,
+      signOut,
+      withStepUp,
+      can: (p) => !!ctx?.member.permissions.includes(p),
+    }),
+    [status, me, ctx, refresh, signOut, withStepUp],
+  );
 
   return (
     <Ctx.Provider value={value}>
@@ -116,9 +142,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           setStep(null);
         }}
       >
-        <Text style={[T.muted, { marginBottom: 14 }]}>{step?.method === 'TOTP' ? 'Nhập mã 6 số từ ứng dụng xác thực.' : 'Chính sách yêu cầu xác thực lại. Nhập mã đã gửi đến email của bạn.'}</Text>
+        <Text style={[T.muted, { marginBottom: 14 }]}>
+          {step?.method === 'TOTP'
+            ? 'Nhập mã 6 số từ ứng dụng xác thực.'
+            : 'Chính sách yêu cầu xác thực lại. Nhập mã đã gửi đến email của bạn.'}
+        </Text>
         <OtpInput value={code} onChange={setCode} />
-        {step?.devCode ? <Notice tone="info">{`Môi trường thử nghiệm · mã xác thực: ${step.devCode}`}</Notice> : null}
+        {step?.devCode ? (
+          <Notice tone="info">{`Môi trường thử nghiệm · mã xác thực: ${step.devCode}`}</Notice>
+        ) : null}
         {stepErr ? <Notice tone="danger">{stepErr}</Notice> : null}
         <Gap />
         <Button

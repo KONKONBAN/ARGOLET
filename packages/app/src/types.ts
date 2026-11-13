@@ -1,6 +1,22 @@
 import type {
-  ApprovalRequest, DocumentStatus, ExtractionField, FieldIssue, LedgerReceipt, LedgerState, MatchKind, ProofStep, RecordAllocation,
-  AllocationLink, RoleBinding, SnapshotManifest, PeriodStatus, CalcRun, DomainEvent, ProjectAssumptions, VerificationStep, Role,
+  ApprovalRequest,
+  DocumentStatus,
+  ExtractionField,
+  FieldIssue,
+  LedgerReceipt,
+  LedgerState,
+  MatchKind,
+  ProofStep,
+  RecordAllocation,
+  AllocationLink,
+  RoleBinding,
+  SnapshotManifest,
+  PeriodStatus,
+  CalcRun,
+  DomainEvent,
+  ProjectAssumptions,
+  VerificationStep,
+  Role,
 } from '@argolet/core';
 
 export const GLOBAL = '_global';
@@ -135,6 +151,10 @@ export interface SourceArtifactRow extends BaseRow {
   duplicateOf: string | null;
   /** Small text sources (XML/CSV) are retained for re-parsing and verification. */
   content: string | null;
+  /** The original started with a UTF-8 byte-order mark (content excludes it). */
+  contentBom?: boolean | undefined;
+  /** content (+ BOM) re-encodes to exactly the original bytes; false for legacy encodings. */
+  contentExact?: boolean | undefined;
 }
 export interface DocumentRow extends BaseRow {
   code: string;
@@ -148,8 +168,16 @@ export interface DocumentRow extends BaseRow {
   currentVersion: number;
   artifactId: string | null;
   batchId: string | null;
-  fields: { supplier: string; documentNo: string; documentDate: string; total: string; taxCode?: string | undefined };
+  fields: {
+    supplier: string;
+    documentNo: string;
+    documentDate: string;
+    total: string;
+    taxCode?: string | undefined;
+  };
   lines: { description: string; amount: string }[];
+  /** VAT of an e-invoice (lines are net amounts; total = lines + VAT). */
+  vat?: string | undefined;
   /** Structured rows parsed from statements / POS exports (become BusinessRecords on confirmation). */
   rows: StructuredRow[];
   rowKind: 'BANK' | 'POS' | null;
@@ -579,12 +607,53 @@ export interface Collections {
 
 export type CollectionName = keyof Collections;
 export const COLLECTIONS: CollectionName[] = [
-  'users', 'credentials', 'verificationTokens', 'sessions', 'tenants', 'entities', 'memberships', 'invitations', 'importBatches', 'artifacts',
-  'documents', 'documentVersions', 'records', 'recordHistory', 'recordEvidence', 'reconRuns', 'matchGroups', 'approvals', 'periods', 'closeSnapshots',
-  'evidenceBatches', 'evidenceReceipts', 'verifications', 'ledger', 'calcRuns', 'financeProjects', 'conversations', 'notifications', 'audit', 'outbox',
-  'inbox', 'projections', 'integrations', 'aggregateSeqs', 'inventoryItems', 'recipes', 'purchaseOrders', 'dailyCloses', 'clients', 'deals', 'projects',
-  'assets', 'shipments', 'groupEntities', 'intercompany',
+  'users',
+  'credentials',
+  'verificationTokens',
+  'sessions',
+  'tenants',
+  'entities',
+  'memberships',
+  'invitations',
+  'importBatches',
+  'artifacts',
+  'documents',
+  'documentVersions',
+  'records',
+  'recordHistory',
+  'recordEvidence',
+  'reconRuns',
+  'matchGroups',
+  'approvals',
+  'periods',
+  'closeSnapshots',
+  'evidenceBatches',
+  'evidenceReceipts',
+  'verifications',
+  'ledger',
+  'calcRuns',
+  'financeProjects',
+  'conversations',
+  'notifications',
+  'audit',
+  'outbox',
+  'inbox',
+  'projections',
+  'integrations',
+  'aggregateSeqs',
+  'inventoryItems',
+  'recipes',
+  'purchaseOrders',
+  'dailyCloses',
+  'clients',
+  'deals',
+  'projects',
+  'assets',
+  'shipments',
+  'groupEntities',
+  'intercompany',
 ];
 
 /** Input type for inserting a row: storage fills timestamps and revision. */
-export type NewRow<K extends CollectionName> = Omit<Collections[K], 'createdAt' | 'updatedAt' | 'rev'> & Partial<Pick<BaseRow, 'createdAt' | 'updatedAt' | 'rev'>>;
+export type NewRow<K extends CollectionName> = Omit<Collections[K], 'createdAt' | 'updatedAt' | 'rev'> &
+  Partial<Pick<BaseRow, 'createdAt' | 'updatedAt' | 'rev'>>;

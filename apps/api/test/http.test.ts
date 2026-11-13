@@ -8,7 +8,10 @@ let server: FastifyInstance;
 let rt: Runtime;
 
 beforeAll(async () => {
-  const config = { ...loadConfig({ NODE_ENV: 'test', DATABASE_URL: 'pglite:memory', DEMO_SEED: 'true' }), webDist: null };
+  const config = {
+    ...loadConfig({ NODE_ENV: 'test', DATABASE_URL: 'pglite:memory', DEMO_SEED: 'true' }),
+    webDist: null,
+  };
   rt = await createRuntime(config, () => undefined);
   server = await buildServer({ app: rt.app, config, storeKind: rt.store.kind });
 }, 180_000);
@@ -23,16 +26,27 @@ const H = { [CSRF_HEADER]: '1', 'content-type': 'application/json' };
 function cookieFrom(res: { headers: Record<string, unknown> }): string {
   const raw = res.headers['set-cookie'];
   const list = Array.isArray(raw) ? raw : [raw];
-  const c = list.find((x) => typeof x === 'string' && x.startsWith(`${SESSION_COOKIE}=`)) as string | undefined;
+  const c = list.find((x) => typeof x === 'string' && x.startsWith(`${SESSION_COOKIE}=`)) as
+    string | undefined;
   if (!c) throw new Error('no session cookie');
   return c.split(';')[0]!;
 }
 
 async function webLogin(email = 'ketoan@minhan.example', password = 'Argolet@2026') {
-  const res = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: H, payload: { contact: email, password } });
+  const res = await server.inject({
+    method: 'POST',
+    url: '/v1/auth/login',
+    headers: H,
+    payload: { contact: email, password },
+  });
   expect(res.statusCode).toBe(200);
   const cookie = cookieFrom(res);
-  const sel = await server.inject({ method: 'POST', url: '/v1/workspaces/select', headers: { ...H, cookie }, payload: { tenantId: 'ten_minhan' } });
+  const sel = await server.inject({
+    method: 'POST',
+    url: '/v1/workspaces/select',
+    headers: { ...H, cookie },
+    payload: { tenantId: 'ten_minhan' },
+  });
   expect(sel.statusCode).toBe(200);
   return cookie;
 }
@@ -42,19 +56,33 @@ describe('HTTP API', () => {
     const h = await server.inject({ method: 'GET', url: '/healthz' });
     expect(h.json()).toMatchObject({ ok: true, store: 'postgres:pglite-memory' });
     const m = await server.inject({ method: 'GET', url: '/v1/meta' });
-    expect(m.json()).toMatchObject({ name: 'ARGOLET', assistant: 'rules', demo: { email: 'ketoan@minhan.example' } });
+    expect(m.json()).toMatchObject({
+      name: 'ARGOLET',
+      assistant: 'rules',
+      demo: { email: 'ketoan@minhan.example' },
+    });
     expect(h.headers['x-frame-options']).toBeDefined();
     expect(String(h.headers['content-security-policy'])).toContain("default-src 'self'");
   });
 
   it('rejects state-changing requests without the CSRF header', async () => {
-    const res = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: { 'content-type': 'application/json' }, payload: { contact: 'a', password: 'b' } });
+    const res = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      headers: { 'content-type': 'application/json' },
+      payload: { contact: 'a', password: 'b' },
+    });
     expect(res.statusCode).toBe(403);
     expect(res.json().error.message).toContain('CSRF');
   });
 
   it('signs in with an HttpOnly cookie for the web (token never in the body)', async () => {
-    const res = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: H, payload: { contact: 'ketoan@minhan.example', password: 'Argolet@2026' } });
+    const res = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      headers: H,
+      payload: { contact: 'ketoan@minhan.example', password: 'Argolet@2026' },
+    });
     expect(res.statusCode).toBe(200);
     expect(res.json().token).toBeUndefined();
     const raw = String(res.headers['set-cookie']);
@@ -65,12 +93,22 @@ describe('HTTP API', () => {
     expect(me.json().user.fullName).toBe('Minh Anh');
     const out = await server.inject({ method: 'POST', url: '/v1/auth/logout', headers: { ...H, cookie } });
     expect(String(out.headers['set-cookie'])).toContain(`${SESSION_COOKIE}=;`);
-    expect((await server.inject({ method: 'GET', url: '/v1/auth/me', headers: { cookie } })).json()).toBeNull();
+    expect(
+      (await server.inject({ method: 'GET', url: '/v1/auth/me', headers: { cookie } })).json(),
+    ).toBeNull();
   });
 
   it('gives the session cookie a relative lifetime, valid even when the demo clock lags real time', async () => {
-    for (const [remember, maxHours] of [[false, 13], [true, 24 * 31]] as const) {
-      const res = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: H, payload: { contact: 'ketoan@minhan.example', password: 'Argolet@2026', remember } });
+    for (const [remember, maxHours] of [
+      [false, 13],
+      [true, 24 * 31],
+    ] as const) {
+      const res = await server.inject({
+        method: 'POST',
+        url: '/v1/auth/login',
+        headers: H,
+        payload: { contact: 'ketoan@minhan.example', password: 'Argolet@2026', remember },
+      });
       const raw = String(res.headers['set-cookie']);
       expect(raw).not.toMatch(/Expires=/i);
       const maxAge = Number(/Max-Age=(\d+)/i.exec(raw)?.[1]);
@@ -80,17 +118,43 @@ describe('HTTP API', () => {
   });
 
   it('issues a bearer token for the mobile app', async () => {
-    const res = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: { ...H, 'x-argolet-client': 'mobile' }, payload: { contact: 'thanhha@minhan.example', password: 'Argolet@2026' } });
+    const res = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      headers: { ...H, 'x-argolet-client': 'mobile' },
+      payload: { contact: 'thanhha@minhan.example', password: 'Argolet@2026' },
+    });
     const token = res.json().token as string;
     expect(token.length).toBeGreaterThan(40);
-    const ws = await server.inject({ method: 'GET', url: '/v1/workspaces', headers: { authorization: `Bearer ${token}` } });
-    expect(ws.json()).toEqual([{ tenantId: 'ten_minhan', name: 'Minh An Commerce', roleLabel: 'Kế toán', scopeLabel: '3 cơ sở', sites: 3 }]);
-    const ctx = await server.inject({ method: 'GET', url: '/v1/workspace', headers: { authorization: `Bearer ${token}` } });
+    const ws = await server.inject({
+      method: 'GET',
+      url: '/v1/workspaces',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(ws.json()).toEqual([
+      {
+        tenantId: 'ten_minhan',
+        name: 'Minh An Commerce',
+        roleLabel: 'Kế toán',
+        scopeLabel: '3 cơ sở',
+        sites: 3,
+      },
+    ]);
+    const ctx = await server.inject({
+      method: 'GET',
+      url: '/v1/workspace',
+      headers: { authorization: `Bearer ${token}` },
+    });
     expect(ctx.json().member.roleLabel).toBe('Kế toán');
   });
 
   it('returns structured errors with the right status codes', async () => {
-    const bad = await server.inject({ method: 'POST', url: '/v1/auth/login', headers: H, payload: { contact: 'ketoan@minhan.example', password: 'sai-mat-khau-0' } });
+    const bad = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      headers: H,
+      payload: { contact: 'ketoan@minhan.example', password: 'sai-mat-khau-0' },
+    });
     expect(bad.statusCode).toBe(401);
     expect(bad.json().error).toMatchObject({ code: 'UNAUTHENTICATED' });
     const anon = await server.inject({ method: 'GET', url: '/v1/dashboard' });
@@ -98,10 +162,20 @@ describe('HTTP API', () => {
     const cookie = await webLogin();
     const nf = await server.inject({ method: 'GET', url: '/v1/documents/CT-9999', headers: { cookie } });
     expect(nf.statusCode).toBe(404);
-    const val = await server.inject({ method: 'POST', url: '/v1/organizations', headers: { ...H, cookie }, payload: { name: '', orgType: 'x' } });
+    const val = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations',
+      headers: { ...H, cookie },
+      payload: { name: '', orgType: 'x' },
+    });
     expect(val.statusCode).toBe(422);
     expect(val.json().error.details.field).toBe('Tên tổ chức');
-    const notJson = await server.inject({ method: 'POST', url: '/v1/organizations', headers: { [CSRF_HEADER]: '1', 'content-type': 'application/json', cookie }, payload: '{bad json' });
+    const notJson = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations',
+      headers: { [CSRF_HEADER]: '1', 'content-type': 'application/json', cookie },
+      payload: '{bad json',
+    });
     expect(notJson.statusCode).toBe(400);
     const unknown = await server.inject({ method: 'GET', url: '/v1/nope' });
     expect(unknown.statusCode).toBe(404);
@@ -121,10 +195,18 @@ describe('HTTP API', () => {
     const p1 = await get('/v1/documents?page=1&pageSize=20');
     const p2 = await get('/v1/documents?page=2&pageSize=20');
     expect([p1.total, p1.pageCount, p1.items.length, p2.page]).toEqual([128, 7, 20, 2]);
-    expect(p1.items.some((x: { id: string }) => p2.items.some((y: { id: string }) => y.id === x.id))).toBe(false);
+    expect(p1.items.some((x: { id: string }) => p2.items.some((y: { id: string }) => y.id === x.id))).toBe(
+      false,
+    );
     expect((await get('/v1/documents?page=99&pageSize=20')).page).toBe(7);
-    expect((await get('/v1/inbox?kind=APPROVAL')).items.every((i: { kind: string }) => i.kind === 'APPROVAL')).toBe(true);
-    expect((await get('/v1/notifications?unread=true')).items.every((n: { status: string }) => n.status === 'UNREAD')).toBe(true);
+    expect(
+      (await get('/v1/inbox?kind=APPROVAL')).items.every((i: { kind: string }) => i.kind === 'APPROVAL'),
+    ).toBe(true);
+    expect(
+      (await get('/v1/notifications?unread=true')).items.every(
+        (n: { status: string }) => n.status === 'UNREAD',
+      ),
+    ).toBe(true);
     expect((await get('/v1/match-groups')).kpis.matched).toBe(82);
     expect((await get('/v1/match-groups/DS-1031')).group.received).toBe('1125000');
     expect((await get('/v1/inbox')).items.length).toBeGreaterThan(3);
@@ -138,7 +220,22 @@ describe('HTTP API', () => {
     expect((await get('/v1/members')).members.length).toBeGreaterThanOrEqual(4);
     expect((await get('/v1/settings')).integrations).toHaveLength(6);
     expect((await get('/v1/assistant/conversations')).items).toHaveLength(4);
-    for (const url of ['/v1/g1/daily-close', '/v1/g1/inventory', '/v1/g1/purchase-orders', '/v1/g1/books', '/v1/g2/clients', '/v1/g2/deals', '/v1/g3/projects', '/v1/g3/assets', '/v1/g3/shipments/current', '/v1/g3/shipments/current/finance', '/v1/g4/group', '/v1/finance/scenarios', '/v1/import-batches', '/v1/snapshots']) {
+    for (const url of [
+      '/v1/g1/daily-close',
+      '/v1/g1/inventory',
+      '/v1/g1/purchase-orders',
+      '/v1/g1/books',
+      '/v1/g2/clients',
+      '/v1/g2/deals',
+      '/v1/g3/projects',
+      '/v1/g3/assets',
+      '/v1/g3/shipments/current',
+      '/v1/g3/shipments/current/finance',
+      '/v1/g4/group',
+      '/v1/finance/scenarios',
+      '/v1/import-batches',
+      '/v1/snapshots',
+    ]) {
       await get(url);
     }
   });
@@ -146,23 +243,57 @@ describe('HTTP API', () => {
   it('runs intake → confirm → evidence verify over HTTP', async () => {
     const cookie = await webLogin('thanhha@minhan.example');
     const xml = `<HDon><DLHDon><TTChung><SHDon>00888</SHDon><NLap>2026-10-30</NLap></TTChung><NDHDon><NBan><Ten>Sữa Xanh</Ten><MST>0313334444</MST></NBan><DSHHDVu><HHDVu><THHDVu>Sữa</THHDVu><ThTien>900000</ThTien></HHDVu></DSHHDVu><TToan><TgTCThue>900000</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>900000</TgTTTBSo></TToan></NDHDon></DLHDon><DSCKS><Signature/></DSCKS></HDon>`;
-    const up = await server.inject({ method: 'POST', url: '/v1/import-batches', headers: { ...H, cookie }, payload: { entityId: 'site_q1', files: [{ name: 'sx.xml', contentBase64: Buffer.from(xml).toString('base64'), mime: 'application/xml' }] } });
+    const up = await server.inject({
+      method: 'POST',
+      url: '/v1/import-batches',
+      headers: { ...H, cookie },
+      payload: {
+        entityId: 'site_q1',
+        files: [
+          { name: 'sx.xml', contentBase64: Buffer.from(xml).toString('base64'), mime: 'application/xml' },
+        ],
+      },
+    });
     expect(up.statusCode).toBe(200);
     const docId = up.json().files[0].documentId as string;
-    const conf = await server.inject({ method: 'POST', url: `/v1/documents/${docId}/confirm`, headers: { ...H, cookie }, payload: {} });
+    const conf = await server.inject({
+      method: 'POST',
+      url: `/v1/documents/${docId}/confirm`,
+      headers: { ...H, cookie },
+      payload: {},
+    });
     expect(conf.statusCode).toBe(200);
-    const ver = await server.inject({ method: 'POST', url: `/v1/evidence/documents/${docId}/verify`, headers: { ...H, cookie }, payload: { fileBase64: Buffer.from(xml).toString('base64') } });
+    const ver = await server.inject({
+      method: 'POST',
+      url: `/v1/evidence/documents/${docId}/verify`,
+      headers: { ...H, cookie },
+      payload: { fileBase64: Buffer.from(xml).toString('base64') },
+    });
     expect(ver.json().ok).toBe(true);
   });
 
   it('decides an approval and closes nothing without step-up', async () => {
     const cookie = await webLogin();
-    const a = (await server.inject({ method: 'GET', url: '/v1/approvals/apv_vpp', headers: { cookie } })).json();
-    const d = await server.inject({ method: 'POST', url: '/v1/approvals/apv_vpp/decisions', headers: { ...H, cookie }, payload: { decision: 'APPROVE', digest: a.approval.digest } });
+    const a = (
+      await server.inject({ method: 'GET', url: '/v1/approvals/apv_vpp', headers: { cookie } })
+    ).json();
+    const d = await server.inject({
+      method: 'POST',
+      url: '/v1/approvals/apv_vpp/decisions',
+      headers: { ...H, cookie },
+      payload: { decision: 'APPROVE', digest: a.approval.digest },
+    });
     expect(d.statusCode).toBe(200);
     expect(d.json().status).toBe('APPROVED');
-    const st = (await server.inject({ method: 'GET', url: '/v1/periods/current?entityId=site_q1', headers: { cookie } })).json();
-    const close = await server.inject({ method: 'POST', url: '/v1/periods/2026-10/close', headers: { ...H, cookie }, payload: { entityId: 'site_q1', digest: st.draftDigest } });
+    const st = (
+      await server.inject({ method: 'GET', url: '/v1/periods/current?entityId=site_q1', headers: { cookie } })
+    ).json();
+    const close = await server.inject({
+      method: 'POST',
+      url: '/v1/periods/2026-10/close',
+      headers: { ...H, cookie },
+      payload: { entityId: 'site_q1', digest: st.draftDigest },
+    });
     expect(close.statusCode).toBe(403);
     expect(close.json().error.code).toBe('STEP_UP_REQUIRED');
   });
@@ -170,7 +301,13 @@ describe('HTTP API', () => {
   it('rate-limits brute force on authentication endpoints', async () => {
     let last = 0;
     for (let i = 0; i < 35; i++) {
-      const r = await server.inject({ method: 'POST', url: '/v1/auth/password-reset', headers: { ...H, 'x-forwarded-for': '10.9.9.9' }, remoteAddress: '10.9.9.9', payload: { contact: 'x@y.vn' } });
+      const r = await server.inject({
+        method: 'POST',
+        url: '/v1/auth/password-reset',
+        headers: { ...H, 'x-forwarded-for': '10.9.9.9' },
+        remoteAddress: '10.9.9.9',
+        payload: { contact: 'x@y.vn' },
+      });
       last = r.statusCode;
     }
     expect(last).toBe(429);

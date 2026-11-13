@@ -5,12 +5,15 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * End-to-end tests against the production builds, in both deployment modes:
  *  - static: apps/web/dist on a plain static server (the whole app runs in the browser),
- *  - api:    the Fastify API server (PGlite, demo seed) serving the same web build.
+ *  - api:    the Fastify API server (PGlite, demo seed) serving the same web build,
+ *  - fresh:  the API server on an empty database (no demo data, real calendar): a new company
+ *            runs the whole product through the UI.
  * Build first: `pnpm build` (web dist + API bundle).
  */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STATIC_PORT = Number(process.env.E2E_STATIC_PORT ?? 4310);
 const API_PORT = Number(process.env.E2E_API_PORT ?? 4320);
+const FRESH_PORT = Number(process.env.E2E_FRESH_PORT ?? 4340);
 
 export default defineConfig({
   testDir: './tests',
@@ -28,8 +31,33 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'static', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, baseURL: `http://127.0.0.1:${STATIC_PORT}` } },
-    { name: 'api', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, baseURL: `http://127.0.0.1:${API_PORT}` } },
+    {
+      name: 'static',
+      testIgnore: /fresh\//,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+        baseURL: `http://127.0.0.1:${STATIC_PORT}`,
+      },
+    },
+    {
+      name: 'api',
+      testIgnore: /fresh\//,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+        baseURL: `http://127.0.0.1:${API_PORT}`,
+      },
+    },
+    {
+      name: 'fresh',
+      testMatch: /fresh\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+        baseURL: `http://127.0.0.1:${FRESH_PORT}`,
+      },
+    },
   ],
   webServer: [
     {
@@ -53,6 +81,22 @@ export default defineConfig({
         EXPOSE_DEV_CODES: 'true',
         WEB_DIST: path.join(root, 'apps/web/dist'),
         PUBLIC_BASE_URL: `http://127.0.0.1:${API_PORT}`,
+      },
+    },
+    {
+      command: 'node dist/main.mjs',
+      cwd: path.join(root, 'apps/api'),
+      url: `http://127.0.0.1:${FRESH_PORT}/healthz`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        PORT: String(FRESH_PORT),
+        HOST: '127.0.0.1',
+        DATABASE_URL: 'pglite:memory',
+        DEMO_SEED: 'false',
+        EXPOSE_DEV_CODES: 'true',
+        WEB_DIST: path.join(root, 'apps/web/dist'),
+        PUBLIC_BASE_URL: `http://127.0.0.1:${FRESH_PORT}`,
       },
     },
   ],

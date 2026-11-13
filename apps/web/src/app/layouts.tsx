@@ -1,8 +1,28 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, Building2, ChartColumn, ChevronDown, CircleHelp, Files, FolderKanban, GitCompareArrows, Grid2x2, Inbox, LayoutGrid, LogOut, Menu, Search,
-  Settings, ShieldCheck, SlidersHorizontal, Sparkles, Store, Ellipsis, ArrowLeftRight, X,
+  Bell,
+  Building2,
+  ChartColumn,
+  ChevronDown,
+  CircleHelp,
+  Files,
+  FolderKanban,
+  GitCompareArrows,
+  Grid2x2,
+  Inbox,
+  LayoutGrid,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Store,
+  Ellipsis,
+  ArrowLeftRight,
+  X,
 } from 'lucide-react';
 import logo from '../assets/logo.jpg';
 import hero from '../assets/hero.jpg';
@@ -44,10 +64,25 @@ const NAV_MAIN = [
   { to: '/reconciliation', label: 'Đối soát', icon: GitCompareArrows },
 ];
 const NAV_MODULES = [
-  { to: '/daily-close', label: 'Vận hành', icon: Store, match: ['/daily-close', '/inventory', '/purchasing', '/books'] },
-  { to: '/projects', label: 'Dự án', icon: FolderKanban, match: ['/projects', '/assets', '/logistics', '/logistics-finance'] },
+  {
+    to: '/daily-close',
+    label: 'Vận hành',
+    icon: Store,
+    match: ['/daily-close', '/inventory', '/purchasing', '/books'],
+  },
+  {
+    to: '/projects',
+    label: 'Dự án',
+    icon: FolderKanban,
+    match: ['/projects', '/assets', '/logistics', '/logistics-finance'],
+  },
   { to: '/finance', label: 'Phân tích tài chính', icon: ChartColumn, match: ['/finance', '/scenarios'] },
-  { to: '/modules', label: 'Tất cả phân hệ', icon: Grid2x2, match: ['/modules', '/clients', '/sales', '/group', '/intercompany'] },
+  {
+    to: '/modules',
+    label: 'Tất cả phân hệ',
+    icon: Grid2x2,
+    match: ['/modules', '/clients', '/sales', '/group', '/intercompany'],
+  },
 ];
 
 export function AppShell() {
@@ -63,12 +98,18 @@ export function AppShell() {
   useEffect(() => setOpen(false), [location.pathname]);
   if (!ctx || !me) return null;
   const sites = ctx.entities.filter((e) => e.kind === 'SITE');
-  const isActive = (paths?: string[]) => !!paths?.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'));
+  const isActive = (paths?: string[]) =>
+    !!paths?.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'));
   const legal = ctx.entities.find((e) => e.kind === 'LEGAL_ENTITY' && sites.some((s) => s.parentId === e.id));
   const changeScope = async (entityId: string) => {
     await select.mutate({ tenantId: ctx.tenant.id, entityId });
     await refresh();
-    toast('success', entityId === '*' ? 'Đang xem tất cả cơ sở' : `Đang xem ${sites.find((s) => s.id === entityId)?.name ?? ''}`);
+    toast(
+      'success',
+      entityId === '*'
+        ? 'Đang xem tất cả cơ sở'
+        : `Đang xem ${sites.find((s) => s.id === entityId)?.name ?? ''}`,
+    );
   };
   return (
     <div className="shell">
@@ -81,14 +122,20 @@ export function AppShell() {
           <Building2 size={22} color="#b1ebd2" aria-hidden />
           <span style={{ minWidth: 0 }}>
             <div className="t">{legal?.shortName ?? ctx.tenant.name}</div>
-            <div className="s">{sites.length ? `${sites.length} cơ sở` : `${ctx.entities.length} pháp nhân`}</div>
+            <div className="s">
+              {sites.length ? `${sites.length} cơ sở` : `${ctx.entities.length} pháp nhân`}
+            </div>
           </span>
           <ChevronDown size={16} color="#c7d9e2" aria-hidden />
         </button>
         <div className="nav-label">Không gian làm việc</div>
         <nav className="nav">
           {NAV_MAIN.map((n) => (
-            <NavLink key={n.to} to={n.to} className={({ isActive: a }) => (a || isActive([n.to]) ? 'active' : '')}>
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive: a }) => (a || isActive([n.to]) ? 'active' : '')}
+            >
               <n.icon size={20} aria-hidden />
               <span>{n.label}</span>
               {n.badge && ctx.counts.inbox > 0 ? <span className="badge">{ctx.counts.inbox}</span> : <span />}
@@ -115,14 +162,24 @@ export function AppShell() {
         </nav>
         <div className="nav-sep" />
         <nav className="nav" style={{ marginBottom: 24 }}>
-          <NavLink to="/settings" className={() => (isActive(['/settings', '/members', '/notifications', '/security']) ? 'active' : '')}>
+          <NavLink
+            to="/settings"
+            className={() =>
+              isActive(['/settings', '/members', '/notifications', '/security']) ? 'active' : ''
+            }
+          >
             <SlidersHorizontal size={20} aria-hidden />
             <span>Cài đặt</span>
             <span />
           </NavLink>
         </nav>
         <div style={{ position: 'relative', marginTop: 'auto' }}>
-          <button className="side-user" onClick={() => setUserMenu((s) => !s)} aria-haspopup="menu" aria-expanded={userMenu}>
+          <button
+            className="side-user"
+            onClick={() => setUserMenu((s) => !s)}
+            aria-haspopup="menu"
+            aria-expanded={userMenu}
+          >
             <Avatar name={ctx.member.displayName} />
             <span style={{ minWidth: 0 }}>
               <div className="n">{ctx.member.displayName}</div>
@@ -130,7 +187,11 @@ export function AppShell() {
             </span>
           </button>
           {userMenu && (
-            <div className="dropdown" role="menu" style={{ bottom: 'calc(100% + 6px)', top: 'auto', left: 0, right: 0 }}>
+            <div
+              className="dropdown"
+              role="menu"
+              style={{ bottom: 'calc(100% + 6px)', top: 'auto', left: 0, right: 0 }}
+            >
               <button role="menuitem" onClick={() => navigate('/security')}>
                 <ShieldCheck size={16} /> Bảo mật tài khoản
               </button>
@@ -141,7 +202,10 @@ export function AppShell() {
                 <button
                   role="menuitem"
                   onClick={async () => {
-                    if (!confirm('Khôi phục dữ liệu mẫu ban đầu? Mọi thay đổi trên trình duyệt này sẽ bị xóa.')) return;
+                    if (
+                      !confirm('Khôi phục dữ liệu mẫu ban đầu? Mọi thay đổi trên trình duyệt này sẽ bị xóa.')
+                    )
+                      return;
                     await backend.reset?.();
                     window.location.reload();
                   }}
@@ -159,7 +223,8 @@ export function AppShell() {
       <div className="main">
         {backend.info.mode === 'device' && (
           <div className="demo-banner" role="note">
-            <Sparkles size={14} /> Bản trải nghiệm chạy trên trình duyệt · dữ liệu mẫu Minh An Commerce · thời điểm mô phỏng 31/10/2026
+            <Sparkles size={14} /> Bản trải nghiệm chạy trên trình duyệt · dữ liệu mẫu Minh An Commerce · thời
+            điểm mô phỏng 31/10/2026
           </div>
         )}
         <header className="topbar">
@@ -178,7 +243,12 @@ export function AppShell() {
                 <label className="sr-only" htmlFor="scope">
                   Phạm vi cơ sở
                 </label>
-                <select id="scope" value={ctx.scope.entityId} onChange={(e) => void changeScope(e.target.value)} disabled={select.loading}>
+                <select
+                  id="scope"
+                  value={ctx.scope.entityId}
+                  onChange={(e) => void changeScope(e.target.value)}
+                  disabled={select.loading}
+                >
                   <option value="*">Tất cả cơ sở</option>
                   {sites.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -193,7 +263,11 @@ export function AppShell() {
           <a className="icon-btn" href="mailto:hotro@argolet.vn" aria-label="Trợ giúp">
             <CircleHelp size={20} />
           </a>
-          <NavLink to="/notifications" className="icon-btn" aria-label={`Thông báo (${ctx.counts.unreadNotifications} chưa đọc)`}>
+          <NavLink
+            to="/notifications"
+            className="icon-btn"
+            aria-label={`Thông báo (${ctx.counts.unreadNotifications} chưa đọc)`}
+          >
             <Bell size={20} />
             {ctx.counts.unreadNotifications > 0 && <span className="dot-badge" />}
           </NavLink>
@@ -279,16 +353,23 @@ function GlobalSearch() {
       {open && q.trim().length >= 2 && (
         <div className="search-results" role="listbox">
           {(docs.data?.items ?? []).map((d) => (
-            <button key={d.id} className="conv-item" onClick={() => go(d.status === 'VALIDATED' ? `/evidence/${d.id}` : `/documents/${d.id}/review`)}>
+            <button
+              key={d.id}
+              className="conv-item"
+              onClick={() => go(d.status === 'VALIDATED' ? `/evidence/${d.id}` : `/documents/${d.id}/review`)}
+            >
               <Files size={14} style={{ verticalAlign: -2, marginRight: 8 }} /> {d.label} · {d.amountLabel}
             </button>
           ))}
           {(groups.data?.items ?? []).slice(0, 5).map((g) => (
             <button key={g.id} className="conv-item" onClick={() => go(`/reconciliation/${g.id}`)}>
-              <GitCompareArrows size={14} style={{ verticalAlign: -2, marginRight: 8 }} /> {g.label} · {g.statusLabel}
+              <GitCompareArrows size={14} style={{ verticalAlign: -2, marginRight: 8 }} /> {g.label} ·{' '}
+              {g.statusLabel}
             </button>
           ))}
-          {docs.data && groups.data && docs.data.items.length === 0 && groups.data.items.length === 0 && <div className="empty">Không tìm thấy kết quả</div>}
+          {docs.data && groups.data && docs.data.items.length === 0 && groups.data.items.length === 0 && (
+            <div className="empty">Không tìm thấy kết quả</div>
+          )}
           {(docs.loading || groups.loading) && <div className="empty">Đang tìm…</div>}
         </div>
       )}

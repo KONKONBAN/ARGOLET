@@ -1,4 +1,13 @@
-import { base32Decode, base32Encode, base64Url, hmacSha1, hmacSha256Hex, randomBytes, sha256Hex, timingSafeEqual } from './hash';
+import {
+  base32Decode,
+  base32Encode,
+  base64Url,
+  hmacSha1,
+  hmacSha256Hex,
+  randomBytes,
+  sha256Hex,
+  timingSafeEqual,
+} from './hash';
 
 /** Account & session rules (board 01 / 02 / A). */
 export const PASSWORD_MIN_LENGTH = 12;
@@ -29,7 +38,8 @@ export function normalizePhone(phone: string): string | null {
 }
 
 export function normalizeContact(contact: string): { type: 'email' | 'phone'; value: string } | null {
-  if (contact.includes('@')) return isValidEmail(contact) ? { type: 'email', value: normalizeEmail(contact) } : null;
+  if (contact.includes('@'))
+    return isValidEmail(contact) ? { type: 'email', value: normalizeEmail(contact) } : null;
   const p = normalizePhone(contact);
   return p ? { type: 'phone', value: p } : null;
 }

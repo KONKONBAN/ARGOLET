@@ -49,19 +49,84 @@ export type Action =
   | 'report.export'
   | 'audit.read';
 
-const ALL_READ: Action[] = ['workspace.read', 'document.read', 'recon.read', 'period.read', 'evidence.read', 'evidence.verify'];
+const ALL_READ: Action[] = [
+  'workspace.read',
+  'document.read',
+  'recon.read',
+  'period.read',
+  'evidence.read',
+  'evidence.verify',
+];
 
 export const ROLE_PERMISSIONS: Record<Role, Action[]> = {
   // OrgAdmin manages the organisation but is deliberately separated from financial approval.
-  ORG_ADMIN: [...ALL_READ, 'document.create', 'member.manage', 'settings.manage', 'assistant.use', 'report.export', 'audit.read', 'module.write', 'approval.request'],
-  ACCOUNTANT: [...ALL_READ, 'document.create', 'document.validate', 'recon.run', 'recon.confirm', 'approval.request', 'finance.run', 'module.write', 'assistant.use', 'report.export'],
-  CHIEF_ACCOUNTANT: [...ALL_READ, 'document.create', 'document.validate', 'recon.run', 'recon.confirm', 'approval.request', 'approval.decide', 'period.close', 'evidence.anchor', 'finance.run', 'module.write', 'assistant.use', 'report.export', 'audit.read'],
-  APPROVER: [...ALL_READ, 'approval.decide', 'period.close', 'evidence.anchor', 'assistant.use', 'report.export'],
-  STAFF: ['workspace.read', 'document.read', 'document.create', 'approval.request', 'module.write', 'assistant.use'],
+  ORG_ADMIN: [
+    ...ALL_READ,
+    'document.create',
+    'member.manage',
+    'settings.manage',
+    'assistant.use',
+    'report.export',
+    'audit.read',
+    'module.write',
+    'approval.request',
+  ],
+  ACCOUNTANT: [
+    ...ALL_READ,
+    'document.create',
+    'document.validate',
+    'recon.run',
+    'recon.confirm',
+    'approval.request',
+    'finance.run',
+    'module.write',
+    'assistant.use',
+    'report.export',
+  ],
+  CHIEF_ACCOUNTANT: [
+    ...ALL_READ,
+    'document.create',
+    'document.validate',
+    'recon.run',
+    'recon.confirm',
+    'approval.request',
+    'approval.decide',
+    'period.close',
+    'evidence.anchor',
+    'finance.run',
+    'module.write',
+    'assistant.use',
+    'report.export',
+    'audit.read',
+  ],
+  APPROVER: [
+    ...ALL_READ,
+    'approval.decide',
+    'period.close',
+    'evidence.anchor',
+    'assistant.use',
+    'report.export',
+  ],
+  STAFF: [
+    'workspace.read',
+    'document.read',
+    'document.create',
+    'approval.request',
+    'module.write',
+    'assistant.use',
+  ],
   VIEWER: [...ALL_READ, 'assistant.use'],
   AUDITOR: [...ALL_READ, 'audit.read', 'report.export'],
   CLIENT_DELEGATE: ['workspace.read', 'document.read', 'document.create', 'evidence.read', 'evidence.verify'],
-  GROUP_CONTROLLER: [...ALL_READ, 'recon.run', 'recon.confirm', 'finance.run', 'report.export', 'assistant.use', 'audit.read'],
+  GROUP_CONTROLLER: [
+    ...ALL_READ,
+    'recon.run',
+    'recon.confirm',
+    'finance.run',
+    'report.export',
+    'assistant.use',
+    'audit.read',
+  ],
 };
 
 export interface RoleBinding {
@@ -115,7 +180,12 @@ export function authorize(ctx: AccessContext, req: AccessRequest): AccessDecisio
   );
   if (candidates.length === 0) {
     const anyRole = ctx.bindings.some((b) => ROLE_PERMISSIONS[b.role].includes(req.action));
-    return { allowed: false, reason: anyRole ? 'Ngoài phạm vi pháp nhân được cấp hoặc quyền đã hết hạn' : 'Vai trò hiện tại chưa có quyền thực hiện thao tác này' };
+    return {
+      allowed: false,
+      reason: anyRole
+        ? 'Ngoài phạm vi pháp nhân được cấp hoặc quyền đã hết hạn'
+        : 'Vai trò hiện tại chưa có quyền thực hiện thao tác này',
+    };
   }
   if (req.action === 'approval.decide') {
     if (req.makerId && req.makerId === ctx.userId) {
@@ -123,10 +193,17 @@ export function authorize(ctx: AccessContext, req: AccessRequest): AccessDecisio
     }
     if (req.amount !== undefined) {
       const amount = Number(req.amount);
-      const withinLimit = candidates.some((b) => b.approvalLimit === 'POLICY' || (b.approvalLimit !== null && Number(b.approvalLimit) >= amount));
+      const withinLimit = candidates.some(
+        (b) =>
+          b.approvalLimit === 'POLICY' || (b.approvalLimit !== null && Number(b.approvalLimit) >= amount),
+      );
       if (!withinLimit) return { allowed: false, reason: 'Giá trị hồ sơ vượt hạn mức phê duyệt được cấp' };
       if (amount >= STEP_UP_THRESHOLD_VND && ctx.aal < 2) {
-        return { allowed: false, reason: 'Chính sách yêu cầu xác thực bổ sung trước khi phê duyệt', requiresStepUp: true };
+        return {
+          allowed: false,
+          reason: 'Chính sách yêu cầu xác thực bổ sung trước khi phê duyệt',
+          requiresStepUp: true,
+        };
       }
     }
   }

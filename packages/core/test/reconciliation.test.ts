@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { allocateManyToMany, computeNet, D, hungarianMax, runReconciliation, scorePair, type ReconOrder, type ReconTxn } from '../src';
+import {
+  allocateManyToMany,
+  computeNet,
+  D,
+  hungarianMax,
+  runReconciliation,
+  scorePair,
+  type ReconOrder,
+  type ReconTxn,
+} from '../src';
 
 const order = (p: Partial<ReconOrder> & { recordId: string; gross: string }): ReconOrder => ({
   recordVersion: 1,
@@ -23,17 +32,37 @@ const txn = (p: Partial<ReconTxn> & { recordId: string; amount: string }): Recon
 
 describe('net receivable', () => {
   it('Gross − refund − discount − fee + adjustments', () => {
-    expect(computeNet({ gross: '150000', fee: '33000', refund: '5000', discount: '0', adjustment: '0' }).toFixed()).toBe('112000');
-    expect(computeNet({ gross: '100000', fee: '22000', refund: '0', discount: '1000', adjustment: '-500' }).toFixed()).toBe('76500');
+    expect(
+      computeNet({ gross: '150000', fee: '33000', refund: '5000', discount: '0', adjustment: '0' }).toFixed(),
+    ).toBe('112000');
+    expect(
+      computeNet({
+        gross: '100000',
+        fee: '22000',
+        refund: '0',
+        discount: '1000',
+        adjustment: '-500',
+      }).toFixed(),
+    ).toBe('76500');
   });
 });
 
 describe('board section 11 — many-to-many example', () => {
   const orders = [
     order({ recordId: 'O1', gross: '100000', fee: '22000', payoutBatch: 'S01', date: '2026-10-30' }),
-    order({ recordId: 'O2', gross: '150000', fee: '33000', refund: '5000', payoutBatch: 'S01', date: '2026-10-30' }),
+    order({
+      recordId: 'O2',
+      gross: '150000',
+      fee: '33000',
+      refund: '5000',
+      payoutBatch: 'S01',
+      date: '2026-10-30',
+    }),
   ];
-  const txns = [txn({ recordId: 'B1', amount: '120000', payoutBatch: 'S01' }), txn({ recordId: 'B2', amount: '70000', payoutBatch: 'S01' })];
+  const txns = [
+    txn({ recordId: 'B1', amount: '120000', payoutBatch: 'S01' }),
+    txn({ recordId: 'B2', amount: '70000', payoutBatch: 'S01' }),
+  ];
   const result = runReconciliation(orders, txns);
 
   it('creates one MatchGroup S01 that balances', () => {
@@ -76,7 +105,9 @@ describe('Figma DS-1031 — 3 orders, platform fee 10%, one bank receipt', () =>
       order({ recordId: 'DH-1031-02', gross: '400000', fee: '40000', payoutBatch: 'TT-1031' }),
       order({ recordId: 'DH-1031-03', gross: '400000', fee: '40000', payoutBatch: 'TT-1031' }),
     ];
-    const res = runReconciliation(orders, [txn({ recordId: 'GD-883019', amount: '1125000', payoutBatch: 'TT-1031' })]);
+    const res = runReconciliation(orders, [
+      txn({ recordId: 'GD-883019', amount: '1125000', payoutBatch: 'TT-1031' }),
+    ]);
     const g = res.groups[0]!;
     expect(g.kind).toBe('MANY_TO_ONE');
     expect(g.status).toBe('MATCHED');
@@ -97,12 +128,23 @@ describe('Figma DS-1031 — 3 orders, platform fee 10%, one bank receipt', () =>
 
 describe('candidate blocking and 1:1 assignment', () => {
   it('never matches across currencies', () => {
-    expect(scorePair(order({ recordId: 'o', gross: '100', reference: 'R' }), txn({ recordId: 't', amount: '100', currency: 'USD', reference: 'R' }))).toBe(0);
+    expect(
+      scorePair(
+        order({ recordId: 'o', gross: '100', reference: 'R' }),
+        txn({ recordId: 't', amount: '100', currency: 'USD', reference: 'R' }),
+      ),
+    ).toBe(0);
   });
 
   it('assigns unkeyed records with the Hungarian algorithm', () => {
-    const orders = [order({ recordId: 'o1', gross: '100000', date: '2026-10-01' }), order({ recordId: 'o2', gross: '250000', date: '2026-10-02' })];
-    const txns = [txn({ recordId: 't1', amount: '250000', date: '2026-10-02' }), txn({ recordId: 't2', amount: '100000', date: '2026-10-01' })];
+    const orders = [
+      order({ recordId: 'o1', gross: '100000', date: '2026-10-01' }),
+      order({ recordId: 'o2', gross: '250000', date: '2026-10-02' }),
+    ];
+    const txns = [
+      txn({ recordId: 't1', amount: '250000', date: '2026-10-02' }),
+      txn({ recordId: 't2', amount: '100000', date: '2026-10-01' }),
+    ];
     const res = runReconciliation(orders, txns);
     const pairs = res.groups.map((g) => [g.orderIds[0], g.txnIds[0]]);
     expect(pairs).toContainEqual(['o1', 't2']);
@@ -111,22 +153,39 @@ describe('candidate blocking and 1:1 assignment', () => {
   });
 
   it('leaves records unmatched when the score is below threshold', () => {
-    const res = runReconciliation([order({ recordId: 'o', gross: '100000', date: '2026-10-01' })], [txn({ recordId: 't', amount: '900000', date: '2026-10-20' })]);
+    const res = runReconciliation(
+      [order({ recordId: 'o', gross: '100000', date: '2026-10-01' })],
+      [txn({ recordId: 't', amount: '900000', date: '2026-10-20' })],
+    );
     expect(res.groups).toHaveLength(0);
     expect(res.unmatchedOrders).toEqual(['o']);
     expect(res.unmatchedTxns).toEqual(['t']);
   });
 
   it('hungarianMax finds the optimal assignment on a rectangular matrix', () => {
-    expect(hungarianMax([[0.1, 0.9, 0.2], [0.8, 0.7, 0.1]])).toEqual([[0, 1], [1, 0]]);
+    expect(
+      hungarianMax([
+        [0.1, 0.9, 0.2],
+        [0.8, 0.7, 0.1],
+      ]),
+    ).toEqual([
+      [0, 1],
+      [1, 0],
+    ]);
     expect(hungarianMax([])).toEqual([]);
   });
 
   it('allocateManyToMany handles partial coverage deterministically', () => {
     const links = allocateManyToMany(
       [{ id: 'a', net: D(100), date: '2026-01-01', code: 'a' }],
-      [{ id: 'x', amount: D(60), date: '2026-01-01', code: 'x' }, { id: 'y', amount: D(60), date: '2026-01-02', code: 'y' }],
+      [
+        { id: 'x', amount: D(60), date: '2026-01-01', code: 'x' },
+        { id: 'y', amount: D(60), date: '2026-01-02', code: 'y' },
+      ],
     );
-    expect(links).toEqual([{ orderId: 'a', txnId: 'x', amount: '60' }, { orderId: 'a', txnId: 'y', amount: '40' }]);
+    expect(links).toEqual([
+      { orderId: 'a', txnId: 'x', amount: '60' },
+      { orderId: 'a', txnId: 'y', amount: '40' },
+    ]);
   });
 });

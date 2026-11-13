@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  anchorBatch, buildEvidenceBatch, buildMerkleTree, buildSnapshotManifest, leafHash, merkleProof, rootFromProof, SimulatedFabricLedger,
-  verifyEvidence, verifyMerkleProof, canonicalize, sha256Hex,
+  anchorBatch,
+  buildEvidenceBatch,
+  buildMerkleTree,
+  buildSnapshotManifest,
+  leafHash,
+  merkleProof,
+  rootFromProof,
+  SimulatedFabricLedger,
+  verifyEvidence,
+  verifyMerkleProof,
+  canonicalize,
+  sha256Hex,
 } from '../src';
 
 describe('merkle tree with domain separation', () => {
@@ -38,7 +48,14 @@ describe('evidence anchoring and verification (board 06 A1–A9, B1–B7)', () =
     previousCloseId: null,
     rulesVersion: 'recon-rules-2026.10',
     members: [
-      { recordId: 'r1', recordVersion: 1, kind: 'REVENUE', amount: '428600000', artifactId: 'art1', rawSha256: 'aa' },
+      {
+        recordId: 'r1',
+        recordVersion: 1,
+        kind: 'REVENUE',
+        amount: '428600000',
+        artifactId: 'art1',
+        rawSha256: 'aa',
+      },
       { recordId: 'r2', recordVersion: 2, kind: 'EXPENSE', amount: '344000000' },
     ],
     approvals: [{ approvalId: 'apv1', digest: 'd', actorId: 'u1' }],
@@ -56,7 +73,10 @@ describe('evidence anchoring and verification (board 06 A1–A9, B1–B7)', () =
     expect(receipt.endorsements).toHaveLength(3);
     expect(ledger.verifyChain()).toBe(true);
     const leaf = batch.leaves[0]!;
-    const res = await verifyEvidence({ manifest, salt: leaf.salt, proof: leaf.proof, batchRef: batch.batchRef, txId: receipt.txId }, ledger);
+    const res = await verifyEvidence(
+      { manifest, salt: leaf.salt, proof: leaf.proof, batchRef: batch.batchRef, txId: receipt.txId },
+      ledger,
+    );
     expect(res.ok).toBe(true);
     expect(res.computedRoot).toBe(batch.merkleRoot);
     expect(res.steps.map((s) => s.code)).toEqual(['B3', 'B4', 'B5', 'B6', 'B7']);
@@ -68,9 +88,22 @@ describe('evidence anchoring and verification (board 06 A1–A9, B1–B7)', () =
     await anchorBatch(batch, ledger);
     const leaf = batch.leaves[0]!;
     const tampered = { ...manifest, totals: { ...manifest.totals, revenue: '1' } };
-    expect((await verifyEvidence({ manifest: tampered, salt: leaf.salt, proof: leaf.proof, batchRef: batch.batchRef }, ledger)).ok).toBe(false);
-    expect((await verifyEvidence({ manifest, salt: '00', proof: leaf.proof, batchRef: batch.batchRef }, ledger)).ok).toBe(false);
-    expect((await verifyEvidence({ manifest, salt: leaf.salt, proof: leaf.proof, batchRef: 'missing' }, ledger)).ok).toBe(false);
+    expect(
+      (
+        await verifyEvidence(
+          { manifest: tampered, salt: leaf.salt, proof: leaf.proof, batchRef: batch.batchRef },
+          ledger,
+        )
+      ).ok,
+    ).toBe(false);
+    expect(
+      (await verifyEvidence({ manifest, salt: '00', proof: leaf.proof, batchRef: batch.batchRef }, ledger))
+        .ok,
+    ).toBe(false);
+    expect(
+      (await verifyEvidence({ manifest, salt: leaf.salt, proof: leaf.proof, batchRef: 'missing' }, ledger))
+        .ok,
+    ).toBe(false);
   });
 
   it('fails endorsement policy when a majority of organisations is missing', async () => {

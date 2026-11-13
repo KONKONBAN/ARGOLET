@@ -28,13 +28,21 @@ test.describe('core business flows', () => {
     const w = watch(page);
     await login(page);
     await go(page, 'documents', 'Chứng từ');
-    await page.getByText(/^CT-1028/).first().click();
+    await page
+      .getByText(/^CT-1028/)
+      .first()
+      .click();
     await expect(page).toHaveURL(/#\/documents\/[^/]+\/review$/);
     await settled(page, /Kiểm tra chứng từ/);
     const confirm = page.getByRole('button', { name: /Xác nhận chứng từ|Xác nhận & lưu/ });
     await confirm.click();
     // Warnings (e.g. date needs checking) require an explicit second confirmation.
-    if (!(await page.waitForURL(/#\/evidence\//, { timeout: 4000 }).then(() => true, () => false))) {
+    if (
+      !(await page.waitForURL(/#\/evidence\//, { timeout: 4000 }).then(
+        () => true,
+        () => false,
+      ))
+    ) {
       await confirm.click();
       await page.waitForURL(/#\/evidence\//);
     }
@@ -48,7 +56,11 @@ test.describe('core business flows', () => {
     const w = watch(page);
     await login(page);
     await go(page, 'evidence', /Bằng chứng/);
-    await page.locator('table tbody tr, .list-item.clickable, [role="row"]').filter({ hasText: 'CT-1027' }).first().click();
+    await page
+      .locator('table tbody tr, .list-item.clickable, [role="row"]')
+      .filter({ hasText: 'CT-1027' })
+      .first()
+      .click();
     await expect(page).toHaveURL(/#\/evidence\/[^/]+$/);
     await settled(page, 'Bằng chứng & lịch sử');
     await page.getByRole('button', { name: /Kiểm chứng hồ sơ/ }).click();
@@ -79,7 +91,10 @@ test.describe('core business flows', () => {
     const w = watch(page);
     await login(page);
     await go(page, 'reconciliation', 'Đối soát đa nguồn');
-    await page.getByText(/^DS-1032/).first().click();
+    await page
+      .getByText(/^DS-1032/)
+      .first()
+      .click();
     await expect(page).toHaveURL(/#\/reconciliation\/[^/]+$/);
     await settled(page, 'Chi tiết đối soát');
     const confirm = page.getByRole('button', { name: /^Xác nhận/ }).first();
@@ -115,7 +130,10 @@ test.describe('core business flows', () => {
     await dlg.getByLabel('Giá trị (đ)').fill('3200000');
     await dlg.getByLabel('Hạn thanh toán').fill('2026-11-20');
     await dlg.getByLabel('Mục đích').fill('Nhập cà phê hạt tháng 11');
-    await dlg.getByRole('button', { name: /Tạo|Gửi/ }).last().click();
+    await dlg
+      .getByRole('button', { name: /Tạo|Gửi/ })
+      .last()
+      .click();
     await expect(page).toHaveURL(/#\/approvals\//);
     await settled(page, 'Phê duyệt hồ sơ');
     await expect(page.getByText('3.200.000 đ').first()).toBeVisible();

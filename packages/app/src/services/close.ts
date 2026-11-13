@@ -1,6 +1,16 @@
 import {
-  buildSnapshotManifest, closeChecklist, formatPeriod, formatVnd, manifestDigest, newId, sum, targetDigest, APPROVAL_POLICY_VERSION, DEFAULT_RULES,
-  formatSignedVnd, D,
+  buildSnapshotManifest,
+  closeChecklist,
+  formatPeriod,
+  formatVnd,
+  manifestDigest,
+  newId,
+  sum,
+  targetDigest,
+  APPROVAL_POLICY_VERSION,
+  DEFAULT_RULES,
+  formatSignedVnd,
+  D,
 } from '@argolet/core';
 import { type AppCore, actor, requireFound } from '../core';
 import { AppError, type CallContext, type WorkspaceState } from '../runtime';
@@ -13,10 +23,22 @@ async function periodFor(tx: Tx, ws: WorkspaceState, entityId: string, periodId:
   const id = `per_${periodId}_${entityId}`;
   const existing = await tx.get('periods', ws.tenantId, id);
   if (existing) return existing;
-  return { id, tenantId: ws.tenantId, entityId, periodId, status: 'OPEN', closeMemoPrepared: false, closeId: null, version: 1, createdAt: '', updatedAt: '', rev: 0 };
+  return {
+    id,
+    tenantId: ws.tenantId,
+    entityId,
+    periodId,
+    status: 'OPEN',
+    closeMemoPrepared: false,
+    closeId: null,
+    version: 1,
+    createdAt: '',
+    updatedAt: '',
+    rev: 0,
+  };
 }
 
-export function nextPeriodId(periodId: string): string {
+function nextPeriodId(periodId: string): string {
   const [y, m] = periodId.split('-').map(Number) as [number, number];
   return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
 }
@@ -37,7 +59,10 @@ async function advancePeriodIfComplete(tx: Tx, tenantId: string, periodId: strin
     const row = await tx.get('periods', tenantId, `per_${periodId}_${u}`);
     if (row?.status !== 'CLOSED') return;
   }
-  await tx.put('tenants', { ...tenant, settings: { ...tenant.settings, currentPeriod: nextPeriodId(periodId) } });
+  await tx.put('tenants', {
+    ...tenant,
+    settings: { ...tenant.settings, currentPeriod: nextPeriodId(periodId) },
+  });
 }
 
 export class CloseService {
@@ -45,10 +70,18 @@ export class CloseService {
 
   private async gather(tx: Tx, ws: WorkspaceState, entityId: string | '*', periodId: string) {
     const inScope = (e: string) => entityId === '*' || e === entityId;
-    const docs = (await tx.list('documents', ws.tenantId)).filter((d) => inScope(d.entityId) && d.date.startsWith(periodId) && d.status !== 'REJECTED');
-    const groups = (await tx.list('matchGroups', ws.tenantId)).filter((g) => inScope(g.entityId) && g.periodId === periodId);
-    const approvals = (await tx.list('approvals', ws.tenantId)).filter((a) => inScope(a.entityId) && a.status === 'PENDING' && a.targetType !== 'PERIOD_CLOSE');
-    const records = (await tx.list('records', ws.tenantId)).filter((r) => inScope(r.entityId) && r.periodId === periodId);
+    const docs = (await tx.list('documents', ws.tenantId)).filter(
+      (d) => inScope(d.entityId) && d.date.startsWith(periodId) && d.status !== 'REJECTED',
+    );
+    const groups = (await tx.list('matchGroups', ws.tenantId)).filter(
+      (g) => inScope(g.entityId) && g.periodId === periodId,
+    );
+    const approvals = (await tx.list('approvals', ws.tenantId)).filter(
+      (a) => inScope(a.entityId) && a.status === 'PENDING' && a.targetType !== 'PERIOD_CLOSE',
+    );
+    const records = (await tx.list('records', ws.tenantId)).filter(
+      (r) => inScope(r.entityId) && r.periodId === periodId,
+    );
     return { docs, groups, approvals, records };
   }
 
@@ -75,7 +108,9 @@ export class CloseService {
       const g = await this.gather(tx, ws, entityId, periodId);
       const memo = period.status === 'CLOSED' || this.checklistFrom(g, false).ready;
       const cl = this.checklistFrom(g, memo);
-      const snapshot = period.closeId ? await tx.get('closeSnapshots', ws.tenantId, period.closeId) : undefined;
+      const snapshot = period.closeId
+        ? await tx.get('closeSnapshots', ws.tenantId, period.closeId)
+        : undefined;
       const draft = await this.draftManifest(tx, ws, entityId, periodId, g);
       const entityLabel = await scopeLabel(tx, ws.tenantId, entityId);
       const site = await tx.get('entities', ws.tenantId, entityId);
@@ -94,16 +129,31 @@ export class CloseService {
         canClose: this.core.can(ws, 'period.close', entityId),
         aal: ws.session.aal,
         snapshot: snapshot
-          ? { closeId: snapshot.id, version: snapshot.version, closedAt: snapshot.closedAt, evidenceStatus: snapshot.evidenceStatus, digest: snapshot.manifestDigest, totals: snapshot.manifest.totals }
+          ? {
+              closeId: snapshot.id,
+              version: snapshot.version,
+              closedAt: snapshot.closedAt,
+              evidenceStatus: snapshot.evidenceStatus,
+              digest: snapshot.manifestDigest,
+              totals: snapshot.manifest.totals,
+            }
           : null,
         roleNote: `Quyền hiện tại: ${ws.membership.title.toLowerCase()}. Mỗi quyết định được ghi lại cùng người thực hiện, thời gian và phạm vi.`,
       };
     });
   }
 
-  private async draftManifest(tx: Tx, ws: WorkspaceState, entityId: string, periodId: string, g: Awaited<ReturnType<CloseService['gather']>>) {
+  private async draftManifest(
+    tx: Tx,
+    ws: WorkspaceState,
+    entityId: string,
+    periodId: string,
+    g: Awaited<ReturnType<CloseService['gather']>>,
+  ) {
     const period = await periodFor(tx, ws, entityId, periodId);
-    const previous = (await tx.list('closeSnapshots', ws.tenantId, { entityId })).sort((a, b) => b.closedAt.localeCompare(a.closedAt))[0];
+    const previous = (await tx.list('closeSnapshots', ws.tenantId, { entityId })).sort((a, b) =>
+      b.closedAt.localeCompare(a.closedAt),
+    )[0];
     const artifacts = new Map((await tx.list('artifacts', ws.tenantId)).map((a) => [a.id, a]));
     const docs = new Map(g.docs.map((d) => [d.id, d]));
     return buildSnapshotManifest({
@@ -117,7 +167,19 @@ export class CloseService {
       members: g.records.map((r) => {
         const d = r.documentId ? docs.get(r.documentId) : undefined;
         const art = d?.artifactId ? artifacts.get(d.artifactId) : undefined;
-        return { recordId: r.recordId, recordVersion: r.version, kind: r.kind === 'ORDER' || r.kind === 'REVENUE' ? 'REVENUE' : r.kind === 'EXPENSE' ? 'EXPENSE' : r.kind, amount: r.amount, artifactId: art?.id, rawSha256: art?.rawSha256 };
+        return {
+          recordId: r.recordId,
+          recordVersion: r.version,
+          kind:
+            r.kind === 'ORDER' || r.kind === 'REVENUE'
+              ? 'REVENUE'
+              : r.kind === 'EXPENSE'
+                ? 'EXPENSE'
+                : r.kind,
+          amount: r.amount,
+          artifactId: art?.id,
+          rawSha256: art?.rawSha256,
+        };
       }),
       approvals: [],
     });
@@ -133,12 +195,19 @@ export class CloseService {
       requireFound(await tx.get('entities', ws.tenantId, p.entityId), 'cơ sở');
       const period = await periodFor(tx, ws, p.entityId, p.periodId);
       if (period.status === 'CLOSED') throw new AppError('CONFLICT', 'Kỳ đã được chốt');
-      if (ws.session.aal < 2) throw new AppError('STEP_UP_REQUIRED', 'Chính sách yêu cầu xác thực bổ sung trước khi chốt kỳ', { reason: 'STEP_UP' });
+      if (ws.session.aal < 2)
+        throw new AppError('STEP_UP_REQUIRED', 'Chính sách yêu cầu xác thực bổ sung trước khi chốt kỳ', {
+          reason: 'STEP_UP',
+        });
       const g = await this.gather(tx, ws, p.entityId, p.periodId);
       const cl = this.checklistFrom(g, true);
-      if (!cl.ready) throw new AppError('VALIDATION', `Cần hoàn tất ${cl.blocking} việc trước khi chốt`, { checklist: cl.items });
+      if (!cl.ready)
+        throw new AppError('VALIDATION', `Cần hoàn tất ${cl.blocking} việc trước khi chốt`, {
+          checklist: cl.items,
+        });
       const draft = await this.draftManifest(tx, ws, p.entityId, p.periodId, g);
-      if (manifestDigest(draft) !== p.digest) throw new AppError('CONFLICT', 'Số liệu kỳ đã thay đổi sau khi bạn rà soát, vui lòng tải lại');
+      if (manifestDigest(draft) !== p.digest)
+        throw new AppError('CONFLICT', 'Số liệu kỳ đã thay đổi sau khi bạn rà soát, vui lòng tải lại');
       const approvalId = newId('apv');
       const digest = targetDigest(draft);
       await tx.put('approvals', {
@@ -185,9 +254,25 @@ export class CloseService {
         closedAt: now,
         evidenceStatus: 'PENDING',
       });
-      await tx.put('periods', { ...period, status: 'CLOSED', closeMemoPrepared: true, closeId, version: period.version });
+      await tx.put('periods', {
+        ...period,
+        status: 'CLOSED',
+        closeMemoPrepared: true,
+        closeId,
+        version: period.version,
+      });
       await advancePeriodIfComplete(tx, ws.tenantId, p.periodId);
-      await em.emit({ type: 'PeriodClosed', tenantId: ws.tenantId, entityId: p.entityId, aggregateType: 'Period', aggregateId: period.id, actorId: ws.user.id, dataRef: `close/${closeId}`, dataVersion: period.version, data: { closeId, periodId: p.periodId, version: period.version } });
+      await em.emit({
+        type: 'PeriodClosed',
+        tenantId: ws.tenantId,
+        entityId: p.entityId,
+        aggregateType: 'Period',
+        aggregateId: period.id,
+        actorId: ws.user.id,
+        dataRef: `close/${closeId}`,
+        dataVersion: period.version,
+        data: { closeId, periodId: p.periodId, version: period.version },
+      });
       await em.audit(ws.tenantId, actor(ws), 'period.close', closeId, digest.slice(0, 16));
       return { closeId, version: period.version };
     });
@@ -201,14 +286,20 @@ export class CloseService {
       const periodId = p.periodId ?? tenant.settings.currentPeriod;
       const entityId = ws.entityId;
       const g = await this.gather(tx, ws, entityId, periodId);
-      const revenue = sum(g.records.filter((r) => r.kind === 'ORDER' || r.kind === 'REVENUE').map((r) => r.amount));
+      const revenue = sum(
+        g.records.filter((r) => r.kind === 'ORDER' || r.kind === 'REVENUE').map((r) => r.amount),
+      );
       const expense = sum(g.records.filter((r) => r.kind === 'EXPENSE').map((r) => r.amount));
       const net = D(revenue).minus(expense);
       const validated = g.docs.filter((d) => d.status === 'VALIDATED').length;
       const confirmed = g.groups.filter((x) => x.status === 'CONFIRMED').length;
-      const periods = (await tx.list('periods', ws.tenantId)).filter((x) => x.periodId === periodId && (entityId === '*' || x.entityId === entityId));
+      const periods = (await tx.list('periods', ws.tenantId)).filter(
+        (x) => x.periodId === periodId && (entityId === '*' || x.entityId === entityId),
+      );
       const closed = periods.length > 0 && periods.every((x) => x.status === 'CLOSED');
-      const snapshots = (await tx.list('closeSnapshots', ws.tenantId)).filter((s) => s.periodId === periodId && (entityId === '*' || s.entityId === entityId));
+      const snapshots = (await tx.list('closeSnapshots', ws.tenantId)).filter(
+        (s) => s.periodId === periodId && (entityId === '*' || s.entityId === entityId),
+      );
       const anchored = snapshots.length > 0 && snapshots.every((s) => s.evidenceStatus === 'ANCHORED');
       const cl = this.checklistFrom(g, closed);
       const label = await scopeLabel(tx, ws.tenantId, entityId);
@@ -233,11 +324,23 @@ export class CloseService {
           { label: 'Nhóm đối soát', value: `${confirmed} nhóm`, source: 'Đơn · tiền · phí' },
         ],
         conditions: [
-          { title: 'Rà soát dữ liệu', detail: cl.items[0]!.done ? 'Đã hoàn tất' : cl.items[0]!.title, done: cl.items[0]!.done },
+          {
+            title: 'Rà soát dữ liệu',
+            detail: cl.items[0]!.done ? 'Đã hoàn tất' : cl.items[0]!.title,
+            done: cl.items[0]!.done,
+          },
           { title: 'Đối soát giao dịch', detail: `${confirmed} nhóm đã khớp`, done: cl.items[1]!.done },
-          { title: 'Phê duyệt theo vai trò', detail: g.approvals.length ? `Còn ${g.approvals.length} hồ sơ chờ` : 'Đã hoàn tất', done: g.approvals.length === 0 },
+          {
+            title: 'Phê duyệt theo vai trò',
+            detail: g.approvals.length ? `Còn ${g.approvals.length} hồ sơ chờ` : 'Đã hoàn tất',
+            done: g.approvals.length === 0,
+          },
           { title: 'Khóa kỳ & lưu phiên bản', detail: closed ? 'Đã khóa' : 'Chờ đủ điều kiện', done: closed },
-          { title: 'Bằng chứng bộ chốt', detail: anchored ? 'Đã neo lên mạng có cấp quyền' : 'Chờ tạo sau khi chốt', done: anchored },
+          {
+            title: 'Bằng chứng bộ chốt',
+            detail: anchored ? 'Đã neo lên mạng có cấp quyền' : 'Chờ tạo sau khi chốt',
+            done: anchored,
+          },
         ],
         pendingApprovals: g.approvals.length,
         export: {

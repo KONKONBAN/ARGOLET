@@ -1,11 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CircleCheck, GitMerge, Landmark, ListFilter, Package, Play, Send, Receipt } from 'lucide-react';
 import { D, formatSignedVnd, formatVnd } from '@argolet/core';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
-import { Alert, Button, Card, Chip, DataTable, ErrorNote, KpiRow, Modal, PageHeader, PageLoading, Pagination, SearchBox, useToast } from '../ui/components';
-import { useListState } from '../ui/paging';
+import {
+  Alert,
+  Button,
+  Card,
+  Chip,
+  DataTable,
+  ErrorNote,
+  KpiRow,
+  Modal,
+  PageHeader,
+  PageLoading,
+  Pagination,
+  SearchBox,
+  useToast,
+} from '../ui/components';
+import { useListState, useSearchText } from '../ui/paging';
 import { PageFoot, usePeriodLabel } from './overview';
 
 // ───────── 14 · Đối soát đa nguồn ─────────
@@ -13,22 +27,32 @@ export function ReconPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const list = useListState(20);
-  const [q, setQ] = useState(list.get('q'));
+  const [q, setQ] = useSearchText(list);
   const filter = list.get('filter') as '' | 'review' | 'done';
-  const data = useQuery('recon.summary', { q: list.get('q') || undefined, filter: filter || undefined, page: list.page, pageSize: list.pageSize }, { keepPrevious: true });
+  const data = useQuery(
+    'recon.summary',
+    { q: list.get('q') || undefined, filter: filter || undefined, page: list.page, pageSize: list.pageSize },
+    { keepPrevious: true },
+  );
   const run = useMutation('recon.run');
   const period = usePeriodLabel();
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (q !== list.get('q')) list.setFilter('q', q);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [q, list]);
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const d = data.data;
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Đối soát đa nguồn" subtitle="Nối đơn hàng, tiền thực nhận và phí." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Đối soát đa nguồn"
+        subtitle="Nối đơn hàng, tiền thực nhận và phí."
+        period={period}
+      />
       <KpiRow
         items={[
           { label: 'Nhóm đã khớp', value: d.kpis.matched },
@@ -44,14 +68,29 @@ export function ReconPage() {
                 onClick={async () => {
                   const r = await run.mutate({});
                   if (r.groups) toast('success', `Động cơ đối soát đề xuất ${r.groups} nhóm mới`);
-                  else if (r.pendingSources) toast('info', `Có ${r.pendingSources} tệp đơn hàng / sao kê chưa được xác nhận. Xác nhận trong mục Chứng từ rồi chạy lại.`);
-                  else toast('info', r.unmatchedOrders ? `Không có giao dịch mới để ghép · ${r.unmatchedOrders} đơn đang chờ tiền về` : 'Không có giao dịch mới để ghép');
+                  else if (r.pendingSources)
+                    toast(
+                      'info',
+                      `Có ${r.pendingSources} tệp đơn hàng / sao kê chưa được xác nhận. Xác nhận trong mục Chứng từ rồi chạy lại.`,
+                    );
+                  else
+                    toast(
+                      'info',
+                      r.unmatchedOrders
+                        ? `Không có giao dịch mới để ghép · ${r.unmatchedOrders} đơn đang chờ tiền về`
+                        : 'Không có giao dịch mới để ghép',
+                    );
                 }}
               >
                 Chạy đối soát
               </Button>
             )}
-            <Button variant="primary" icon={<GitMerge size={18} />} disabled={!d.firstOpenId} onClick={() => d.firstOpenId && navigate(`/match/${d.firstOpenId}`)}>
+            <Button
+              variant="primary"
+              icon={<GitMerge size={18} />}
+              disabled={!d.firstOpenId}
+              onClick={() => d.firstOpenId && navigate(`/match/${d.firstOpenId}`)}
+            >
               Ghép nhiều–nhiều
             </Button>
           </>
@@ -65,7 +104,13 @@ export function ReconPage() {
             <label className="sr-only" htmlFor="recon-filter">
               Lọc
             </label>
-            <select id="recon-filter" className="select" style={{ height: 44, width: 180 }} value={filter} onChange={(e) => list.setFilter('filter', e.target.value)}>
+            <select
+              id="recon-filter"
+              className="select"
+              style={{ height: 44, width: 180 }}
+              value={filter}
+              onChange={(e) => list.setFilter('filter', e.target.value)}
+            >
               <option value="">Tất cả nhóm</option>
               <option value="review">Cần xử lý</option>
               <option value="done">Đã xác nhận</option>
@@ -81,10 +126,23 @@ export function ReconPage() {
             { key: 'source', header: 'Nguồn', render: (r) => r.source },
             { key: 'gross', header: 'Giá trị đơn', render: (r) => r.grossLabel, align: 'right' },
             { key: 'received', header: 'Thực nhận', render: (r) => r.receivedLabel, align: 'right' },
-            { key: 'status', header: 'Trạng thái', render: (r) => <Chip tone={r.tone}>{r.statusLabel}</Chip> },
+            {
+              key: 'status',
+              header: 'Trạng thái',
+              render: (r) => <Chip tone={r.tone}>{r.statusLabel}</Chip>,
+            },
           ]}
         />
-        <Pagination page={d.page} pageCount={d.pageCount} total={d.total} pageSize={d.pageSize} onPage={list.setPage} onPageSize={list.setPageSize} unit="nhóm" busy={data.fetching} />
+        <Pagination
+          page={d.page}
+          pageCount={d.pageCount}
+          total={d.total}
+          pageSize={d.pageSize}
+          onPage={list.setPage}
+          onPageSize={list.setPageSize}
+          unit="nhóm"
+          busy={data.fetching}
+        />
       </Card>
       <PageFoot />
     </div>
@@ -120,17 +178,43 @@ export function ReconDetailPage() {
   const data = useQuery('recon.getGroup', { groupId: id });
   const a = useGroupActions(id, data.data?.group.digest, data.data?.group.residual);
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const { group: g, orders, receipts } = data.data;
   const deductions = D(g.fee).plus(g.refund).plus(g.discount);
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Chi tiết đối soát" subtitle="Xem từng khoản và căn cứ của gợi ý ghép." period={period} actions={<Chip tone={g.status === 'CONFIRMED' ? 'success' : 'warning'}>{g.code} · {g.statusLabel}</Chip>} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Chi tiết đối soát"
+        subtitle="Xem từng khoản và căn cứ của gợi ý ghép."
+        period={period}
+        actions={
+          <Chip tone={g.status === 'CONFIRMED' ? 'success' : 'warning'}>
+            {g.code} · {g.statusLabel}
+          </Chip>
+        }
+      />
       <KpiRow
         items={[
-          { label: `Tổng ${orders.length} đơn hàng`, value: formatVnd(g.gross), note: 'Giá trị đơn trước khi trừ phí' },
+          {
+            label: `Tổng ${orders.length} đơn hàng`,
+            value: formatVnd(g.gross),
+            note: 'Giá trị đơn trước khi trừ phí',
+          },
           { label: 'Phí nền tảng', value: formatVnd(deductions), note: g.feeRule },
-          { label: 'Tiền thực nhận', value: formatVnd(g.received), note: `${receipts.length} giao dịch ${receipts[0]?.source.toLowerCase() ?? ''}`, highlight: true },
+          {
+            label: 'Tiền thực nhận',
+            value: formatVnd(g.received),
+            note: `${receipts.length} giao dịch ${receipts[0]?.source.toLowerCase() ?? ''}`,
+            highlight: true,
+          },
         ]}
       />
       <div className="grid grid-3">
@@ -165,13 +249,17 @@ export function ReconDetailPage() {
           {g.links.map((l, i) => (
             <div key={i} className="row-between small" style={{ padding: '6px 0' }}>
               <span>
-                {orders.find((o) => o.id === l.orderId)?.code} → {receipts.find((r) => r.id === l.txnId)?.code}
+                {orders.find((o) => o.id === l.orderId)?.code} →{' '}
+                {receipts.find((r) => r.id === l.txnId)?.code}
               </span>
               <span className="num">{formatVnd(l.amount)}</span>
             </div>
           ))}
         </Card>
-        <Card title="Giao dịch tiền" subtitle={`${receipts.length} khoản nhận ${receipts.length > 1 ? 'theo đợt' : 'gộp'}`}>
+        <Card
+          title="Giao dịch tiền"
+          subtitle={`${receipts.length} khoản nhận ${receipts.length > 1 ? 'theo đợt' : 'gộp'}`}
+        >
           {receipts.map((r) => (
             <div className="list-item" key={r.id} style={{ gridTemplateColumns: '22px 1fr auto' }}>
               <Landmark size={18} color="#536978" />
@@ -185,7 +273,9 @@ export function ReconDetailPage() {
             </div>
           ))}
           <div className="mt-16">
-            <Chip tone={D(g.residual).isZero() ? 'success' : 'warning'}>Chênh lệch còn lại: {formatVnd(g.residual)}</Chip>
+            <Chip tone={D(g.residual).isZero() ? 'success' : 'warning'}>
+              Chênh lệch còn lại: {formatVnd(g.residual)}
+            </Chip>
           </div>
         </Card>
       </div>
@@ -196,7 +286,8 @@ export function ReconDetailPage() {
               {g.basis.join('. ')}. Người có quyền cần xác nhận trước khi ghi nhận kết quả đối soát.
             </p>
             <p className="small muted mt-8">
-              Điểm tương đồng {Math.round(g.score * 100)}% · {g.rulesVersion} · snapshot đầu vào {g.inputSnapshotVersion}
+              Điểm tương đồng {Math.round(g.score * 100)}% · {g.rulesVersion} · snapshot đầu vào{' '}
+              {g.inputSnapshotVersion}
             </p>
           </div>
           <div className="row">
@@ -206,7 +297,12 @@ export function ReconDetailPage() {
               </Button>
             )}
             {data.data.canConfirm && (
-              <Button variant="primary" icon={<CircleCheck size={18} />} loading={a.confirm.loading} onClick={a.doConfirm}>
+              <Button
+                variant="primary"
+                icon={<CircleCheck size={18} />}
+                loading={a.confirm.loading}
+                onClick={a.doConfirm}
+              >
                 Xác nhận đối soát
               </Button>
             )}
@@ -233,14 +329,27 @@ function NoteModal({ a }: { a: ReturnType<typeof useGroupActions> }) {
       footer={
         <>
           <Button onClick={() => a.setNoteOpen(false)}>Hủy</Button>
-          <Button variant="primary" disabled={!a.note.trim()} loading={a.confirm.loading} onClick={a.doConfirm}>
+          <Button
+            variant="primary"
+            disabled={!a.note.trim()}
+            loading={a.confirm.loading}
+            onClick={a.doConfirm}
+          >
             Xác nhận kèm giải thích
           </Button>
         </>
       }
     >
-      <p className="muted small mb-16">Nhóm còn chênh lệch. Ghi rõ nguyên nhân (ví dụ: khách chuyển thiếu, phí chưa có chứng từ) để lưu vào căn cứ đối soát.</p>
-      <textarea className="textarea" value={a.note} onChange={(e) => a.setNote(e.target.value)} aria-label="Giải thích" />
+      <p className="muted small mb-16">
+        Nhóm còn chênh lệch. Ghi rõ nguyên nhân (ví dụ: khách chuyển thiếu, phí chưa có chứng từ) để lưu vào
+        căn cứ đối soát.
+      </p>
+      <textarea
+        className="textarea"
+        value={a.note}
+        onChange={(e) => a.setNote(e.target.value)}
+        aria-label="Giải thích"
+      />
     </Modal>
   );
 }
@@ -253,7 +362,14 @@ export function MatchWorkspacePage() {
   const data = useQuery('recon.getGroup', { groupId: id });
   const a = useGroupActions(id, data.data?.group.digest, data.data?.group.residual);
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const { group: g, orders, receipts } = data.data;
   const deductions = D(g.fee).plus(g.refund).plus(g.discount);
   const submitApproval = async () => {
@@ -267,12 +383,30 @@ export function MatchWorkspacePage() {
   };
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Ghép giao dịch" subtitle="Ghép đơn, khoản nhận, phí và chứng từ theo cùng một nhóm." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Ghép giao dịch"
+        subtitle="Ghép đơn, khoản nhận, phí và chứng từ theo cùng một nhóm."
+        period={period}
+      />
       <KpiRow
         items={[
-          { label: `Tổng ${orders.length} đơn hàng`, value: formatVnd(g.gross), note: `Nhóm ${g.code} · trước phí` },
-          { label: `${receipts.length} khoản tiền đã nhận`, value: formatVnd(g.received), note: receipts.map((r) => formatVnd(r.amount)).join(' + ') },
-          { label: 'Chênh lệch sau phí', value: formatVnd(g.residual), note: `Phí nền tảng: ${formatVnd(deductions)}`, highlight: true },
+          {
+            label: `Tổng ${orders.length} đơn hàng`,
+            value: formatVnd(g.gross),
+            note: `Nhóm ${g.code} · trước phí`,
+          },
+          {
+            label: `${receipts.length} khoản tiền đã nhận`,
+            value: formatVnd(g.received),
+            note: receipts.map((r) => formatVnd(r.amount)).join(' + '),
+          },
+          {
+            label: 'Chênh lệch sau phí',
+            value: formatVnd(g.residual),
+            note: `Phí nền tảng: ${formatVnd(deductions)}`,
+            highlight: true,
+          },
         ]}
       />
       <div className="grid split-even">
@@ -290,7 +424,10 @@ export function MatchWorkspacePage() {
             <span className="strong num">{formatSignedVnd(deductions.neg())}</span>
           </div>
         </Card>
-        <Card title="Khoản nhận ngân hàng" subtitle={receipts.length > 1 ? 'Hai giao dịch cùng lô thanh toán' : 'Giao dịch theo lô thanh toán'}>
+        <Card
+          title="Khoản nhận ngân hàng"
+          subtitle={receipts.length > 1 ? 'Hai giao dịch cùng lô thanh toán' : 'Giao dịch theo lô thanh toán'}
+        >
           {receipts.map((r) => (
             <div className="list-item" key={r.id} style={{ gridTemplateColumns: '22px 1fr auto' }}>
               <Landmark size={16} color="#087452" />
@@ -304,16 +441,23 @@ export function MatchWorkspacePage() {
             </div>
           ))}
           <div className="mt-16">
-            <Chip tone={D(g.residual).isZero() ? 'success' : 'warning'}>{D(g.residual).isZero() ? 'Khớp tổng sau phí' : `Lệch ${formatVnd(D(g.residual).abs())}`}</Chip>
+            <Chip tone={D(g.residual).isZero() ? 'success' : 'warning'}>
+              {D(g.residual).isZero() ? 'Khớp tổng sau phí' : `Lệch ${formatVnd(D(g.residual).abs())}`}
+            </Chip>
           </div>
         </Card>
       </div>
       <Card className="mt-24" title="Căn cứ ghép & xác nhận">
         <p className="muted" style={{ maxWidth: 640, lineHeight: 1.7 }}>
-          Bộ tính đối chiếu {formatVnd(g.gross).replace(' đ', '')} − {formatVnd(deductions).replace(' đ', '')} = {receipts.map((r) => formatVnd(r.amount).replace(' đ', '')).join(' + ')}. Đơn, phí và {receipts.length === 1 ? 'khoản nhận' : `${receipts.length} khoản nhận`} giữ liên kết với bản gốc và phiên bản.
+          Bộ tính đối chiếu {formatVnd(g.gross).replace(' đ', '')} − {formatVnd(deductions).replace(' đ', '')}{' '}
+          = {receipts.map((r) => formatVnd(r.amount).replace(' đ', '')).join(' + ')}. Đơn, phí và{' '}
+          {receipts.length === 1 ? 'khoản nhận' : `${receipts.length} khoản nhận`} giữ liên kết với bản gốc và
+          phiên bản.
         </p>
         <div className="row-between wrap mt-16">
-          <span className="small muted">AI đề xuất · Bộ tính xác định tính toán · Người có quyền xác nhận</span>
+          <span className="small muted">
+            AI đề xuất · Bộ tính xác định tính toán · Người có quyền xác nhận
+          </span>
           <div className="row">
             {can('recon.confirm') && g.status !== 'CONFIRMED' && (
               <Button icon={<CircleCheck size={18} />} loading={a.confirm.loading} onClick={a.doConfirm}>
@@ -321,7 +465,12 @@ export function MatchWorkspacePage() {
               </Button>
             )}
             {g.status === 'PROPOSED' && can('approval.request') && (
-              <Button variant="primary" icon={<Send size={18} />} loading={a.submit.loading} onClick={submitApproval}>
+              <Button
+                variant="primary"
+                icon={<Send size={18} />}
+                loading={a.submit.loading}
+                onClick={submitApproval}
+              >
                 Gửi nhóm ghép xin duyệt
               </Button>
             )}

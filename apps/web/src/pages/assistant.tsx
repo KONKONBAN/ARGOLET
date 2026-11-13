@@ -29,7 +29,14 @@ export function AssistantPage() {
   useEffect(() => {
     scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [conv.data, pending]);
-  if (!list.data) return list.error ? <div className="page"><ErrorNote error={list.error} /></div> : <PageLoading />;
+  if (!list.data)
+    return list.error ? (
+      <div className="page">
+        <ErrorNote error={list.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const messages: ChatMessage[] = active && conv.data ? conv.data.messages : [];
   const send = async (text: string) => {
     const q = text.trim();
@@ -46,10 +53,19 @@ export function AssistantPage() {
       setPending(null);
     }
   };
-  const suggestions = list.data?.suggestions ?? ['Khoản nào chưa khớp?', 'Giải thích kết quả NPV', 'Doanh thu tháng này bao nhiêu?'];
+  const suggestions = list.data?.suggestions ?? [
+    'Khoản nào chưa khớp?',
+    'Giải thích kết quả NPV',
+    'Doanh thu tháng này bao nhiêu?',
+  ];
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Trợ lý ARGOLET" subtitle="Tìm thông tin có căn cứ trong đúng phạm vi." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Trợ lý ARGOLET"
+        subtitle="Tìm thông tin có căn cứ trong đúng phạm vi."
+        period={period}
+      />
       <div className="grid split-side">
         <Card title="Cuộc trò chuyện">
           <Button
@@ -76,7 +92,10 @@ export function AssistantPage() {
               </button>
             ))}
           </div>
-          <p className="small muted mt-16">Bộ máy trả lời: {list.data.engine === 'rules' ? 'quy tắc tất định + công cụ nghiệp vụ' : list.data.engine}</p>
+          <p className="small muted mt-16">
+            Bộ máy trả lời:{' '}
+            {list.data.engine === 'rules' ? 'quy tắc tất định + công cụ nghiệp vụ' : list.data.engine}
+          </p>
         </Card>
         <Card className="chat">
           <Chip>{list.data.scopeLabel}</Chip>
@@ -84,7 +103,10 @@ export function AssistantPage() {
             {messages.length === 0 && !pending && (
               <div className="muted" style={{ padding: '24px 0' }}>
                 <Sparkles size={20} color="#087452" />
-                <p className="mt-8">Hỏi về số liệu, đối soát, chứng từ hoặc kết quả tính toán. Trợ lý chỉ dùng dữ liệu trong phạm vi bạn được cấp và luôn dẫn nguồn.</p>
+                <p className="mt-8">
+                  Hỏi về số liệu, đối soát, chứng từ hoặc kết quả tính toán. Trợ lý chỉ dùng dữ liệu trong
+                  phạm vi bạn được cấp và luôn dẫn nguồn.
+                </p>
                 <div className="row wrap mt-16">
                   {suggestions.map((s) => (
                     <Button key={s} size="sm" onClick={() => void send(s)}>
@@ -101,7 +123,16 @@ export function AssistantPage() {
                 </div>
               ) : (
                 <div className="answer" key={i}>
-                  <span style={{ width: 18, height: 18, border: '2px solid var(--action)', borderRadius: 4, marginTop: 3 }} aria-hidden />
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      border: '2px solid var(--action)',
+                      borderRadius: 4,
+                      marginTop: 3,
+                    }}
+                    aria-hidden
+                  />
                   <div>
                     <h4>{m.answer?.headline ?? m.content}</h4>
                     {m.answer?.body && <p>{m.answer.body}</p>}
@@ -119,7 +150,11 @@ export function AssistantPage() {
                     )}
                     <div className="row wrap mt-16">
                       {m.answer?.citations.map((c) => (
-                        <Button key={c.ref} icon={<Files size={16} />} onClick={() => c.route && navigate(c.route)}>
+                        <Button
+                          key={c.ref}
+                          icon={<Files size={16} />}
+                          onClick={() => c.route && navigate(c.route)}
+                        >
                           {c.label}
                         </Button>
                       ))}
@@ -128,7 +163,10 @@ export function AssistantPage() {
                           variant="primary"
                           loading={proposal.loading}
                           onClick={async () => {
-                            const r = await proposal.mutate({ toolName: m.answer!.proposal!.toolName, args: m.answer!.proposal!.args });
+                            const r = await proposal.mutate({
+                              toolName: m.answer!.proposal!.toolName,
+                              args: m.answer!.proposal!.args,
+                            });
                             navigate(`/match/${r.groupId}`);
                           }}
                         >
@@ -136,7 +174,11 @@ export function AssistantPage() {
                         </Button>
                       )}
                     </div>
-                    {m.answer?.note && <p className="small" style={{ marginTop: 12 }}>{m.answer.note}</p>}
+                    {m.answer?.note && (
+                      <p className="small" style={{ marginTop: 12 }}>
+                        {m.answer.note}
+                      </p>
+                    )}
                   </div>
                 </div>
               ),
@@ -160,12 +202,28 @@ export function AssistantPage() {
             <label className="sr-only" htmlFor="ask">
               Câu hỏi
             </label>
-            <input id="ask" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Hỏi về dữ liệu hoặc công việc..." maxLength={1000} />
-            <button className="icon-btn" type="submit" aria-label="Gửi câu hỏi" disabled={!question.trim() || ask.loading}>
+            <input
+              id="ask"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Hỏi về dữ liệu hoặc công việc..."
+              maxLength={1000}
+            />
+            <button
+              className="icon-btn"
+              type="submit"
+              aria-label="Gửi câu hỏi"
+              disabled={!question.trim() || ask.loading}
+            >
               <SendHorizontal size={18} />
             </button>
           </form>
-          {backend.info.mode === 'device' && <p className="small muted mt-8">Bản trên trình duyệt dùng bộ trả lời quy tắc; khi chạy cùng máy chủ có khóa Claude, trợ lý dùng mô hình ngôn ngữ qua cổng công cụ.</p>}
+          {backend.info.mode === 'device' && (
+            <p className="small muted mt-8">
+              Bản trên trình duyệt dùng bộ trả lời quy tắc; khi chạy cùng máy chủ có khóa Claude, trợ lý dùng
+              mô hình ngôn ngữ qua cổng công cụ.
+            </p>
+          )}
         </Card>
       </div>
       <PageFoot />

@@ -19,7 +19,9 @@ async function main() {
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   await server.listen({ port: config.port, host: config.host });
-  server.log.info(`ARGOLET API on :${config.port} · store=${store.kind} · web=${config.webDist ?? 'none'} · assistant=${app.deps.llm?.name ?? 'rules'}`);
+  server.log.info(
+    `ARGOLET API on :${config.port} · store=${store.kind} · web=${config.webDist ?? 'none'} · assistant=${app.deps.llm?.name ?? 'rules'}`,
+  );
 }
 
 main().catch((err) => {

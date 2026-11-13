@@ -89,7 +89,11 @@ export function buildEvidenceBatch(
     merkleRoot: tree.root,
     schemaVersion: EVIDENCE_SCHEMA_VERSION,
     leaves: manifests.map((m, i) => ({
-      closeId: String((m as { closeId?: unknown; documentId?: unknown }).closeId ?? (m as { documentId?: unknown }).documentId ?? i),
+      closeId: String(
+        (m as { closeId?: unknown; documentId?: unknown }).closeId ??
+          (m as { documentId?: unknown }).documentId ??
+          i,
+      ),
       leafIndex: i,
       salt: salts[i]!,
       manifestDigest: manifestDigest(m),
@@ -100,7 +104,11 @@ export function buildEvidenceBatch(
 }
 
 /** A4–A8: anchor the batch root on the permissioned ledger. */
-export async function anchorBatch(batch: EvidenceBatch, ledger: LedgerGateway, submitterMsp = 'ArgoletMSP'): Promise<LedgerReceipt> {
+export async function anchorBatch(
+  batch: EvidenceBatch,
+  ledger: LedgerGateway,
+  submitterMsp = 'ArgoletMSP',
+): Promise<LedgerReceipt> {
   const receipt = await ledger.submit({
     batchRef: batch.batchRef,
     merkleRoot: batch.merkleRoot,
@@ -132,7 +140,13 @@ export interface VerificationResult {
  * the root committed on the ledger. Proves integrity — not correctness of the input data.
  */
 export async function verifyEvidence(
-  input: { manifest: SnapshotManifest | EvidencePayload; salt: string; proof: ProofStep[]; batchRef: string; txId?: string | undefined },
+  input: {
+    manifest: SnapshotManifest | EvidencePayload;
+    salt: string;
+    proof: ProofStep[];
+    batchRef: string;
+    txId?: string | undefined;
+  },
   ledger: LedgerGateway,
 ): Promise<VerificationResult> {
   const steps: VerificationStep[] = [];
@@ -145,15 +159,24 @@ export async function verifyEvidence(
   const committed = await ledger.readRoot(input.batchRef);
   const tx = input.txId ? await ledger.getTransaction(input.txId) : undefined;
   const committedRoot = committed?.merkleRoot ?? null;
-  const txValid = tx ? tx.validationCode === 'VALID' && tx.merkleRoot === committedRoot : committed !== undefined;
+  const txValid = tx
+    ? tx.validationCode === 'VALID' && tx.merkleRoot === committedRoot
+    : committed !== undefined;
   steps.push({
     code: 'B4',
     label: 'Đọc root đã ghi nhận',
     ok: committedRoot !== null && txValid,
-    detail: committedRoot ? `tx ${committed!.txId.slice(0, 16)}… · ${tx?.validationCode ?? 'VALID'}` : 'Không tìm thấy root trên sổ cái',
+    detail: committedRoot
+      ? `tx ${committed!.txId.slice(0, 16)}… · ${tx?.validationCode ?? 'VALID'}`
+      : 'Không tìm thấy root trên sổ cái',
   });
   const computedLeaf = leafHash(commitmentBytes(input.manifest, input.salt));
-  steps.push({ code: 'B5', label: 'Tính lại commitment', ok: true, detail: `leaf ${computedLeaf.slice(0, 16)}…` });
+  steps.push({
+    code: 'B5',
+    label: 'Tính lại commitment',
+    ok: true,
+    detail: `leaf ${computedLeaf.slice(0, 16)}…`,
+  });
   const computedRoot = rootFromProof(computedLeaf, input.proof);
   const match = committedRoot !== null && computedRoot === committedRoot;
   steps.push({
@@ -182,7 +205,9 @@ export async function verifyEvidence(
 
 function describePayload(p: SnapshotManifest | EvidencePayload): string {
   const r = p as Record<string, unknown>;
-  if (typeof r.closeId === 'string') return `Snapshot ${r.closeId} v${String(r.closeVersion)} · schema ${p.schemaVersion}`;
-  if (typeof r.documentCode === 'string') return `Hồ sơ ${r.documentCode} v${String(r.version)} · schema ${p.schemaVersion}`;
+  if (typeof r.closeId === 'string')
+    return `Snapshot ${r.closeId} v${String(r.closeVersion)} · schema ${p.schemaVersion}`;
+  if (typeof r.documentCode === 'string')
+    return `Hồ sơ ${r.documentCode} v${String(r.version)} · schema ${p.schemaVersion}`;
   return `schema ${p.schemaVersion}`;
 }

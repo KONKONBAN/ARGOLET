@@ -8,7 +8,11 @@ import { PARSER_VERSION } from './documents';
  * MatchResolved → platform reports waiting for reconciliation ("Cần đối soát") become
  * VALIDATED once every one of their records belongs to a confirmed match group.
  */
-export async function onMatchResolvedValidateDocuments(event: DomainEvent, tx: Tx, em: Emitter): Promise<void> {
+export async function onMatchResolvedValidateDocuments(
+  event: DomainEvent,
+  tx: Tx,
+  em: Emitter,
+): Promise<void> {
   if (event.tenantId === GLOBAL) return;
   const group = await tx.get('matchGroups', event.tenantId, event.aggregateId);
   if (!group) return;
@@ -30,7 +34,9 @@ export async function onMatchResolvedValidateDocuments(event: DomainEvent, tx: T
     const version = doc.currentVersion + 1;
     const salt = randomHex(16);
     const actorId = event.actorId ?? 'system';
-    const member = event.actorId ? (await tx.list('memberships', event.tenantId, { userId: event.actorId }))[0] : undefined;
+    const member = event.actorId
+      ? (await tx.list('memberships', event.tenantId, { userId: event.actorId }))[0]
+      : undefined;
     const payload = {
       schemaVersion: EVIDENCE_SCHEMA_VERSION,
       tenantId: event.tenantId,
@@ -58,7 +64,14 @@ export async function onMatchResolvedValidateDocuments(event: DomainEvent, tx: T
       fingerprint: saltedFingerprint(payload, salt),
       salt,
     });
-    await tx.put('documents', { ...doc, status: 'VALIDATED', currentVersion: version, validatedBy: actorId, validatedAt: event.occurredAt, issues: [] });
+    await tx.put('documents', {
+      ...doc,
+      status: 'VALIDATED',
+      currentVersion: version,
+      validatedBy: actorId,
+      validatedAt: event.occurredAt,
+      issues: [],
+    });
     await em.emit({
       type: 'DocumentValidated',
       tenantId: event.tenantId,

@@ -41,10 +41,19 @@ test.describe('authentication & workspace onboarding', () => {
     await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
 
     await expect(page.getByRole('heading', { name: 'Xác minh tài khoản' })).toBeVisible();
-    const code = (await page.getByText(/mã xác minh:/).locator('b').textContent())?.trim() ?? '';
+    const code =
+      (
+        await page
+          .getByText(/mã xác minh:/)
+          .locator('b')
+          .textContent()
+      )?.trim() ?? '';
     expect(code).toMatch(/^\d{6}$/);
     await typeOtp(page, code);
-    await page.getByRole('button', { name: /Xác minh|Xác nhận/ }).first().click();
+    await page
+      .getByRole('button', { name: /Xác minh|Xác nhận/ })
+      .first()
+      .click();
 
     await expect(page.getByRole('heading', { name: 'Chọn không gian làm việc' })).toBeVisible();
     await page.getByRole('button', { name: /Tạo tổ chức mới/ }).click();
@@ -61,11 +70,24 @@ test.describe('authentication & workspace onboarding', () => {
     await page.locator('button.side-user[aria-haspopup="menu"]').click();
     await page.getByRole('menuitem', { name: /Đăng xuất/ }).click();
     await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
-    await page.getByRole('link', { name: /Quên mật khẩu/ }).or(page.getByRole('button', { name: /Quên mật khẩu/ })).first().click();
+    await page
+      .getByRole('link', { name: /Quên mật khẩu/ })
+      .or(page.getByRole('button', { name: /Quên mật khẩu/ }))
+      .first()
+      .click();
     await expect(page.getByRole('heading', { name: 'Khôi phục mật khẩu' })).toBeVisible();
     await page.getByLabel('Email tài khoản').fill(email);
-    await page.getByRole('button', { name: /Gửi mã|Tiếp tục|Gửi/ }).first().click();
-    const resetCode = (await page.getByText(/mã đặt lại:/).locator('b').textContent())?.trim() ?? '';
+    await page
+      .getByRole('button', { name: /Gửi mã|Tiếp tục|Gửi/ })
+      .first()
+      .click();
+    const resetCode =
+      (
+        await page
+          .getByText(/mã đặt lại:/)
+          .locator('b')
+          .textContent()
+      )?.trim() ?? '';
     expect(resetCode).toMatch(/^\d{6}$/);
     await typeOtp(page, resetCode);
     const newPassword = 'MatKhauMoi#2027';

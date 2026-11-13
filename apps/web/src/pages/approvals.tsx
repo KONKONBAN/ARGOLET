@@ -5,7 +5,23 @@ import { formatShortDateTime } from '@argolet/core';
 import { ApiError } from '../api/backend';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
-import { Alert, Button, Card, CheckItem, Chip, DataTable, ErrorNote, KeyValues, KpiRow, Modal, PageHeader, PageLoading, Timeline, downloadText, useToast } from '../ui/components';
+import {
+  Alert,
+  Button,
+  Card,
+  CheckItem,
+  Chip,
+  DataTable,
+  ErrorNote,
+  KeyValues,
+  KpiRow,
+  Modal,
+  PageHeader,
+  PageLoading,
+  Timeline,
+  downloadText,
+  useToast,
+} from '../ui/components';
 import { PageFoot, usePeriodLabel } from './overview';
 
 // ───────── 16 · Phê duyệt hồ sơ ─────────
@@ -19,32 +35,67 @@ export function ApprovalPage() {
   const [changes, setChanges] = useState(false);
   const [comment, setComment] = useState('');
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const { approval: a, canDecide, blockedReason, roleNote } = data.data;
   const act = async (decision: 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES') => {
     try {
-      await withStepUp(() => decide.mutate({ approvalId: a.id, decision, digest: a.digest, comment: comment || undefined }));
-      toast('success', decision === 'APPROVE' ? 'Đã phê duyệt hồ sơ' : decision === 'REJECT' ? 'Đã từ chối hồ sơ' : 'Đã gửi yêu cầu bổ sung');
+      await withStepUp(() =>
+        decide.mutate({ approvalId: a.id, decision, digest: a.digest, comment: comment || undefined }),
+      );
+      toast(
+        'success',
+        decision === 'APPROVE'
+          ? 'Đã phê duyệt hồ sơ'
+          : decision === 'REJECT'
+            ? 'Đã từ chối hồ sơ'
+            : 'Đã gửi yêu cầu bổ sung',
+      );
       setChanges(false);
       navigate('/inbox');
     } catch (e) {
-      if (!(e instanceof ApiError && e.code === 'CANCELLED')) toast('error', e instanceof Error ? e.message : 'Không thực hiện được');
+      if (!(e instanceof ApiError && e.code === 'CANCELLED'))
+        toast('error', e instanceof Error ? e.message : 'Không thực hiện được');
     }
   };
   const timeline = [
     ...a.timeline.map((t) => ({ title: t.title, sub: `${t.by} · ${formatShortDateTime(t.at)}`, done: true })),
-    ...(a.status === 'PENDING' ? [{ title: 'Chờ phê duyệt', sub: `${canDecide ? 'Bạn' : 'Người có quyền'} · Đến hạn ${a.dueDate === new Date().toISOString().slice(0, 10) ? 'hôm nay' : a.dueDate.split('-').reverse().join('/')}`, done: false }] : []),
+    ...(a.status === 'PENDING'
+      ? [
+          {
+            title: 'Chờ phê duyệt',
+            sub: `${canDecide ? 'Bạn' : 'Người có quyền'} · Đến hạn ${a.dueDate === new Date().toISOString().slice(0, 10) ? 'hôm nay' : a.dueDate.split('-').reverse().join('/')}`,
+            done: false,
+          },
+        ]
+      : []),
   ];
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Phê duyệt hồ sơ" subtitle="Đủ thông tin trước khi xác nhận quyết định." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Phê duyệt hồ sơ"
+        subtitle="Đủ thông tin trước khi xác nhận quyết định."
+        period={period}
+      />
       <div className="grid split-main">
         <Card>
           <h2 style={{ fontSize: 18, fontWeight: 700 }}>{a.title}</h2>
           <div className="mt-16">
-            <Chip tone={a.status === 'PENDING' ? 'warning' : a.status === 'APPROVED' ? 'success' : 'danger'}>{a.statusLabel}</Chip>
+            <Chip tone={a.status === 'PENDING' ? 'warning' : a.status === 'APPROVED' ? 'success' : 'danger'}>
+              {a.statusLabel}
+            </Chip>
           </div>
-          <div className="num" style={{ fontSize: 34, fontWeight: 700, color: 'var(--brand)', margin: '22px 0 12px' }}>
+          <div
+            className="num"
+            style={{ fontSize: 34, fontWeight: 700, color: 'var(--brand)', margin: '22px 0 12px' }}
+          >
             {a.amountLabel}
           </div>
           <p className="muted">{a.entityLabel}</p>
@@ -52,7 +103,8 @@ export function ApprovalPage() {
             <KeyValues rows={a.details.map((d) => ({ label: d.label, value: d.value }))} />
           </div>
           <p className="small muted mt-16">
-            Dấu nội dung trình duyệt: <code>{a.digest.slice(0, 16)}…</code> · phiên bản {a.targetVersion} · {a.policyVersion}
+            Dấu nội dung trình duyệt: <code>{a.digest.slice(0, 16)}…</code> · phiên bản {a.targetVersion} ·{' '}
+            {a.policyVersion}
           </p>
           {blockedReason && (
             <div className="mt-16">
@@ -67,7 +119,12 @@ export function ApprovalPage() {
           {canDecide && (
             <div className="grid grid-2" style={{ marginTop: 40 }}>
               <Button onClick={() => setChanges(true)}>Yêu cầu bổ sung</Button>
-              <Button variant="primary" icon={<CircleCheck size={18} />} loading={decide.loading} onClick={() => act('APPROVE')}>
+              <Button
+                variant="primary"
+                icon={<CircleCheck size={18} />}
+                loading={decide.loading}
+                onClick={() => act('APPROVE')}
+              >
                 Phê duyệt hồ sơ
               </Button>
             </div>
@@ -87,17 +144,33 @@ export function ApprovalPage() {
         title="Yêu cầu bổ sung / từ chối"
         footer={
           <>
-            <Button variant="danger" disabled={!comment.trim()} loading={decide.loading} onClick={() => act('REJECT')}>
+            <Button
+              variant="danger"
+              disabled={!comment.trim()}
+              loading={decide.loading}
+              onClick={() => act('REJECT')}
+            >
               Từ chối
             </Button>
-            <Button variant="primary" disabled={!comment.trim()} loading={decide.loading} onClick={() => act('REQUEST_CHANGES')}>
+            <Button
+              variant="primary"
+              disabled={!comment.trim()}
+              loading={decide.loading}
+              onClick={() => act('REQUEST_CHANGES')}
+            >
               Gửi yêu cầu bổ sung
             </Button>
           </>
         }
       >
         <p className="muted small mb-16">Nội dung sẽ được gửi cho {a.requesterName} và lưu cùng hồ sơ.</p>
-        <textarea className="textarea" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ví dụ: Bổ sung hóa đơn VAT bản gốc" aria-label="Nội dung" />
+        <textarea
+          className="textarea"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Ví dụ: Bổ sung hóa đơn VAT bản gốc"
+          aria-label="Nội dung"
+        />
       </Modal>
       <PageFoot />
     </div>
@@ -110,31 +183,54 @@ export function ClosePage() {
   const toast = useToast();
   const { ctx, withStepUp } = useSession();
   const sites = ctx?.entities.filter((e) => e.kind === 'SITE') ?? [];
-  const [entityId, setEntityId] = useState<string | undefined>(ctx?.scope.entityId !== '*' ? ctx?.scope.entityId : undefined);
+  const [entityId, setEntityId] = useState<string | undefined>(
+    ctx?.scope.entityId !== '*' ? ctx?.scope.entityId : undefined,
+  );
   const data = useQuery('close.status', { entityId });
   const close = useMutation('close.close', { silent: true });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const s = data.data;
   const doClose = async () => {
     try {
-      const r = await withStepUp(() => close.mutate({ entityId: s.entityId, periodId: s.periodId, digest: s.draftDigest }));
+      const r = await withStepUp(() =>
+        close.mutate({ entityId: s.entityId, periodId: s.periodId, digest: s.draftDigest }),
+      );
       toast('success', `Đã chốt kỳ · ${r.closeId}`);
       setConfirmOpen(false);
     } catch (e) {
-      if (!(e instanceof ApiError && e.code === 'CANCELLED')) toast('error', e instanceof Error ? e.message : 'Không chốt được kỳ');
+      if (!(e instanceof ApiError && e.code === 'CANCELLED'))
+        toast('error', e instanceof Error ? e.message : 'Không chốt được kỳ');
     }
   };
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Chốt kỳ dữ liệu" subtitle="Rà soát điều kiện và xác nhận phạm vi chốt." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Chốt kỳ dữ liệu"
+        subtitle="Rà soát điều kiện và xác nhận phạm vi chốt."
+        period={period}
+      />
       <div className="grid split-main">
         <Card>
           <div className="row-between wrap">
             <h2 style={{ fontSize: 20, fontWeight: 700 }}>{s.periodLabel}</h2>
             {sites.length > 1 && (
-              <select className="select" style={{ width: 200, height: 40 }} value={s.entityId} onChange={(e) => setEntityId(e.target.value)} aria-label="Cơ sở chốt kỳ">
+              <select
+                className="select"
+                style={{ width: 200, height: 40 }}
+                value={s.entityId}
+                onChange={(e) => setEntityId(e.target.value)}
+                aria-label="Cơ sở chốt kỳ"
+              >
                 {sites.map((x) => (
                   <option key={x.id} value={x.id}>
                     {x.name}
@@ -147,7 +243,8 @@ export function ClosePage() {
           <div className="mt-16">
             {s.status === 'CLOSED' ? (
               <Chip tone="success" icon={<Lock size={12} />}>
-                Đã chốt · {s.snapshot?.evidenceStatus === 'ANCHORED' ? 'bằng chứng đã neo' : 'đang tạo bằng chứng'}
+                Đã chốt ·{' '}
+                {s.snapshot?.evidenceStatus === 'ANCHORED' ? 'bằng chứng đã neo' : 'đang tạo bằng chứng'}
               </Chip>
             ) : s.blocking > 0 ? (
               <Chip tone="warning">Cần hoàn tất {s.blocking} việc trước khi chốt</Chip>
@@ -163,7 +260,9 @@ export function ClosePage() {
           {s.snapshot && (
             <div className="mt-16">
               <Alert tone="success" title={`Bộ chốt ${s.snapshot.closeId} · phiên bản ${s.snapshot.version}`}>
-                Dấu manifest {s.snapshot.digest.slice(0, 16)}… · doanh thu {Number(s.snapshot.totals.revenue ?? 0).toLocaleString('vi-VN')} đ · chi phí {Number(s.snapshot.totals.expense ?? 0).toLocaleString('vi-VN')} đ
+                Dấu manifest {s.snapshot.digest.slice(0, 16)}… · doanh thu{' '}
+                {Number(s.snapshot.totals.revenue ?? 0).toLocaleString('vi-VN')} đ · chi phí{' '}
+                {Number(s.snapshot.totals.expense ?? 0).toLocaleString('vi-VN')} đ
               </Alert>
             </div>
           )}
@@ -174,7 +273,11 @@ export function ClosePage() {
           )}
           <div className="grid grid-2" style={{ marginTop: 36 }}>
             {s.status === 'CLOSED' ? (
-              <Button variant="primary" icon={<ShieldCheck size={18} />} onClick={() => navigate('/evidence')}>
+              <Button
+                variant="primary"
+                icon={<ShieldCheck size={18} />}
+                onClick={() => navigate('/evidence')}
+              >
                 Xem bằng chứng bộ chốt
               </Button>
             ) : s.ready && s.canClose ? (
@@ -188,15 +291,31 @@ export function ClosePage() {
             )}
             <Button onClick={() => navigate('/decision-pack')}>Xem Decision Pack</Button>
           </div>
-          {!s.canClose && s.status !== 'CLOSED' && <p className="muted small mt-8">Vai trò hiện tại không có quyền chốt kỳ; người duyệt hoặc kế toán trưởng sẽ thực hiện.</p>}
+          {!s.canClose && s.status !== 'CLOSED' && (
+            <p className="muted small mt-8">
+              Vai trò hiện tại không có quyền chốt kỳ; người duyệt hoặc kế toán trưởng sẽ thực hiện.
+            </p>
+          )}
         </Card>
         <Card title="Trình tự chốt kỳ">
           <div className="mt-16">
             <Timeline
               items={[
-                { title: 'Rà soát dữ liệu', sub: 'Chứng từ · Đối soát · Phê duyệt', done: s.blocking === 0 || s.status === 'CLOSED' },
-                { title: 'Xác nhận phạm vi', sub: 'Đơn vị · Kỳ · Người có quyền', done: s.status === 'CLOSED' },
-                { title: 'Lưu phiên bản chốt', sub: 'Bằng chứng và lịch sử truy vết', done: s.status === 'CLOSED' },
+                {
+                  title: 'Rà soát dữ liệu',
+                  sub: 'Chứng từ · Đối soát · Phê duyệt',
+                  done: s.blocking === 0 || s.status === 'CLOSED',
+                },
+                {
+                  title: 'Xác nhận phạm vi',
+                  sub: 'Đơn vị · Kỳ · Người có quyền',
+                  done: s.status === 'CLOSED',
+                },
+                {
+                  title: 'Lưu phiên bản chốt',
+                  sub: 'Bằng chứng và lịch sử truy vết',
+                  done: s.status === 'CLOSED',
+                },
               ]}
             />
           </div>
@@ -217,9 +336,12 @@ export function ClosePage() {
         }
       >
         <p>
-          Chốt <b>{s.periodLabel.toLowerCase()}</b> cho <b>{s.scopeLabel}</b>. Sau khi chốt, số liệu được khóa theo phiên bản, ghi phê duyệt, tạo manifest và neo Merkle root lên mạng có cấp quyền.
+          Chốt <b>{s.periodLabel.toLowerCase()}</b> cho <b>{s.scopeLabel}</b>. Sau khi chốt, số liệu được khóa
+          theo phiên bản, ghi phê duyệt, tạo manifest và neo Merkle root lên mạng có cấp quyền.
         </p>
-        <p className="small muted mt-16">Dấu số liệu đang rà soát: {s.draftDigest.slice(0, 24)}… · Chính sách yêu cầu xác thực bổ sung.</p>
+        <p className="small muted mt-16">
+          Dấu số liệu đang rà soát: {s.draftDigest.slice(0, 24)}… · Chính sách yêu cầu xác thực bổ sung.
+        </p>
       </Modal>
       <PageFoot />
     </div>
@@ -232,11 +354,23 @@ export function DecisionPackPage() {
   const toast = useToast();
   const data = useQuery('close.decisionPack', {});
   const period = usePeriodLabel();
-  if (!data.data) return data.error ? <div className="page"><ErrorNote error={data.error} /></div> : <PageLoading />;
+  if (!data.data)
+    return data.error ? (
+      <div className="page">
+        <ErrorNote error={data.error} />
+      </div>
+    ) : (
+      <PageLoading />
+    );
   const d = data.data;
   return (
     <div className="page">
-      <PageHeader eyebrow="Nền tảng" title="Bộ hồ sơ quyết định" subtitle="Decision Pack · Số liệu và căn cứ theo đơn vị, kỳ và phiên bản." period={period} />
+      <PageHeader
+        eyebrow="Nền tảng"
+        title="Bộ hồ sơ quyết định"
+        subtitle="Decision Pack · Số liệu và căn cứ theo đơn vị, kỳ và phiên bản."
+        period={period}
+      />
       <KpiRow
         items={[
           { label: 'Doanh thu trong kỳ', value: d.kpis.revenueLabel, note: d.scopeLabel },

@@ -1,6 +1,15 @@
 import { authorize, newId, sessionTokenHash, type Action } from '@argolet/core';
 import type { Store, Tx } from './store';
-import { AppError, Emitter, OutboxRelay, accessContext, type AppDeps, type AuthState, type CallContext, type WorkspaceState } from './runtime';
+import {
+  AppError,
+  Emitter,
+  OutboxRelay,
+  accessContext,
+  type AppDeps,
+  type AuthState,
+  type CallContext,
+  type WorkspaceState,
+} from './runtime';
 import { GLOBAL, type SessionRow } from './types';
 
 /** Shared plumbing for services: session resolution, workspace scope, transactions. */
@@ -22,7 +31,9 @@ export class AppCore {
   async command<T>(call: CallContext, fn: (tx: Tx, emitter: Emitter, now: string) => Promise<T>): Promise<T> {
     const now = this.now();
     const correlationId = call.correlationId ?? newId('cor');
-    const result = await this.store.transaction(async (tx) => fn(tx, new Emitter(tx, now, correlationId), now));
+    const result = await this.store.transaction(async (tx) =>
+      fn(tx, new Emitter(tx, now, correlationId), now),
+    );
     await this.relay.drain();
     return result;
   }
@@ -52,7 +63,12 @@ export class AppCore {
    * Resolve the active workspace (tenant + scope) from the server-side session and
    * evaluate the effective permission for `action` on every request.
    */
-  async requireWorkspace(tx: Tx, call: CallContext, action?: Action, opts: { entityId?: string; amount?: string } = {}): Promise<WorkspaceState> {
+  async requireWorkspace(
+    tx: Tx,
+    call: CallContext,
+    action?: Action,
+    opts: { entityId?: string; amount?: string } = {},
+  ): Promise<WorkspaceState> {
     const auth = await this.requireAuth(tx, call);
     const tenantId = auth.session.activeTenantId;
     if (!tenantId) throw new AppError('NO_WORKSPACE', 'Chọn không gian làm việc trước khi tiếp tục');
@@ -61,11 +77,14 @@ export class AppCore {
       throw new AppError('FORBIDDEN', 'Bạn không còn là thành viên của tổ chức này');
     }
     const access = accessContext(auth.user, tenantId, membership.bindings, auth.session, this.now());
-    const scopeEntity = opts.entityId ?? (auth.session.activeEntityId !== '*' ? auth.session.activeEntityId : undefined);
+    const scopeEntity =
+      opts.entityId ?? (auth.session.activeEntityId !== '*' ? auth.session.activeEntityId : undefined);
     if (action) {
       const decision = authorize(access, { action, entityId: scopeEntity, amount: opts.amount });
       if (!decision.allowed) {
-        throw new AppError(decision.requiresStepUp ? 'STEP_UP_REQUIRED' : 'FORBIDDEN', decision.reason, { action });
+        throw new AppError(decision.requiresStepUp ? 'STEP_UP_REQUIRED' : 'FORBIDDEN', decision.reason, {
+          action,
+        });
       }
     }
     return { ...auth, tenantId, membership, access, entityId: auth.session.activeEntityId };
@@ -93,14 +112,21 @@ export function requireFound<T>(row: T | undefined | null, what: string): T {
 }
 
 export function requireText(value: unknown, label: string, max = 200): string {
-  if (typeof value !== 'string' || value.trim() === '') throw new AppError('VALIDATION', `${label} không được để trống`, { field: label });
+  if (typeof value !== 'string' || value.trim() === '')
+    throw new AppError('VALIDATION', `${label} không được để trống`, { field: label });
   if (value.length > max) throw new AppError('VALIDATION', `${label} quá dài`, { field: label });
   return value.trim();
 }
 
 export function requireAmount(value: unknown, label: string): string {
-  const s = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.replace(/[.\s]/g, '').replace(',', '.') : '';
-  if (!/^-?\d+(\.\d+)?$/.test(s)) throw new AppError('VALIDATION', `${label} phải là số hợp lệ`, { field: label });
+  const s =
+    typeof value === 'number'
+      ? String(value)
+      : typeof value === 'string'
+        ? value.replace(/[.\s]/g, '').replace(',', '.')
+        : '';
+  if (!/^-?\d+(\.\d+)?$/.test(s))
+    throw new AppError('VALIDATION', `${label} phải là số hợp lệ`, { field: label });
   return s;
 }
 
@@ -109,7 +135,11 @@ export function periodOf(date: string): string {
 }
 
 export function requireDate(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+  ) {
     throw new AppError('VALIDATION', `${label} không hợp lệ (định dạng YYYY-MM-DD)`, { field: label });
   }
   return value;
@@ -147,7 +177,13 @@ export function paginate<T>(rows: T[], p: PageParams = {}, defaultSize = 20): Pa
 
 /** Ratios, weights, quantities: "0.05", "0,05" or 0.05 (a dot is a decimal point here, never a thousands separator). */
 export function requireDecimal(value: unknown, label: string): string {
-  const s = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim().replace(',', '.') : '';
-  if (!/^\d+(\.\d+)?$/.test(s)) throw new AppError('VALIDATION', `${label} phải là số không âm (ví dụ 0.5)`, { field: label });
+  const s =
+    typeof value === 'number'
+      ? String(value)
+      : typeof value === 'string'
+        ? value.trim().replace(',', '.')
+        : '';
+  if (!/^\d+(\.\d+)?$/.test(s))
+    throw new AppError('VALIDATION', `${label} phải là số không âm (ví dụ 0.5)`, { field: label });
   return s;
 }

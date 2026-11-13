@@ -1,0 +1,12 @@
+node_modules
+**/dist
+**/dist-web
+**/dist-native
+**/.expo
+**/test-results
+**/playwright-report
+apps/api/data
+pnpm-lock.yaml
+apps/web/public
+apps/mobile/assets
+e2e/fixtures

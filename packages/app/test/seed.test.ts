@@ -112,12 +112,22 @@ describe('demo dataset matches the Figma design', () => {
     expect(e.rows.find((r) => r.label === 'Mã lô bằng chứng')!.value).toBe('EV-20261031-003');
     expect(e.rows.find((r) => r.label === 'Người xác nhận')!.value).toBe('Thanh Hà · Kế toán');
     expect(e.rows.find((r) => r.label === 'Phiên bản trước')!.value).toBe('02 · 30/10/2026, 17:05');
-    expect(e.history.map((h) => h.title)).toEqual(['Tiếp nhận bản gốc', 'Xác nhận phiên bản 01', 'Bổ sung thông tin', 'Xác nhận phiên bản 03']);
+    expect(e.history.map((h) => h.title)).toEqual([
+      'Tiếp nhận bản gốc',
+      'Xác nhận phiên bản 01',
+      'Bổ sung thông tin',
+      'Xác nhận phiên bản 03',
+    ]);
   });
 
   it('19 · Trợ lý: seeded conversations and the DS-1031 answer', async () => {
     const list = await app.assistant.conversations(call);
-    expect(list.items.map((c) => c.title)).toEqual(['Vì sao nhóm DS-1031 được gợi ý khớp?', 'Khoản nào chưa khớp?', 'Hồ sơ còn thiếu tháng 10', 'Giải thích kết quả NPV']);
+    expect(list.items.map((c) => c.title)).toEqual([
+      'Vì sao nhóm DS-1031 được gợi ý khớp?',
+      'Khoản nào chưa khớp?',
+      'Hồ sơ còn thiếu tháng 10',
+      'Giải thích kết quả NPV',
+    ]);
     const conv = await app.assistant.conversation(call, { conversationId: list.items[0]!.id });
     const ans = conv.messages[1]!.answer!;
     expect(ans.headline).toBe('3 đơn hàng khớp với 1 khoản nhận tiền.');
@@ -160,9 +170,18 @@ describe('demo dataset matches the Figma design', () => {
     expect(p.kpis[2]!.note).toBe('Còn khả dụng 400 triệu đ');
     const f = await app.finance.appraisal(call);
     if (f.empty) throw new Error('demo finance project missing');
-    expect([f.result.npvLabel, f.result.irrLabel, f.result.paybackLabel, f.result.dscrLabel]).toEqual(['137,24 triệu', '15,24%', '3,33 năm', '1,50 lần']);
+    expect([f.result.npvLabel, f.result.irrLabel, f.result.paybackLabel, f.result.dscrLabel]).toEqual([
+      '137,24 triệu',
+      '15,24%',
+      '3,33 năm',
+      '1,50 lần',
+    ]);
     const sc = await app.finance.scenarios(call);
-    expect(sc.scenarios.map((x) => x.npvLabel)).toEqual(['-52,30 triệu đ', '137,24 triệu đ', '326,78 triệu đ']);
+    expect(sc.scenarios.map((x) => x.npvLabel)).toEqual([
+      '-52,30 triệu đ',
+      '137,24 triệu đ',
+      '326,78 triệu đ',
+    ]);
     expect(sc.sensitivity).toContain('+137,24 xuống −52,30 triệu đồng');
     const a = await app.modules.assets(call);
     expect(a.kpis.map((k) => k.value)).toEqual(['12 tài sản', '25.000 kWh', '2 lịch']);
@@ -209,10 +228,16 @@ describe('demo dataset matches the Figma design', () => {
     expect(info.title).toBe('Hồ sơ CT-1027 · Phiên bản 03');
     expect(info.subtitle).toBe('Bản gốc lưu ngoài chuỗi · EV-20261031-003');
     expect(info.hasOriginal).toBe(true);
-    const v = await app.evidence.verifyDocument(call, { documentId: 'CT-1027', fileText: info.originalContent! });
+    const v = await app.evidence.verifyDocument(call, {
+      documentId: 'CT-1027',
+      fileText: info.originalContent!,
+    });
     expect(v.ok).toBe(true);
     expect(v.chainValid).toBe(true);
-    const bad = await app.evidence.verifyDocument(call, { documentId: 'CT-1027', fileText: info.originalContent!.replace('3680000', '3690000') });
+    const bad = await app.evidence.verifyDocument(call, {
+      documentId: 'CT-1027',
+      fileText: info.originalContent!.replace('3680000', '3690000'),
+    });
     expect(bad.ok).toBe(false);
     expect(bad.steps[0]!.ok).toBe(false);
   });

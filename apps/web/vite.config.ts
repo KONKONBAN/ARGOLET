@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: process.env.ARGOLET_API ? { '/v1': { target: process.env.ARGOLET_API, changeOrigin: true } } : undefined,
+    proxy: process.env.ARGOLET_API
+      ? { '/v1': { target: process.env.ARGOLET_API, changeOrigin: true } }
+      : undefined,
   },
   build: {
     target: 'es2022',

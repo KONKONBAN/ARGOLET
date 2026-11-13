@@ -113,8 +113,15 @@ export interface ScenarioResult extends ProjectAppraisal {
   annualCashflow: string;
 }
 
-export function compareScenarios(base: ProjectAssumptions, scenarios: { name: string; annualCashflow: string }[]): ScenarioResult[] {
-  return scenarios.map((s) => ({ name: s.name, annualCashflow: s.annualCashflow, ...appraiseProject({ ...base, annualCashflow: s.annualCashflow }) }));
+export function compareScenarios(
+  base: ProjectAssumptions,
+  scenarios: { name: string; annualCashflow: string }[],
+): ScenarioResult[] {
+  return scenarios.map((s) => ({
+    name: s.name,
+    annualCashflow: s.annualCashflow,
+    ...appraiseProject({ ...base, annualCashflow: s.annualCashflow }),
+  }));
 }
 
 /** ΔNPV per 1 unit change of annual cash flow (linear in annuity factor). */
@@ -138,7 +145,11 @@ export interface CostedItem {
   unitCost: string; // VND per unit
 }
 
-export function recipeCost(lines: RecipeLine[], costs: CostedItem[], wasteRate: DecimalInput = 0): { total: string; lines: { itemId: string; name: string; cost: string }[] } {
+export function recipeCost(
+  lines: RecipeLine[],
+  costs: CostedItem[],
+  wasteRate: DecimalInput = 0,
+): { total: string; lines: { itemId: string; name: string; cost: string }[] } {
   const costMap = new Map(costs.map((c) => [c.itemId, D(c.unitCost)]));
   const out = lines.map((l) => {
     const unit = costMap.get(l.itemId);
@@ -150,7 +161,12 @@ export function recipeCost(lines: RecipeLine[], costs: CostedItem[], wasteRate: 
 }
 
 /** Moving-average inventory valuation over receipts and issues. */
-export function movingAverage(movements: { type: 'IN' | 'OUT'; quantity: string; unitCost?: string }[]): { quantity: string; unitCost: string; value: string; cogs: string } {
+export function movingAverage(movements: { type: 'IN' | 'OUT'; quantity: string; unitCost?: string }[]): {
+  quantity: string;
+  unitCost: string;
+  value: string;
+  cogs: string;
+} {
   let qty = D(0);
   let value = D(0);
   let cogs = D(0);
@@ -168,7 +184,12 @@ export function movingAverage(movements: { type: 'IN' | 'OUT'; quantity: string;
     }
   }
   const unitCost = qty.isZero() ? D(0) : value.div(qty);
-  return { quantity: dec(qty), unitCost: dec(unitCost.toDecimalPlaces(2)), value: dec(value.toDecimalPlaces(0)), cogs: dec(cogs.toDecimalPlaces(0)) };
+  return {
+    quantity: dec(qty),
+    unitCost: dec(unitCost.toDecimalPlaces(2)),
+    value: dec(value.toDecimalPlaces(0)),
+    cogs: dec(cogs.toDecimalPlaces(0)),
+  };
 }
 
 /** Waste rate = (actual usage − standard usage) / standard usage. */
@@ -185,23 +206,36 @@ export interface OpenItem {
   amount: string;
 }
 
-export function agingBuckets(items: OpenItem[], asOf: string): Record<'notDue' | 'd1_30' | 'd31_60' | 'd61_90' | 'over90', string> {
+export function agingBuckets(
+  items: OpenItem[],
+  asOf: string,
+): Record<'notDue' | 'd1_30' | 'd31_60' | 'd61_90' | 'over90', string> {
   const buckets = { notDue: D(0), d1_30: D(0), d31_60: D(0), d61_90: D(0), over90: D(0) };
   const ref = Date.parse(asOf + 'T00:00:00Z');
   for (const it of items) {
     const days = Math.floor((ref - Date.parse(it.dueDate + 'T00:00:00Z')) / 86_400_000);
-    const key = days <= 0 ? 'notDue' : days <= 30 ? 'd1_30' : days <= 60 ? 'd31_60' : days <= 90 ? 'd61_90' : 'over90';
+    const key =
+      days <= 0 ? 'notDue' : days <= 30 ? 'd1_30' : days <= 60 ? 'd31_60' : days <= 90 ? 'd61_90' : 'over90';
     buckets[key] = buckets[key].plus(it.amount);
   }
-  return Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, dec(v)])) as Record<keyof typeof buckets, string>;
+  return Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, dec(v)])) as Record<
+    keyof typeof buckets,
+    string
+  >;
 }
 
 export function dueWithin(items: OpenItem[], asOf: string, days: number): string {
   const ref = Date.parse(asOf + 'T00:00:00Z');
-  return dec(sum(items.filter((i) => {
-    const d = (Date.parse(i.dueDate + 'T00:00:00Z') - ref) / 86_400_000;
-    return d >= 0 && d <= days;
-  }).map((i) => i.amount)));
+  return dec(
+    sum(
+      items
+        .filter((i) => {
+          const d = (Date.parse(i.dueDate + 'T00:00:00Z') - ref) / 86_400_000;
+          return d >= 0 && d <= days;
+        })
+        .map((i) => i.amount),
+    ),
+  );
 }
 
 // ───────────────────────── G3 · logistics ─────────────────────────
@@ -213,7 +247,11 @@ export interface TariffTier {
 }
 
 /** Storage / detention / demurrage charge by tariff after free time. */
-export function chargeAfterFreeTime(daysUsed: number, freeDays: number, tiers: TariffTier[]): { chargeableDays: number; amount: string; breakdown: { days: number; rate: string; amount: string }[] } {
+export function chargeAfterFreeTime(
+  daysUsed: number,
+  freeDays: number,
+  tiers: TariffTier[],
+): { chargeableDays: number; amount: string; breakdown: { days: number; rate: string; amount: string }[] } {
   const chargeable = Math.max(0, daysUsed - freeDays);
   const breakdown: { days: number; rate: string; amount: string }[] = [];
   let total = D(0);
@@ -236,19 +274,29 @@ export function freeTimeEnd(startDate: string, freeDays: number): string {
 }
 
 /** Allocate shipment cost to goods lines by a driver (weight, volume, value). */
-export function allocateByDriver(total: DecimalInput, drivers: { id: string; driver: string }[]): { id: string; share: string; amount: string }[] {
+export function allocateByDriver(
+  total: DecimalInput,
+  drivers: { id: string; driver: string }[],
+): { id: string; share: string; amount: string }[] {
   const totalDriver = sum(drivers.map((d) => d.driver));
   if (totalDriver.isZero()) throw new RangeError('Tổng tiêu thức phân bổ phải khác 0');
   let allocated = D(0);
   return drivers.map((d, idx) => {
     const share = D(d.driver).div(totalDriver);
-    const amount = idx === drivers.length - 1 ? D(total).minus(allocated) : D(total).times(share).toDecimalPlaces(0);
+    const amount =
+      idx === drivers.length - 1 ? D(total).minus(allocated) : D(total).times(share).toDecimalPlaces(0);
     allocated = allocated.plus(amount);
     return { id: d.id, share: dec(share), amount: dec(amount) };
   });
 }
 
-export function landedCost(c: { goodsValue: string; freight: string; insurance: string; dutyRate: string; otherCosts: string }): { dutiableValue: string; duty: string; total: string } {
+export function landedCost(c: {
+  goodsValue: string;
+  freight: string;
+  insurance: string;
+  dutyRate: string;
+  otherCosts: string;
+}): { dutiableValue: string; duty: string; total: string } {
   const cif = D(c.goodsValue).plus(c.freight).plus(c.insurance);
   const duty = cif.times(c.dutyRate).toDecimalPlaces(0);
   return { dutiableValue: dec(cif), duty: dec(duty), total: dec(cif.plus(duty).plus(c.otherCosts)) };
@@ -264,7 +312,12 @@ export interface IntercompanySide {
   periodId: string;
 }
 
-export function matchIntercompany(a: IntercompanySide, b: IntercompanySide, fxRateBtoA: DecimalInput = 1, tolerance: DecimalInput = 0) {
+export function matchIntercompany(
+  a: IntercompanySide,
+  b: IntercompanySide,
+  fxRateBtoA: DecimalInput = 1,
+  tolerance: DecimalInput = 0,
+) {
   const bConverted = D(b.amount).times(fxRateBtoA);
   const diff = D(a.amount).minus(bConverted);
   const sameRef = a.reference === b.reference;
@@ -273,8 +326,13 @@ export function matchIntercompany(a: IntercompanySide, b: IntercompanySide, fxRa
     sameReference: sameRef,
     samePeriod,
     difference: dec(diff),
-    status: sameRef && samePeriod && diff.abs().lte(tolerance) ? ('MATCHED' as const) : ('DIFFERENCE' as const),
-    eliminationDraft: { debit: `Phải trả nội bộ · ${b.entityId}`, credit: `Phải thu nội bộ · ${a.entityId}`, amount: dec(Decimal_min(D(a.amount), bConverted)) },
+    status:
+      sameRef && samePeriod && diff.abs().lte(tolerance) ? ('MATCHED' as const) : ('DIFFERENCE' as const),
+    eliminationDraft: {
+      debit: `Phải trả nội bộ · ${b.entityId}`,
+      credit: `Phải thu nội bộ · ${a.entityId}`,
+      amount: dec(Decimal_min(D(a.amount), bConverted)),
+    },
   };
 }
 
@@ -284,10 +342,17 @@ function Decimal_min(a: Decimal, b: Decimal) {
 
 // ───────────────────────── G3 · M&V (energy) ─────────────────────────
 
-export function energySavings(baselineKwh: DecimalInput, reportingKwh: DecimalInput, adjustmentsKwh: DecimalInput = 0) {
+export function energySavings(
+  baselineKwh: DecimalInput,
+  reportingKwh: DecimalInput,
+  adjustmentsKwh: DecimalInput = 0,
+) {
   const adjustedBaseline = D(baselineKwh).plus(adjustmentsKwh);
   const savings = adjustedBaseline.minus(reportingKwh);
-  return { savingsKwh: dec(savings), savingsRatio: dec(adjustedBaseline.isZero() ? 0 : savings.div(adjustedBaseline)) };
+  return {
+    savingsKwh: dec(savings),
+    savingsRatio: dec(adjustedBaseline.isZero() ? 0 : savings.div(adjustedBaseline)),
+  };
 }
 
 // ───────────────────────── CalcRun ─────────────────────────
@@ -305,10 +370,14 @@ export interface CalcRun<T = unknown> {
   createdAt: string;
 }
 
-export function makeCalcRun<T>(params: Omit<CalcRun<T>, 'inputSnapshotDigest' | 'engineVersion'>): CalcRun<T> {
+export function makeCalcRun<T>(
+  params: Omit<CalcRun<T>, 'inputSnapshotDigest' | 'engineVersion'>,
+): CalcRun<T> {
   return {
     ...params,
     engineVersion: ENGINE_VERSION,
-    inputSnapshotDigest: sha256Hex(canonicalize({ task: params.task, assumptions: params.assumptions, rulesVersion: params.rulesVersion })),
+    inputSnapshotDigest: sha256Hex(
+      canonicalize({ task: params.task, assumptions: params.assumptions, rulesVersion: params.rulesVersion }),
+    ),
   };
 }

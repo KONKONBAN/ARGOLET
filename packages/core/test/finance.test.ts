@@ -1,11 +1,35 @@
 import { describe, expect, it } from 'vitest';
 import {
-  agingBuckets, allocateByDriver, appraiseProject, chargeAfterFreeTime, compareScenarios, D, dscr, dueWithin, energySavings,
-  formatMillions, formatPercent, freeTimeEnd, irr, landedCost, makeCalcRun, matchIntercompany, movingAverage, npv, paybackPeriod,
-  recipeCost, wasteRate,
+  agingBuckets,
+  allocateByDriver,
+  appraiseProject,
+  chargeAfterFreeTime,
+  compareScenarios,
+  D,
+  dscr,
+  dueWithin,
+  energySavings,
+  formatMillions,
+  formatPercent,
+  freeTimeEnd,
+  irr,
+  landedCost,
+  makeCalcRun,
+  matchIntercompany,
+  movingAverage,
+  npv,
+  paybackPeriod,
+  recipeCost,
+  wasteRate,
 } from '../src';
 
-const base = { investment: '1000', annualCashflow: '300', years: 5, discountRate: '0.10', annualDebtService: '200' };
+const base = {
+  investment: '1000',
+  annualCashflow: '300',
+  years: 5,
+  discountRate: '0.10',
+  annualDebtService: '200',
+};
 
 describe('G3 investment appraisal — numbers shown in Figma screen 27/28', () => {
   it('NPV 137,24 triệu · IRR 15,24% · payback 3,33 năm · DSCR 1,50', () => {
@@ -100,12 +124,19 @@ describe('G3 logistics — Figma screen 30/31', () => {
   });
 
   it('cost allocation by weight 60/40 of 18.200.000', () => {
-    expect(allocateByDriver('18200000', [{ id: 'A', driver: '60' }, { id: 'B', driver: '40' }]).map((x) => x.amount)).toEqual(['10920000', '7280000']);
+    expect(
+      allocateByDriver('18200000', [
+        { id: 'A', driver: '60' },
+        { id: 'B', driver: '40' },
+      ]).map((x) => x.amount),
+    ).toEqual(['10920000', '7280000']);
     expect(() => allocateByDriver('1', [{ id: 'A', driver: '0' }])).toThrow();
   });
 
   it('landed cost', () => {
-    expect(landedCost({ goodsValue: '1000', freight: '100', insurance: '10', dutyRate: '0.1', otherCosts: '50' })).toEqual({ dutiableValue: '1110', duty: '111', total: '1271' });
+    expect(
+      landedCost({ goodsValue: '1000', freight: '100', insurance: '10', dutyRate: '0.1', otherCosts: '50' }),
+    ).toEqual({ dutiableValue: '1110', duty: '111', total: '1271' });
   });
 
   it('energy M&V savings 20%', () => {
@@ -128,8 +159,26 @@ describe('G4 intercompany — Figma screen 33', () => {
 
 describe('CalcRun', () => {
   it('pins engine version and input digest deterministically', () => {
-    const a = makeCalcRun({ calcRunId: 'c1', task: 'npv', packageCode: 'G3', rulesVersion: 'r1', assumptions: base, method: 'NPV', result: 1, createdAt: 'x' });
-    const b = makeCalcRun({ calcRunId: 'c2', task: 'npv', packageCode: 'G3', rulesVersion: 'r1', assumptions: { ...base }, method: 'NPV', result: 1, createdAt: 'y' });
+    const a = makeCalcRun({
+      calcRunId: 'c1',
+      task: 'npv',
+      packageCode: 'G3',
+      rulesVersion: 'r1',
+      assumptions: base,
+      method: 'NPV',
+      result: 1,
+      createdAt: 'x',
+    });
+    const b = makeCalcRun({
+      calcRunId: 'c2',
+      task: 'npv',
+      packageCode: 'G3',
+      rulesVersion: 'r1',
+      assumptions: { ...base },
+      method: 'NPV',
+      result: 1,
+      createdAt: 'y',
+    });
     expect(a.inputSnapshotDigest).toBe(b.inputSnapshotDigest);
     expect(a.engineVersion).toMatch(/^finance-engine-/);
   });

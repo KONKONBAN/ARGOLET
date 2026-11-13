@@ -1,13 +1,69 @@
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
-import { Check, ChevronLeft, ChevronRight, CircleAlert, Eye, EyeOff, FileX, Info, Search, TriangleAlert, X } from 'lucide-react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Eye,
+  EyeOff,
+  FileX,
+  Info,
+  Search,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import type { ApiError } from '../api/backend';
 
 // ───────── buttons ─────────
-type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'default' | 'danger' | 'ghost'; loading?: boolean; block?: boolean; size?: 'sm' | 'md' | 'lg'; icon?: ReactNode };
-export function Button({ variant = 'default', loading, block, size = 'md', icon, children, className = '', disabled, ...rest }: BtnProps) {
-  const cls = ['btn', variant === 'primary' && 'btn-primary', variant === 'danger' && 'btn-danger', variant === 'ghost' && 'btn-ghost', block && 'btn-block', size === 'sm' && 'btn-sm', size === 'lg' && 'btn-lg', className].filter(Boolean).join(' ');
+type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'primary' | 'default' | 'danger' | 'ghost';
+  loading?: boolean;
+  block?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  icon?: ReactNode;
+};
+export function Button({
+  variant = 'default',
+  loading,
+  block,
+  size = 'md',
+  icon,
+  children,
+  className = '',
+  disabled,
+  ...rest
+}: BtnProps) {
+  const cls = [
+    'btn',
+    variant === 'primary' && 'btn-primary',
+    variant === 'danger' && 'btn-danger',
+    variant === 'ghost' && 'btn-ghost',
+    block && 'btn-block',
+    size === 'sm' && 'btn-sm',
+    size === 'lg' && 'btn-lg',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
-    <button type="button" className={cls} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
+    <button
+      type="button"
+      className={cls}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...rest}
+    >
       {loading ? <span className={`spinner${variant === 'primary' ? '' : ' dark'}`} aria-hidden /> : icon}
       {children}
     </button>
@@ -15,33 +71,82 @@ export function Button({ variant = 'default', loading, block, size = 'md', icon,
 }
 
 // ───────── form fields ─────────
-export function Field({ label, hint, error, children, htmlFor }: { label?: ReactNode; hint?: ReactNode; error?: string | undefined; children: ReactNode; htmlFor?: string }) {
+function Field({
+  label,
+  hint,
+  error,
+  children,
+  htmlFor,
+}: {
+  label?: ReactNode;
+  hint?: ReactNode;
+  error?: string | undefined;
+  children: ReactNode;
+  htmlFor?: string;
+}) {
   return (
     <div className="field">
       {label && <label htmlFor={htmlFor}>{label}</label>}
       {children}
-      {error ? <div className="field-error" role="alert">{error}</div> : hint ? <div className="field-hint">{hint}</div> : null}
+      {error ? (
+        <div className="field-error" role="alert">
+          {error}
+        </div>
+      ) : hint ? (
+        <div className="field-hint">{hint}</div>
+      ) : null}
     </div>
   );
 }
 
-type InputProps = InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode; hint?: ReactNode; error?: string | undefined };
+type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  label?: ReactNode;
+  hint?: ReactNode;
+  error?: string | undefined;
+};
 export function TextInput({ label, hint, error, id, className = '', ...rest }: InputProps) {
   const auto = useId();
   const fid = id ?? auto;
   return (
     <Field label={label} hint={hint} error={error} htmlFor={fid}>
-      <input id={fid} className={`input${error ? ' invalid' : ''} ${className}`} aria-invalid={!!error || undefined} {...rest} />
+      <input
+        id={fid}
+        className={`input${error ? ' invalid' : ''} ${className}`}
+        aria-invalid={!!error || undefined}
+        {...rest}
+      />
     </Field>
   );
 }
 
-export function SelectInput({ label, value, onChange, options, id, hint, disabled }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; id?: string; hint?: ReactNode; disabled?: boolean }) {
+export function SelectInput({
+  label,
+  value,
+  onChange,
+  options,
+  id,
+  hint,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  id?: string;
+  hint?: ReactNode;
+  disabled?: boolean;
+}) {
   const auto = useId();
   const fid = id ?? auto;
   return (
     <Field label={label} hint={hint} htmlFor={fid}>
-      <select id={fid} className="select" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+      <select
+        id={fid}
+        className="select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -53,10 +158,32 @@ export function SelectInput({ label, value, onChange, options, id, hint, disable
 }
 
 /** Amount in VND: digits only while typing, the formatted value as a hint underneath. */
-export function MoneyInput({ label, value, onChange, error, id }: { label: string; value: string; onChange: (v: string) => void; error?: string | undefined; id?: string }) {
+export function MoneyInput({
+  label,
+  value,
+  onChange,
+  error,
+  id,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  error?: string | undefined;
+  id?: string;
+}) {
   const digits = value.replace(/[^\d]/g, '');
   const hint = digits ? `${Number(digits).toLocaleString('vi-VN')} đ` : undefined;
-  return <TextInput id={id} label={label} inputMode="numeric" value={digits} onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ''))} hint={hint} error={error} />;
+  return (
+    <TextInput
+      id={id}
+      label={label}
+      inputMode="numeric"
+      value={digits}
+      onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ''))}
+      hint={hint}
+      error={error}
+    />
+  );
 }
 
 export function PasswordInput({ label, hint, error, id, ...rest }: InputProps) {
@@ -66,8 +193,19 @@ export function PasswordInput({ label, hint, error, id, ...rest }: InputProps) {
   return (
     <Field label={label} hint={hint} error={error} htmlFor={fid}>
       <div className="input-wrap">
-        <input id={fid} className={`input${error ? ' invalid' : ''}`} type={show ? 'text' : 'password'} aria-invalid={!!error || undefined} {...rest} />
-        <button type="button" className="icon-btn" onClick={() => setShow((s) => !s)} aria-label={show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+        <input
+          id={fid}
+          className={`input${error ? ' invalid' : ''}`}
+          type={show ? 'text' : 'password'}
+          aria-invalid={!!error || undefined}
+          {...rest}
+        />
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setShow((s) => !s)}
+          aria-label={show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        >
           {show ? <Eye size={20} /> : <EyeOff size={20} />}
         </button>
       </div>
@@ -75,17 +213,42 @@ export function PasswordInput({ label, hint, error, id, ...rest }: InputProps) {
   );
 }
 
-export function SearchBox({ value, onChange, placeholder = 'Tìm theo mã, tên hoặc đối tác', label = 'Tìm kiếm' }: { value: string; onChange: (v: string) => void; placeholder?: string; label?: string }) {
+export function SearchBox({
+  value,
+  onChange,
+  placeholder = 'Tìm theo mã, tên hoặc đối tác',
+  label = 'Tìm kiếm',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  label?: string;
+}) {
   return (
     <label className="search">
       <Search size={18} aria-hidden />
       <span className="sr-only">{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} type="search" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        type="search"
+      />
     </label>
   );
 }
 
-export function OtpInput({ value, onChange, length = 6, autoFocus }: { value: string; onChange: (v: string) => void; length?: number; autoFocus?: boolean }) {
+export function OtpInput({
+  value,
+  onChange,
+  length = 6,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  length?: number;
+  autoFocus?: boolean;
+}) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const digits = Array.from({ length }, (_, i) => value[i] ?? '');
   const set = (i: number, d: string) => {
@@ -136,7 +299,15 @@ export function OtpInput({ value, onChange, length = 6, autoFocus }: { value: st
 
 // ───────── status ─────────
 export type Tone = 'success' | 'warning' | 'neutral' | 'danger' | 'info';
-export function Chip({ tone = 'neutral', children, icon }: { tone?: Tone | string; children: ReactNode; icon?: ReactNode }) {
+export function Chip({
+  tone = 'neutral',
+  children,
+  icon,
+}: {
+  tone?: Tone | string;
+  children: ReactNode;
+  icon?: ReactNode;
+}) {
   return (
     <span className={`chip ${tone === 'neutral' ? '' : tone}`}>
       {icon}
@@ -145,13 +316,26 @@ export function Chip({ tone = 'neutral', children, icon }: { tone?: Tone | strin
   );
 }
 
-export function Alert({ tone = 'warning', children, title }: { tone?: 'warning' | 'info' | 'success' | 'danger'; children: ReactNode; title?: ReactNode }) {
-  const Icon = tone === 'success' ? Check : tone === 'info' ? Info : tone === 'danger' ? CircleAlert : TriangleAlert;
+export function Alert({
+  tone = 'warning',
+  children,
+  title,
+}: {
+  tone?: 'warning' | 'info' | 'success' | 'danger';
+  children: ReactNode;
+  title?: ReactNode;
+}) {
+  const Icon =
+    tone === 'success' ? Check : tone === 'info' ? Info : tone === 'danger' ? CircleAlert : TriangleAlert;
   return (
     <div className={`alert ${tone === 'warning' ? '' : tone}`} role={tone === 'danger' ? 'alert' : 'status'}>
       <Icon size={16} style={{ flex: 'none', marginTop: 1 }} aria-hidden />
       <div>
-        {title && <div className="strong" style={{ marginBottom: 4 }}>{title}</div>}
+        {title && (
+          <div className="strong" style={{ marginBottom: 4 }}>
+            {title}
+          </div>
+        )}
         {children}
       </div>
     </div>
@@ -164,7 +348,19 @@ export function ErrorNote({ error }: { error?: ApiError | Error | undefined }) {
 }
 
 // ───────── page structure ─────────
-export function PageHeader({ eyebrow, title, subtitle, period, actions }: { eyebrow: string; title: string; subtitle?: ReactNode; period?: string | undefined; actions?: ReactNode }) {
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  period,
+  actions,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle?: ReactNode;
+  period?: string | undefined;
+  actions?: ReactNode;
+}) {
   return (
     <header className="page-head">
       <div style={{ minWidth: 0 }}>
@@ -175,14 +371,32 @@ export function PageHeader({ eyebrow, title, subtitle, period, actions }: { eyeb
       {(period || actions) && (
         <div className="page-actions">
           {period && <span className="period-chip">{period}</span>}
-          {actions && <div className="row wrap" style={{ justifyContent: 'flex-end' }}>{actions}</div>}
+          {actions && (
+            <div className="row wrap" style={{ justifyContent: 'flex-end' }}>
+              {actions}
+            </div>
+          )}
         </div>
       )}
     </header>
   );
 }
 
-export function Card({ title, subtitle, actions, children, className = '', style }: { title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode; children?: ReactNode; className?: string; style?: React.CSSProperties }) {
+export function Card({
+  title,
+  subtitle,
+  actions,
+  children,
+  className = '',
+  style,
+}: {
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <section className={`card ${className}`} style={style}>
       {(title || actions) && (
@@ -199,7 +413,17 @@ export function Card({ title, subtitle, actions, children, className = '', style
   );
 }
 
-export function Kpi({ label, value, note, highlight }: { label: string; value: ReactNode; note?: ReactNode; highlight?: boolean | undefined }) {
+export function Kpi({
+  label,
+  value,
+  note,
+  highlight,
+}: {
+  label: string;
+  value: ReactNode;
+  note?: ReactNode;
+  highlight?: boolean | undefined;
+}) {
   return (
     <div className={`kpi${highlight ? ' highlight' : ''}`}>
       <div className="kpi-label">{label}</div>
@@ -209,7 +433,13 @@ export function Kpi({ label, value, note, highlight }: { label: string; value: R
   );
 }
 
-export function KpiRow({ items, action }: { items: { label: string; value: ReactNode; note?: ReactNode; highlight?: boolean | undefined }[]; action?: ReactNode }) {
+export function KpiRow({
+  items,
+  action,
+}: {
+  items: { label: string; value: ReactNode; note?: ReactNode; highlight?: boolean | undefined }[];
+  action?: ReactNode;
+}) {
   return (
     <div className={`kpi-row${action ? ' with-action' : ''}`} style={{ ['--n' as string]: items.length }}>
       {items.map((k) => (
@@ -220,7 +450,13 @@ export function KpiRow({ items, action }: { items: { label: string; value: React
   );
 }
 
-export function KeyValues({ rows, stacked }: { rows: { label: string; value: ReactNode }[]; stacked?: boolean }) {
+export function KeyValues({
+  rows,
+  stacked,
+}: {
+  rows: { label: string; value: ReactNode }[];
+  stacked?: boolean;
+}) {
   return (
     <div className={`kv${stacked ? ' kv-stacked' : ''}`}>
       {rows.map((r) => (
@@ -252,8 +488,15 @@ export function Timeline({ items }: { items: { title: ReactNode; sub?: ReactNode
 export function CheckItem({ done, title, sub }: { done: boolean; title: ReactNode; sub?: ReactNode }) {
   return (
     <div className="check-item">
-      <span className={`check-box${done ? '' : ' pending'}`} aria-label={done ? 'Đã hoàn tất' : 'Chưa hoàn tất'}>
-        {done ? <Check size={12} strokeWidth={3} /> : <span style={{ fontSize: 10, fontWeight: 700 }}>!</span>}
+      <span
+        className={`check-box${done ? '' : ' pending'}`}
+        aria-label={done ? 'Đã hoàn tất' : 'Chưa hoàn tất'}
+      >
+        {done ? (
+          <Check size={12} strokeWidth={3} />
+        ) : (
+          <span style={{ fontSize: 10, fontWeight: 700 }}>!</span>
+        )}
       </span>
       <div>
         <div className="check-title">{title}</div>
@@ -263,7 +506,7 @@ export function CheckItem({ done, title, sub }: { done: boolean; title: ReactNod
   );
 }
 
-export function Empty({ children = 'Chưa có dữ liệu' }: { children?: ReactNode }) {
+function Empty({ children = 'Chưa có dữ liệu' }: { children?: ReactNode }) {
   return (
     <div className="empty">
       <FileX size={28} aria-hidden />
@@ -272,7 +515,15 @@ export function Empty({ children = 'Chưa có dữ liệu' }: { children?: React
   );
 }
 
-export function Skeleton({ h = 18, w = '100%', style }: { h?: number; w?: number | string; style?: React.CSSProperties }) {
+function Skeleton({
+  h = 18,
+  w = '100%',
+  style,
+}: {
+  h?: number;
+  w?: number | string;
+  style?: React.CSSProperties;
+}) {
   return <div className="skeleton" style={{ height: h, width: w, ...style }} aria-hidden />;
 }
 
@@ -301,7 +552,19 @@ export interface Column<T> {
   strong?: boolean;
   width?: string;
 }
-export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty }: { columns: Column<T>[]; rows: T[]; rowKey: (r: T) => string; onRowClick?: (r: T) => void; empty?: ReactNode }) {
+export function DataTable<T>({
+  columns,
+  rows,
+  rowKey,
+  onRowClick,
+  empty,
+}: {
+  columns: Column<T>[];
+  rows: T[];
+  rowKey: (r: T) => string;
+  onRowClick?: (r: T) => void;
+  empty?: ReactNode;
+}) {
   if (rows.length === 0) return <Empty>{empty ?? 'Không có bản ghi phù hợp'}</Empty>;
   return (
     <div className="table-wrap">
@@ -309,7 +572,12 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty }: { col
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.key} className={c.align === 'right' ? 'right' : undefined} style={c.width ? { width: c.width } : undefined} scope="col">
+              <th
+                key={c.key}
+                className={c.align === 'right' ? 'right' : undefined}
+                style={c.width ? { width: c.width } : undefined}
+                scope="col"
+              >
                 {c.header}
               </th>
             ))}
@@ -325,7 +593,14 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty }: { col
               tabIndex={onRowClick ? 0 : undefined}
             >
               {columns.map((c) => (
-                <td key={c.key} data-label={c.header} className={[c.align === 'right' ? 'right num' : '', c.strong ? 'strong' : ''].join(' ').trim() || undefined}>
+                <td
+                  key={c.key}
+                  data-label={c.header}
+                  className={
+                    [c.align === 'right' ? 'right num' : '', c.strong ? 'strong' : ''].join(' ').trim() ||
+                    undefined
+                  }
+                >
                   {c.render(r)}
                 </td>
               ))}
@@ -339,7 +614,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty }: { col
 
 // ───────── pagination ─────────
 /** Page numbers to show: first, last, current ± 1, with gaps marked by null. */
-export function pageWindow(page: number, pageCount: number): (number | null)[] {
+function pageWindow(page: number, pageCount: number): (number | null)[] {
   const wanted = new Set([1, pageCount, page - 1, page, page + 1].filter((p) => p >= 1 && p <= pageCount));
   const sorted = [...wanted].sort((a, b) => a - b);
   const out: (number | null)[] = [];
@@ -352,15 +627,35 @@ export function pageWindow(page: number, pageCount: number): (number | null)[] {
 }
 
 export function Pagination({
-  page, pageCount, total, pageSize, onPage, onPageSize, unit = 'bản ghi', busy,
-}: { page: number; pageCount: number; total: number; pageSize: number; onPage: (p: number) => void; onPageSize?: (n: number) => void; unit?: string; busy?: boolean }) {
+  page,
+  pageCount,
+  total,
+  pageSize,
+  onPage,
+  onPageSize,
+  unit = 'bản ghi',
+  busy,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  pageSize: number;
+  onPage: (p: number) => void;
+  onPageSize?: (n: number) => void;
+  unit?: string;
+  busy?: boolean;
+}) {
   if (total === 0) return null;
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
   return (
     <nav className="pager" aria-label="Phân trang" aria-busy={busy || undefined}>
       <span className="pager-info">
-        Hiển thị <b>{from}–{to}</b> trên <b>{total}</b> {unit}
+        Hiển thị{' '}
+        <b>
+          {from}–{to}
+        </b>{' '}
+        trên <b>{total}</b> {unit}
       </span>
       <div className="pager-ctrl">
         {onPageSize && (
@@ -375,7 +670,13 @@ export function Pagination({
             </select>
           </label>
         )}
-        <button type="button" className="pager-btn" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Trang trước">
+        <button
+          type="button"
+          className="pager-btn"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+          aria-label="Trang trước"
+        >
           <ChevronLeft size={16} />
         </button>
         {pageWindow(page, pageCount).map((p, i) =>
@@ -384,12 +685,25 @@ export function Pagination({
               …
             </span>
           ) : (
-            <button type="button" key={p} className={`pager-btn${p === page ? ' active' : ''}`} aria-current={p === page ? 'page' : undefined} aria-label={`Trang ${p}`} onClick={() => onPage(p)}>
+            <button
+              type="button"
+              key={p}
+              className={`pager-btn${p === page ? ' active' : ''}`}
+              aria-current={p === page ? 'page' : undefined}
+              aria-label={`Trang ${p}`}
+              onClick={() => onPage(p)}
+            >
               {p}
             </button>
           ),
         )}
-        <button type="button" className="pager-btn" disabled={page >= pageCount} onClick={() => onPage(page + 1)} aria-label="Trang sau">
+        <button
+          type="button"
+          className="pager-btn"
+          disabled={page >= pageCount}
+          onClick={() => onPage(page + 1)}
+          aria-label="Trang sau"
+        >
           <ChevronRight size={16} />
         </button>
       </div>
@@ -398,7 +712,21 @@ export function Pagination({
 }
 
 // ───────── modal ─────────
-export function Modal({ title, open, onClose, children, footer, width }: { title: ReactNode; open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; width?: number }) {
+export function Modal({
+  title,
+  open,
+  onClose,
+  children,
+  footer,
+  width,
+}: {
+  title: ReactNode;
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  width?: number;
+}) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -408,7 +736,13 @@ export function Modal({ title, open, onClose, children, footer, width }: { title
   if (!open) return null;
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined} style={width ? { width: `min(${width}px, 100%)` } : undefined}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof title === 'string' ? title : undefined}
+        style={width ? { width: `min(${width}px, 100%)` } : undefined}
+      >
         <div className="modal-head">
           <h2 className="modal-title">{title}</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Đóng">
@@ -442,7 +776,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toasts" aria-live="polite">
         {items.map((t) => (
           <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'error' ? 'alert' : 'status'}>
-            {t.kind === 'success' ? <Check size={16} /> : t.kind === 'error' ? <CircleAlert size={16} /> : <Info size={16} />}
+            {t.kind === 'success' ? (
+              <Check size={16} />
+            ) : t.kind === 'error' ? (
+              <CircleAlert size={16} />
+            ) : (
+              <Info size={16} />
+            )}
             <span>{t.text}</span>
           </div>
         ))}
@@ -454,7 +794,10 @@ export const useToast = () => useContext(ToastCtx);
 
 export function Avatar({ name }: { name: string }) {
   const parts = name.trim().split(/\s+/);
-  const ini = parts.length > 1 ? (parts[parts.length - 2]![0]! + parts[parts.length - 1]![0]!) : (parts[0] ?? '?').slice(0, 2);
+  const ini =
+    parts.length > 1
+      ? parts[parts.length - 2]![0]! + parts[parts.length - 1]![0]!
+      : (parts[0] ?? '?').slice(0, 2);
   return (
     <span className="avatar" aria-hidden>
       {ini.toUpperCase()}
@@ -463,8 +806,14 @@ export function Avatar({ name }: { name: string }) {
 }
 
 /** Trigger a client-side download of generated content. */
-export function downloadText(filename: string, content: string, mime = 'text/csv;charset=utf-8') {
-  const blob = new Blob(['﻿' + content], { type: mime });
+/** Saves text as a file. Exports get a BOM so Excel reads UTF-8; originals pass bom: false (or their own BOM) to stay byte-exact. */
+export function downloadText(
+  filename: string,
+  content: string,
+  mime = 'text/csv;charset=utf-8',
+  opts: { bom?: boolean } = {},
+) {
+  const blob = new Blob([(opts.bom ?? true) ? '﻿' + content : content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

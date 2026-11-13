@@ -16,7 +16,12 @@ export class ScryptHasher implements PasswordHasher {
 
   async hash(password: string): Promise<string> {
     const salt = randomBytes(16);
-    const dk = await scryptAsync(new TextEncoder().encode(password.normalize('NFKC')), salt, { N: this.N, r: this.r, p: this.p, dkLen: 32 });
+    const dk = await scryptAsync(new TextEncoder().encode(password.normalize('NFKC')), salt, {
+      N: this.N,
+      r: this.r,
+      p: this.p,
+      dkLen: 32,
+    });
     return ['scrypt', this.N, this.r, this.p, bytesToHex(salt), bytesToHex(dk)].join('$');
   }
 

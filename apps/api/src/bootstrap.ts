@@ -10,10 +10,15 @@ export interface Runtime {
   store: PgStore;
 }
 
-export async function createRuntime(config: ApiConfig, log: (msg: string) => void = console.info): Promise<Runtime> {
+export async function createRuntime(
+  config: ApiConfig,
+  log: (msg: string) => void = console.info,
+): Promise<Runtime> {
   const clock = config.demoClock ? demoClock() : () => new Date();
   const driver = config.databaseUrl.startsWith('pglite:')
-    ? await pgliteDriver(config.databaseUrl === 'pglite:memory' ? undefined : config.databaseUrl.slice('pglite:'.length))
+    ? await pgliteDriver(
+        config.databaseUrl === 'pglite:memory' ? undefined : config.databaseUrl.slice('pglite:'.length),
+      )
     : await pgDriver(config.databaseUrl);
   const store = new PgStore(driver, () => clock().toISOString());
   await store.migrate();
@@ -22,7 +27,9 @@ export async function createRuntime(config: ApiConfig, log: (msg: string) => voi
     hasher: serverHasher(),
     clock,
     llm: config.anthropicApiKey ? new ClaudeLlmClient(config.anthropicApiKey) : null,
-    extraction: config.anthropicApiKey ? new ClaudeVisionExtractionProvider(config.anthropicApiKey) : undefined,
+    extraction: config.anthropicApiKey
+      ? new ClaudeVisionExtractionProvider(config.anthropicApiKey)
+      : undefined,
     notifier: config.smtpUrl
       ? createMailNotifier({ smtpUrl: config.smtpUrl, from: config.mailFrom, otpTtlMinutes: 10 }, log)
       : {
@@ -31,7 +38,11 @@ export async function createRuntime(config: ApiConfig, log: (msg: string) => voi
             if (!config.production) log(`[notifier] ${purpose} → ${to}: ${code}`);
           },
         },
-    config: { pepper: config.pepper, exposeDevCodes: config.exposeDevCodes, publicBaseUrl: config.publicBaseUrl },
+    config: {
+      pepper: config.pepper,
+      exposeDevCodes: config.exposeDevCodes,
+      publicBaseUrl: config.publicBaseUrl,
+    },
   });
   if (config.demoSeed) {
     const r = await seedDemo(app);

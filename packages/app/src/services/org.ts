@@ -1,8 +1,25 @@
-import { isValidTaxCode, newId, nextCode, normalizeEmail, isValidEmail, ROLE_LABELS, formatVnd, permissionsOf, type Role, type RoleBinding } from '@argolet/core';
+import {
+  isValidTaxCode,
+  newId,
+  nextCode,
+  normalizeEmail,
+  isValidEmail,
+  ROLE_LABELS,
+  formatVnd,
+  permissionsOf,
+  type Role,
+  type RoleBinding,
+} from '@argolet/core';
 import { type AppCore, actor, requireFound, requireText } from '../core';
 import { AppError, type CallContext } from '../runtime';
 import type { Tx } from '../store';
-import { GLOBAL, type IntegrationRow, type LegalEntityRow, type MembershipRow, type TenantRow } from '../types';
+import {
+  GLOBAL,
+  type IntegrationRow,
+  type LegalEntityRow,
+  type MembershipRow,
+  type TenantRow,
+} from '../types';
 
 export interface WorkspaceSummary {
   tenantId: string;
@@ -14,19 +31,43 @@ export interface WorkspaceSummary {
 
 export interface WorkspaceContext {
   tenant: { id: string; name: string; orgType: string; settings: TenantRow['settings'] };
-  member: { userId: string; displayName: string; title: string; roles: Role[]; roleLabel: string; permissions: string[] };
+  member: {
+    userId: string;
+    displayName: string;
+    title: string;
+    roles: Role[];
+    roleLabel: string;
+    permissions: string[];
+  };
   scope: { entityId: string; label: string };
-  entities: { id: string; name: string; shortName: string; code: string; kind: LegalEntityRow['kind']; parentId: string | null }[];
+  entities: {
+    id: string;
+    name: string;
+    shortName: string;
+    code: string;
+    kind: LegalEntityRow['kind'];
+    parentId: string | null;
+  }[];
   counts: { inbox: number; unreadNotifications: number };
 }
 
-const ROLE_ORDER: Role[] = ['ORG_ADMIN', 'CHIEF_ACCOUNTANT', 'ACCOUNTANT', 'APPROVER', 'GROUP_CONTROLLER', 'STAFF', 'AUDITOR', 'CLIENT_DELEGATE', 'VIEWER'];
+const ROLE_ORDER: Role[] = [
+  'ORG_ADMIN',
+  'CHIEF_ACCOUNTANT',
+  'ACCOUNTANT',
+  'APPROVER',
+  'GROUP_CONTROLLER',
+  'STAFF',
+  'AUDITOR',
+  'CLIENT_DELEGATE',
+  'VIEWER',
+];
 
-export function primaryRole(bindings: RoleBinding[]): Role {
+function primaryRole(bindings: RoleBinding[]): Role {
   return ROLE_ORDER.find((r) => bindings.some((b) => b.role === r)) ?? 'VIEWER';
 }
 
-export async function siteCount(tx: Tx, tenantId: string): Promise<number> {
+async function siteCount(tx: Tx, tenantId: string): Promise<number> {
   return (await tx.list('entities', tenantId, { kind: 'SITE' })).length;
 }
 
@@ -52,7 +93,10 @@ export class OrgService {
         out.push({
           tenantId: t.id,
           name: t.name,
-          roleLabel: ROLE_LABELS[primaryRole(m.bindings)] === 'Quản trị' ? 'Quản trị' : ROLE_LABELS[primaryRole(m.bindings)],
+          roleLabel:
+            ROLE_LABELS[primaryRole(m.bindings)] === 'Quản trị'
+              ? 'Quản trị'
+              : ROLE_LABELS[primaryRole(m.bindings)],
           scopeLabel: sites > 0 ? `${sites} cơ sở` : `${entities} pháp nhân`,
           sites,
         });
@@ -66,7 +110,8 @@ export class OrgService {
     return this.core.command(call, async (tx) => {
       const auth = await this.core.requireAuth(tx, call);
       const [m] = await tx.list('memberships', p.tenantId ?? '', { userId: auth.user.id });
-      if (!m || m.status !== 'ACTIVE') throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập tổ chức này');
+      if (!m || m.status !== 'ACTIVE')
+        throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập tổ chức này');
       const entityId = p.entityId ?? '*';
       if (entityId !== '*') {
         requireFound(await tx.get('entities', p.tenantId, entityId), 'cơ sở');
@@ -84,8 +129,12 @@ export class OrgService {
       const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
       const entities = (await tx.list('entities', ws.tenantId)).sort((a, b) => a.code.localeCompare(b.code));
       const roles = [...new Set(ws.membership.bindings.map((b) => b.role))];
-      const pendingApprovals = (await tx.list('approvals', ws.tenantId, { status: 'PENDING' })).filter((a) => a.makerId !== ws.user.id).length;
-      const unread = (await tx.list('notifications', ws.tenantId, { status: 'UNREAD' })).filter((n) => !n.userId || n.userId === ws.user.id).length;
+      const pendingApprovals = (await tx.list('approvals', ws.tenantId, { status: 'PENDING' })).filter(
+        (a) => a.makerId !== ws.user.id,
+      ).length;
+      const unread = (await tx.list('notifications', ws.tenantId, { status: 'UNREAD' })).filter(
+        (n) => !n.userId || n.userId === ws.user.id,
+      ).length;
       return {
         tenant: { id: t.id, name: t.name, orgType: t.orgType, settings: t.settings },
         member: {
@@ -97,7 +146,14 @@ export class OrgService {
           permissions: permissionsOf(ws.membership.bindings),
         },
         scope: { entityId: ws.entityId, label: await scopeLabel(tx, ws.tenantId, ws.entityId) },
-        entities: entities.map((e) => ({ id: e.id, name: e.name, shortName: e.shortName, code: e.code, kind: e.kind, parentId: e.parentId })),
+        entities: entities.map((e) => ({
+          id: e.id,
+          name: e.name,
+          shortName: e.shortName,
+          code: e.code,
+          kind: e.kind,
+          parentId: e.parentId,
+        })),
         counts: { inbox: pendingApprovals, unreadNotifications: unread },
       };
     });
@@ -108,7 +164,8 @@ export class OrgService {
     const name = requireText(p.name, 'Tên tổ chức', 120);
     const orgType = requireText(p.orgType, 'Loại hình', 80);
     const taxCode = (p.taxCode ?? '').trim();
-    if (taxCode && !isValidTaxCode(taxCode)) throw new AppError('VALIDATION', 'Mã số thuế phải gồm 10 hoặc 13 chữ số', { field: 'taxCode' });
+    if (taxCode && !isValidTaxCode(taxCode))
+      throw new AppError('VALIDATION', 'Mã số thuế phải gồm 10 hoặc 13 chữ số', { field: 'taxCode' });
     return this.core.command(call, async (tx, em, now) => {
       const auth = await this.core.requireAuth(tx, call);
       const tenantId = newId('ten');
@@ -119,11 +176,29 @@ export class OrgService {
         orgType,
         taxCode: taxCode || null,
         policyVersion: 'policy-2026.10',
-        settings: { currency: 'VND', timezone: 'Asia/Ho_Chi_Minh', periodType: 'MONTH', accountingRegime: 'TT133', packages: ['G1'], currentPeriod: now.slice(0, 7), dataLocation: 'Việt Nam' },
+        settings: {
+          currency: 'VND',
+          timezone: 'Asia/Ho_Chi_Minh',
+          periodType: 'MONTH',
+          accountingRegime: 'TT133',
+          packages: ['G1'],
+          currentPeriod: now.slice(0, 7),
+          dataLocation: 'Việt Nam',
+        },
         createdBy: auth.user.id,
       });
       const entityId = newId('ent');
-      await tx.put('entities', { id: entityId, tenantId, name, shortName: name, code: 'HQ', kind: 'LEGAL_ENTITY', parentId: null, baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' });
+      await tx.put('entities', {
+        id: entityId,
+        tenantId,
+        name,
+        shortName: name,
+        code: 'HQ',
+        kind: 'LEGAL_ENTITY',
+        parentId: null,
+        baseCurrency: 'VND',
+        timezone: 'Asia/Ho_Chi_Minh',
+      });
       await tx.put('memberships', {
         id: newId('mem'),
         tenantId,
@@ -140,11 +215,36 @@ export class OrgService {
         scopeLabel: 'Toàn tổ chức',
         limitLabel: 'Theo chính sách',
       });
-      await tx.put('periods', { id: `per_${now.slice(0, 7)}_${entityId}`, tenantId, entityId, periodId: now.slice(0, 7), status: 'OPEN', closeMemoPrepared: false, closeId: null, version: 1 });
+      await tx.put('periods', {
+        id: `per_${now.slice(0, 7)}_${entityId}`,
+        tenantId,
+        entityId,
+        periodId: now.slice(0, 7),
+        status: 'OPEN',
+        closeMemoPrepared: false,
+        closeId: null,
+        version: 1,
+      });
       for (const integ of defaultIntegrations(tenantId)) await tx.put('integrations', integ);
       await tx.put('sessions', { ...auth.session, activeTenantId: tenantId, activeEntityId: '*' });
-      await em.emit({ type: 'TenantCreated', tenantId, entityId, aggregateType: 'Tenant', aggregateId: tenantId, actorId: auth.user.id, dataRef: `tenant/${tenantId}`, dataVersion: 1, data: { tenantId, entityId } });
-      await em.audit(tenantId, { id: auth.user.id, name: auth.user.fullName }, 'tenant.create', tenantId, name);
+      await em.emit({
+        type: 'TenantCreated',
+        tenantId,
+        entityId,
+        aggregateType: 'Tenant',
+        aggregateId: tenantId,
+        actorId: auth.user.id,
+        dataRef: `tenant/${tenantId}`,
+        dataVersion: 1,
+        data: { tenantId, entityId },
+      });
+      await em.audit(
+        tenantId,
+        { id: auth.user.id, name: auth.user.fullName },
+        'tenant.create',
+        tenantId,
+        name,
+      );
       return { tenantId, entityId };
     });
   }
@@ -175,7 +275,8 @@ export class OrgService {
       const auth = await this.core.requireAuth(tx, call);
       const [inv] = await tx.findGlobal('invitations', { code: (p.code ?? '').trim().toUpperCase() });
       if (!inv) throw new AppError('NOT_FOUND', 'Mã mời không tồn tại');
-      if (inv.status !== 'PENDING' || inv.expiresAt < now) throw new AppError('CONFLICT', 'Lời mời đã hết hiệu lực');
+      if (inv.status !== 'PENDING' || inv.expiresAt < now)
+        throw new AppError('CONFLICT', 'Lời mời đã hết hiệu lực');
       if (auth.user.email && normalizeEmail(inv.email) !== auth.user.email) {
         throw new AppError('FORBIDDEN', 'Lời mời được gửi cho một email khác với tài khoản đang đăng nhập');
       }
@@ -195,7 +296,13 @@ export class OrgService {
         limitLabel: inv.approvalLimit ? formatVnd(inv.approvalLimit) : 'Không cấp',
       });
       await tx.put('sessions', { ...auth.session, activeTenantId: inv.orgTenantId, activeEntityId: '*' });
-      await em.audit(inv.orgTenantId, { id: auth.user.id, name: auth.user.fullName }, 'member.join', inv.code, ROLE_LABELS[inv.role]);
+      await em.audit(
+        inv.orgTenantId,
+        { id: auth.user.id, name: auth.user.fullName },
+        'member.join',
+        inv.code,
+        ROLE_LABELS[inv.role],
+      );
       return { ok: true, tenantId: inv.orgTenantId };
     });
   }
@@ -204,7 +311,9 @@ export class OrgService {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
       const ms = await tx.list('memberships', ws.tenantId);
-      const invites = (await tx.findGlobal('invitations', { orgTenantId: ws.tenantId, status: 'PENDING' })).map((i) => ({
+      const invites = (
+        await tx.findGlobal('invitations', { orgTenantId: ws.tenantId, status: 'PENDING' })
+      ).map((i) => ({
         id: i.id,
         name: i.email,
         roleLabel: ROLE_LABELS[i.role],
@@ -218,7 +327,11 @@ export class OrgService {
         canManage: this.core.can(ws, 'member.manage'),
         members: [
           ...ms
-            .sort((a, b) => ROLE_ORDER.indexOf(primaryRole(a.bindings)) - ROLE_ORDER.indexOf(primaryRole(b.bindings)) || a.createdAt.localeCompare(b.createdAt))
+            .sort(
+              (a, b) =>
+                ROLE_ORDER.indexOf(primaryRole(a.bindings)) - ROLE_ORDER.indexOf(primaryRole(b.bindings)) ||
+                a.createdAt.localeCompare(b.createdAt),
+            )
             .map((m) => ({
               id: m.id,
               name: m.displayName,
@@ -236,11 +349,15 @@ export class OrgService {
     });
   }
 
-  async inviteMember(call: CallContext, p: { email: string; role: Role; entityIds?: string[] | '*'; approvalLimit?: string | null }) {
+  async inviteMember(
+    call: CallContext,
+    p: { email: string; role: Role; entityIds?: string[] | '*'; approvalLimit?: string | null },
+  ) {
     const email = normalizeEmail(p.email ?? '');
     if (!isValidEmail(email)) throw new AppError('VALIDATION', 'Email không hợp lệ', { field: 'email' });
     if (!ROLE_LABELS[p.role]) throw new AppError('VALIDATION', 'Vai trò không hợp lệ', { field: 'role' });
-    if (p.approvalLimit && !/^\d+$/.test(p.approvalLimit)) throw new AppError('VALIDATION', 'Hạn mức duyệt phải là số', { field: 'approvalLimit' });
+    if (p.approvalLimit && !/^\d+$/.test(p.approvalLimit))
+      throw new AppError('VALIDATION', 'Hạn mức duyệt phải là số', { field: 'approvalLimit' });
     return this.core.command(call, async (tx, em, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'member.manage');
       const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
@@ -248,7 +365,8 @@ export class OrgService {
       let scope = 'Toàn tổ chức';
       if (entityIds !== '*') {
         const names: string[] = [];
-        for (const id of entityIds) names.push(requireFound(await tx.get('entities', ws.tenantId, id), 'cơ sở').name);
+        for (const id of entityIds)
+          names.push(requireFound(await tx.get('entities', ws.tenantId, id), 'cơ sở').name);
         scope = names.join(', ');
       }
       const code = `INV-${newId('x').slice(-6)}`;
@@ -269,32 +387,67 @@ export class OrgService {
         expiresAt: new Date(Date.parse(now) + 7 * 86_400_000).toISOString(),
         status: 'PENDING',
       });
-      await em.emit({ type: 'MemberInvited', tenantId: ws.tenantId, entityId: null, aggregateType: 'Tenant', aggregateId: ws.tenantId, actorId: ws.user.id, dataRef: `invitation/${code}`, dataVersion: 1, data: { code, role: p.role } });
+      await em.emit({
+        type: 'MemberInvited',
+        tenantId: ws.tenantId,
+        entityId: null,
+        aggregateType: 'Tenant',
+        aggregateId: ws.tenantId,
+        actorId: ws.user.id,
+        dataRef: `invitation/${code}`,
+        dataVersion: 1,
+        data: { code, role: p.role },
+      });
       await em.audit(ws.tenantId, actor(ws), 'member.invite', code, ROLE_LABELS[p.role]);
       const base = this.core.deps.config.publicBaseUrl.replace(/\/$/, '');
-      await this.core.deps.notifier.sendInvitation?.(email, { organization: t.name, inviter: ws.membership.displayName, roleLabel: ROLE_LABELS[p.role], code, link: `${base}/#/invite?code=${encodeURIComponent(code)}` });
+      await this.core.deps.notifier.sendInvitation?.(email, {
+        organization: t.name,
+        inviter: ws.membership.displayName,
+        roleLabel: ROLE_LABELS[p.role],
+        code,
+        link: `${base}/#/invite?code=${encodeURIComponent(code)}`,
+      });
       return { code };
     });
   }
 
-  async updateMember(call: CallContext, p: { membershipId: string; status?: 'ACTIVE' | 'SUSPENDED'; role?: Role; approvalLimit?: string | null }) {
+  async updateMember(
+    call: CallContext,
+    p: { membershipId: string; status?: 'ACTIVE' | 'SUSPENDED'; role?: Role; approvalLimit?: string | null },
+  ) {
     return this.core.command(call, async (tx, em) => {
       const ws = await this.core.requireWorkspace(tx, call, 'member.manage');
       const m = requireFound(await tx.get('memberships', ws.tenantId, p.membershipId), 'thành viên');
-      if (m.userId === ws.user.id && p.status === 'SUSPENDED') throw new AppError('VALIDATION', 'Không thể tự tạm ngưng tài khoản của mình');
+      if (m.userId === ws.user.id && p.status === 'SUSPENDED')
+        throw new AppError('VALIDATION', 'Không thể tự tạm ngưng tài khoản của mình');
       const next: MembershipRow = { ...m };
       if (p.status) next.status = p.status;
       if (p.role) {
-        next.bindings = [{ role: p.role, entityIds: m.bindings[0]?.entityIds ?? '*', approvalLimit: p.approvalLimit ?? null }];
+        next.bindings = [
+          {
+            role: p.role,
+            entityIds: m.bindings[0]?.entityIds ?? '*',
+            approvalLimit: p.approvalLimit ?? null,
+          },
+        ];
         next.title = ROLE_LABELS[p.role];
         next.limitLabel = p.approvalLimit ? formatVnd(p.approvalLimit) : 'Không cấp';
       }
       // Never leave the tenant without an organisation administrator.
       const all = await tx.list('memberships', ws.tenantId);
-      const admins = all.filter((x) => (x.id === next.id ? next : x)).filter((x) => x.status === 'ACTIVE' && x.bindings.some((b) => b.role === 'ORG_ADMIN'));
-      if (admins.length === 0) throw new AppError('VALIDATION', 'Tổ chức cần ít nhất một quản trị đang hoạt động');
+      const admins = all
+        .filter((x) => (x.id === next.id ? next : x))
+        .filter((x) => x.status === 'ACTIVE' && x.bindings.some((b) => b.role === 'ORG_ADMIN'));
+      if (admins.length === 0)
+        throw new AppError('VALIDATION', 'Tổ chức cần ít nhất một quản trị đang hoạt động');
       await tx.put('memberships', next);
-      await em.audit(ws.tenantId, actor(ws), 'member.update', m.displayName, JSON.stringify({ status: p.status, role: p.role }));
+      await em.audit(
+        ws.tenantId,
+        actor(ws),
+        'member.update',
+        m.displayName,
+        JSON.stringify({ status: p.status, role: p.role }),
+      );
       return { ok: true };
     });
   }
@@ -304,7 +457,9 @@ export class OrgService {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
       const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
       const integrations = await tx.list('integrations', ws.tenantId);
-      const audit = (await tx.list('audit', ws.tenantId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50);
+      const audit = (await tx.list('audit', ws.tenantId))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 50);
       return {
         canManage: this.core.can(ws, 'settings.manage'),
         tenant: { name: t.name, orgType: t.orgType, taxCode: t.taxCode, settings: t.settings },
@@ -312,31 +467,57 @@ export class OrgService {
           const all = await tx.list('entities', ws.tenantId);
           const byId = new Map(all.map((e) => [e.id, e]));
           return all
-            .sort((a, b) => (a.kind === b.kind ? a.code.localeCompare(b.code) : a.kind === 'LEGAL_ENTITY' ? -1 : 1))
-            .map((e) => ({ id: e.id, name: e.name, code: e.code, kind: e.kind, kindLabel: e.kind === 'LEGAL_ENTITY' ? 'Pháp nhân' : 'Cơ sở', parentName: e.parentId ? byId.get(e.parentId)?.name ?? '' : '' }));
+            .sort((a, b) =>
+              a.kind === b.kind ? a.code.localeCompare(b.code) : a.kind === 'LEGAL_ENTITY' ? -1 : 1,
+            )
+            .map((e) => ({
+              id: e.id,
+              name: e.name,
+              code: e.code,
+              kind: e.kind,
+              kindLabel: e.kind === 'LEGAL_ENTITY' ? 'Pháp nhân' : 'Cơ sở',
+              parentName: e.parentId ? (byId.get(e.parentId)?.name ?? '') : '',
+            }));
         })(),
         integrations: integrations.sort((a, b) => a.name.localeCompare(b.name, 'vi')),
-        audit: audit.map((a) => ({ at: a.createdAt, actor: a.actorName, action: a.action, target: a.target, detail: a.detail })),
+        audit: audit.map((a) => ({
+          at: a.createdAt,
+          actor: a.actorName,
+          action: a.action,
+          target: a.target,
+          detail: a.detail,
+        })),
       };
     });
   }
 
-  async updateSettings(call: CallContext, p: { name?: string; accountingRegime?: TenantRow['settings']['accountingRegime']; packages?: TenantRow['settings']['packages']; currentPeriod?: string }) {
+  async updateSettings(
+    call: CallContext,
+    p: {
+      name?: string;
+      accountingRegime?: TenantRow['settings']['accountingRegime'];
+      packages?: TenantRow['settings']['packages'];
+      currentPeriod?: string;
+    },
+  ) {
     return this.core.command(call, async (tx, em) => {
       const ws = await this.core.requireWorkspace(tx, call, 'settings.manage');
       const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
       const next = { ...t, settings: { ...t.settings } };
       if (p.name !== undefined) next.name = requireText(p.name, 'Tên tổ chức', 120);
       if (p.accountingRegime) {
-        if (!['TT133', 'TT200', 'HKD'].includes(p.accountingRegime)) throw new AppError('VALIDATION', 'Chế độ kế toán không hợp lệ');
+        if (!['TT133', 'TT200', 'HKD'].includes(p.accountingRegime))
+          throw new AppError('VALIDATION', 'Chế độ kế toán không hợp lệ');
         next.settings.accountingRegime = p.accountingRegime;
       }
       if (p.packages) {
-        if (p.packages.length === 0 || p.packages.some((x) => !['G1', 'G2', 'G3', 'G4'].includes(x))) throw new AppError('VALIDATION', 'Gói nghiệp vụ không hợp lệ');
+        if (p.packages.length === 0 || p.packages.some((x) => !['G1', 'G2', 'G3', 'G4'].includes(x)))
+          throw new AppError('VALIDATION', 'Gói nghiệp vụ không hợp lệ');
         next.settings.packages = p.packages;
       }
       if (p.currentPeriod !== undefined) {
-        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(p.currentPeriod)) throw new AppError('VALIDATION', 'Kỳ làm việc phải có dạng YYYY-MM', { field: 'currentPeriod' });
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(p.currentPeriod))
+          throw new AppError('VALIDATION', 'Kỳ làm việc phải có dạng YYYY-MM', { field: 'currentPeriod' });
         next.settings.currentPeriod = p.currentPeriod;
       }
       await tx.put('tenants', next);
@@ -347,12 +528,14 @@ export class OrgService {
 
   /** Thêm cơ sở (cửa hàng, chi nhánh) hoặc pháp nhân (công ty con) vào cơ cấu tổ chức. */
   async addEntity(call: CallContext, p: { kind: 'SITE' | 'LEGAL_ENTITY'; name: string; parentId?: string }) {
-    if (p.kind !== 'SITE' && p.kind !== 'LEGAL_ENTITY') throw new AppError('VALIDATION', 'Loại đơn vị không hợp lệ', { field: 'kind' });
+    if (p.kind !== 'SITE' && p.kind !== 'LEGAL_ENTITY')
+      throw new AppError('VALIDATION', 'Loại đơn vị không hợp lệ', { field: 'kind' });
     const name = requireText(p.name, p.kind === 'SITE' ? 'Tên cơ sở' : 'Tên pháp nhân', 120);
     return this.core.command(call, async (tx, em) => {
       const ws = await this.core.requireWorkspace(tx, call, 'settings.manage');
       const all = await tx.list('entities', ws.tenantId);
-      if (all.some((e) => e.name.toLowerCase() === name.toLowerCase())) throw new AppError('CONFLICT', `Đơn vị "${name}" đã tồn tại`, { field: 'name' });
+      if (all.some((e) => e.name.toLowerCase() === name.toLowerCase()))
+        throw new AppError('CONFLICT', `Đơn vị "${name}" đã tồn tại`, { field: 'name' });
       const legal = all.filter((e) => e.kind === 'LEGAL_ENTITY');
       let parentId: string | null = null;
       if (p.kind === 'SITE') {
@@ -360,9 +543,24 @@ export class OrgService {
         parentId = requireFound(parent, 'pháp nhân quản lý').id;
       }
       const prefix = p.kind === 'SITE' ? 'CS' : 'PN';
-      const code = nextCode(prefix, all.map((e) => e.code), 2, 1);
+      const code = nextCode(
+        prefix,
+        all.map((e) => e.code),
+        2,
+        1,
+      );
       const id = newId('ent');
-      await tx.put('entities', { id, tenantId: ws.tenantId, name, shortName: name, code, kind: p.kind, parentId, baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' });
+      await tx.put('entities', {
+        id,
+        tenantId: ws.tenantId,
+        name,
+        shortName: name,
+        code,
+        kind: p.kind,
+        parentId,
+        baseCurrency: 'VND',
+        timezone: 'Asia/Ho_Chi_Minh',
+      });
       await em.audit(ws.tenantId, actor(ws), 'entity.add', code, name);
       return { id, code };
     });
@@ -373,15 +571,24 @@ export class OrgService {
     return this.core.command(call, async (tx, em, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'settings.manage');
       const integ = requireFound(await tx.get('integrations', ws.tenantId, p.integrationId), 'kết nối');
-      const next: IntegrationRow = { ...integ, status: p.connect ? 'CONNECTED' : 'AVAILABLE', connectedAt: p.connect ? now : null };
+      const next: IntegrationRow = {
+        ...integ,
+        status: p.connect ? 'CONNECTED' : 'AVAILABLE',
+        connectedAt: p.connect ? now : null,
+      };
       await tx.put('integrations', next);
-      await em.audit(ws.tenantId, actor(ws), p.connect ? 'integration.connect' : 'integration.disconnect', integ.name);
+      await em.audit(
+        ws.tenantId,
+        actor(ws),
+        p.connect ? 'integration.connect' : 'integration.disconnect',
+        integ.name,
+      );
       return next;
     });
   }
 }
 
-export function describePermissions(role: Role): string {
+function describePermissions(role: Role): string {
   return (
     {
       ORG_ADMIN: 'Quản trị tổ chức, thành viên, cài đặt',
@@ -397,8 +604,14 @@ export function describePermissions(role: Role): string {
   )[role];
 }
 
-export function defaultIntegrations(tenantId: string): (Omit<IntegrationRow, 'createdAt' | 'updatedAt' | 'rev'>)[] {
-  const mk = (kind: IntegrationRow['kind'], name: string, description: string): Omit<IntegrationRow, 'createdAt' | 'updatedAt' | 'rev'> => ({
+export function defaultIntegrations(
+  tenantId: string,
+): Omit<IntegrationRow, 'createdAt' | 'updatedAt' | 'rev'>[] {
+  const mk = (
+    kind: IntegrationRow['kind'],
+    name: string,
+    description: string,
+  ): Omit<IntegrationRow, 'createdAt' | 'updatedAt' | 'rev'> => ({
     id: `int_${kind.toLowerCase()}`,
     tenantId,
     kind,

@@ -4,12 +4,21 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
-import { AppError, ConcurrencyError, operations, type ArgoletApp, type CallContext, type OperationDef, DEMO_EMAIL, DEMO_PASSWORD } from '@argolet/app';
+import {
+  AppError,
+  ConcurrencyError,
+  operations,
+  type ArgoletApp,
+  type CallContext,
+  type OperationDef,
+  DEMO_EMAIL,
+  DEMO_PASSWORD,
+} from '@argolet/app';
 import type { ApiConfig } from './config';
 
 export const SESSION_COOKIE = 'argolet_session';
 export const CSRF_HEADER = 'x-argolet-request';
-export const VERSION = '0.1.0';
+const VERSION = '0.1.0';
 
 export interface ServerDeps {
   app: ArgoletApp;
@@ -33,16 +42,24 @@ function callContext(req: FastifyRequest): CallContext {
 
 function sendError(reply: FastifyReply, err: unknown, req: FastifyRequest) {
   if (err instanceof AppError) {
-    return reply.status(err.status).send({ error: { code: err.code, message: err.message, details: err.details } });
+    return reply
+      .status(err.status)
+      .send({ error: { code: err.code, message: err.message, details: err.details } });
   }
   if (err instanceof ConcurrencyError) {
     return reply.status(409).send({ error: { code: 'CONFLICT', message: err.message } });
   }
   const e = err as { statusCode?: number; message?: string; validation?: unknown; code?: string };
-  if (e.statusCode === 429) return reply.status(429).send({ error: { code: 'RATE_LIMITED', message: 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút' } });
-  if (e.statusCode === 413) return reply.status(413).send({ error: { code: 'VALIDATION', message: 'Tệp tải lên quá lớn' } });
+  if (e.statusCode === 429)
+    return reply.status(429).send({
+      error: { code: 'RATE_LIMITED', message: 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút' },
+    });
+  if (e.statusCode === 413)
+    return reply.status(413).send({ error: { code: 'VALIDATION', message: 'Tệp tải lên quá lớn' } });
   if (e.statusCode && e.statusCode >= 400 && e.statusCode < 500) {
-    return reply.status(e.statusCode).send({ error: { code: 'VALIDATION', message: 'Yêu cầu không hợp lệ' } });
+    return reply
+      .status(e.statusCode)
+      .send({ error: { code: 'VALIDATION', message: 'Yêu cầu không hợp lệ' } });
   }
   req.log.error({ err }, 'unhandled error');
   return reply.status(500).send({ error: { code: 'INTERNAL', message: 'Đã xảy ra lỗi, vui lòng thử lại' } });
@@ -75,7 +92,11 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   });
   await server.register(cookie);
   if (config.corsOrigins.length) {
-    await server.register(cors, { origin: config.corsOrigins, credentials: true, allowedHeaders: ['content-type', 'authorization', CSRF_HEADER, 'x-argolet-client', 'x-correlation-id'] });
+    await server.register(cors, {
+      origin: config.corsOrigins,
+      credentials: true,
+      allowedHeaders: ['content-type', 'authorization', CSRF_HEADER, 'x-argolet-client', 'x-correlation-id'],
+    });
   }
   await server.register(rateLimit, { global: true, max: 600, timeWindow: '1 minute' });
 
@@ -96,7 +117,13 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
 
   // CSRF: every state-changing request must carry a custom header (blocked cross-site by CORS).
   server.addHook('onRequest', async (req, reply) => {
-    if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS' && req.url.startsWith('/v1/') && req.headers[CSRF_HEADER] !== '1') {
+    if (
+      req.method !== 'GET' &&
+      req.method !== 'HEAD' &&
+      req.method !== 'OPTIONS' &&
+      req.url.startsWith('/v1/') &&
+      req.headers[CSRF_HEADER] !== '1'
+    ) {
       return reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Thiếu tiêu đề bảo vệ CSRF' } });
     }
   });
@@ -112,7 +139,10 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     now: app.core.now(),
   }));
 
-  for (const [name, def] of Object.entries(operations) as [string, OperationDef<Record<string, unknown>, unknown>][]) {
+  for (const [name, def] of Object.entries(operations) as [
+    string,
+    OperationDef<Record<string, unknown>, unknown>,
+  ][]) {
     const isAuth = name.startsWith('auth.');
     server.route({
       method: def.method,
@@ -121,16 +151,24 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
       handler: async (req, reply) => {
         const call = callContext(req);
         const params: Record<string, unknown> = {
-          ...((def.method === 'GET' || def.method === 'DELETE') ? (req.query as Record<string, unknown>) : ((req.body as Record<string, unknown>) ?? {})),
+          ...(def.method === 'GET' || def.method === 'DELETE'
+            ? (req.query as Record<string, unknown>)
+            : ((req.body as Record<string, unknown>) ?? {})),
           ...(req.params as Record<string, unknown>),
         };
-        if (params.limit !== undefined && typeof params.limit === 'string') params.limit = Number(params.limit);
+        if (params.limit !== undefined && typeof params.limit === 'string')
+          params.limit = Number(params.limit);
         const result = (await def.handler(app, call, params)) as Record<string, unknown> | null;
         if (def.session === 'issue' && result && typeof result.token === 'string') {
           const session = result.session as { expiresAt: string } | undefined;
           // Session expiry is in application time (which may be the shifted demo clock), so the
           // cookie gets a relative Max-Age instead of an absolute Expires in that timeline.
-          const maxAge = session ? Math.max(0, Math.floor((Date.parse(session.expiresAt) - app.core.deps.clock().getTime()) / 1000)) : undefined;
+          const maxAge = session
+            ? Math.max(
+                0,
+                Math.floor((Date.parse(session.expiresAt) - app.core.deps.clock().getTime()) / 1000),
+              )
+            : undefined;
           reply.setCookie(SESSION_COOKIE, result.token, {
             httpOnly: true,
             secure: config.cookieSecure,
@@ -140,7 +178,6 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
           });
           if (call.channel !== 'mobile') {
             const { token: _omit, ...rest } = result;
-            void _omit;
             return rest;
           }
         }
@@ -151,15 +188,27 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   }
 
   if (config.webDist) {
-    await server.register(fastifyStatic, { root: config.webDist, prefix: '/', index: ['index.html'], maxAge: '1h', immutable: false });
+    await server.register(fastifyStatic, {
+      root: config.webDist,
+      prefix: '/',
+      index: ['index.html'],
+      maxAge: '1h',
+      immutable: false,
+    });
     server.setNotFoundHandler((req, reply) => {
-      if (req.method === 'GET' && !req.url.startsWith('/v1/') && String(req.headers.accept ?? '').includes('text/html')) {
+      if (
+        req.method === 'GET' &&
+        !req.url.startsWith('/v1/') &&
+        String(req.headers.accept ?? '').includes('text/html')
+      ) {
         return reply.sendFile('index.html');
       }
       return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Không tìm thấy' } });
     });
   } else {
-    server.setNotFoundHandler((_req, reply) => reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Không tìm thấy' } }));
+    server.setNotFoundHandler((_req, reply) =>
+      reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Không tìm thấy' } }),
+    );
   }
 
   // Outbox relay safety net (events committed but not yet published, e.g. after a crash).

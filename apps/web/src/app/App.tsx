@@ -3,24 +3,43 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ToastProvider, PageLoading } from '../ui/components';
 import { SessionProvider, useSession } from './session';
 import { AppShell } from './layouts';
-import { LoginPage, RegisterPage, VerifyPage, ResetPage, WorkspacesPage, CreateOrgPage, InvitePage, ConnectPage } from '../pages/auth';
+import {
+  LoginPage,
+  RegisterPage,
+  VerifyPage,
+  ResetPage,
+  WorkspacesPage,
+  CreateOrgPage,
+  InvitePage,
+  ConnectPage,
+} from '../pages/auth';
 
 const OverviewPage = lazy(() => import('../pages/overview').then((m) => ({ default: m.OverviewPage })));
 const InboxPage = lazy(() => import('../pages/overview').then((m) => ({ default: m.InboxPage })));
-const NotificationsPage = lazy(() => import('../pages/overview').then((m) => ({ default: m.NotificationsPage })));
+const NotificationsPage = lazy(() =>
+  import('../pages/overview').then((m) => ({ default: m.NotificationsPage })),
+);
 const DocumentsPage = lazy(() => import('../pages/documents').then((m) => ({ default: m.DocumentsPage })));
 const CapturePage = lazy(() => import('../pages/documents').then((m) => ({ default: m.CapturePage })));
 const ReviewPage = lazy(() => import('../pages/documents').then((m) => ({ default: m.ReviewPage })));
 const IngestionPage = lazy(() => import('../pages/documents').then((m) => ({ default: m.IngestionPage })));
 const ReconPage = lazy(() => import('../pages/recon').then((m) => ({ default: m.ReconPage })));
 const ReconDetailPage = lazy(() => import('../pages/recon').then((m) => ({ default: m.ReconDetailPage })));
-const MatchWorkspacePage = lazy(() => import('../pages/recon').then((m) => ({ default: m.MatchWorkspacePage })));
+const MatchWorkspacePage = lazy(() =>
+  import('../pages/recon').then((m) => ({ default: m.MatchWorkspacePage })),
+);
 const ApprovalPage = lazy(() => import('../pages/approvals').then((m) => ({ default: m.ApprovalPage })));
 const ClosePage = lazy(() => import('../pages/approvals').then((m) => ({ default: m.ClosePage })));
-const DecisionPackPage = lazy(() => import('../pages/approvals').then((m) => ({ default: m.DecisionPackPage })));
+const DecisionPackPage = lazy(() =>
+  import('../pages/approvals').then((m) => ({ default: m.DecisionPackPage })),
+);
 const EvidencePage = lazy(() => import('../pages/evidence').then((m) => ({ default: m.EvidencePage })));
-const EvidenceIndexPage = lazy(() => import('../pages/evidence').then((m) => ({ default: m.EvidenceIndexPage })));
-const VerificationPage = lazy(() => import('../pages/evidence').then((m) => ({ default: m.VerificationPage })));
+const EvidenceIndexPage = lazy(() =>
+  import('../pages/evidence').then((m) => ({ default: m.EvidenceIndexPage })),
+);
+const VerificationPage = lazy(() =>
+  import('../pages/evidence').then((m) => ({ default: m.VerificationPage })),
+);
 const AssistantPage = lazy(() => import('../pages/assistant').then((m) => ({ default: m.AssistantPage })));
 const DailyClosePage = lazy(() => import('../pages/g1').then((m) => ({ default: m.DailyClosePage })));
 const InventoryPage = lazy(() => import('../pages/g1').then((m) => ({ default: m.InventoryPage })));
@@ -33,7 +52,9 @@ const FinancePage = lazy(() => import('../pages/g3').then((m) => ({ default: m.F
 const ScenariosPage = lazy(() => import('../pages/g3').then((m) => ({ default: m.ScenariosPage })));
 const AssetsPage = lazy(() => import('../pages/g3').then((m) => ({ default: m.AssetsPage })));
 const LogisticsPage = lazy(() => import('../pages/g3').then((m) => ({ default: m.LogisticsPage })));
-const LogisticsFinancePage = lazy(() => import('../pages/g3').then((m) => ({ default: m.LogisticsFinancePage })));
+const LogisticsFinancePage = lazy(() =>
+  import('../pages/g3').then((m) => ({ default: m.LogisticsFinancePage })),
+);
 const GroupPage = lazy(() => import('../pages/g4').then((m) => ({ default: m.GroupPage })));
 const IntercompanyPage = lazy(() => import('../pages/g4').then((m) => ({ default: m.IntercompanyPage })));
 const MembersPage = lazy(() => import('../pages/admin').then((m) => ({ default: m.MembersPage })));
@@ -102,15 +123,63 @@ export function App() {
       <ToastProvider>
         <SessionProvider>
           <Routes>
-            <Route path="/login" element={<Gate need="anon"><LoginPage /></Gate>} />
-            <Route path="/register" element={<Gate need="anon"><RegisterPage /></Gate>} />
+            <Route
+              path="/login"
+              element={
+                <Gate need="anon">
+                  <LoginPage />
+                </Gate>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <Gate need="anon">
+                  <RegisterPage />
+                </Gate>
+              }
+            />
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/reset" element={<ResetPage />} />
-            <Route path="/workspaces" element={<Gate need="auth"><WorkspacesPage /></Gate>} />
-            <Route path="/create-org" element={<Gate need="auth"><CreateOrgPage /></Gate>} />
-            <Route path="/invite" element={<Gate need="auth"><InvitePage /></Gate>} />
-            <Route path="/connect" element={<Gate need="workspace"><ConnectPage /></Gate>} />
-            <Route element={<Gate need="workspace"><AppShell /></Gate>}>
+            <Route
+              path="/workspaces"
+              element={
+                <Gate need="auth">
+                  <WorkspacesPage />
+                </Gate>
+              }
+            />
+            <Route
+              path="/create-org"
+              element={
+                <Gate need="auth">
+                  <CreateOrgPage />
+                </Gate>
+              }
+            />
+            <Route
+              path="/invite"
+              element={
+                <Gate need="auth">
+                  <InvitePage />
+                </Gate>
+              }
+            />
+            <Route
+              path="/connect"
+              element={
+                <Gate need="workspace">
+                  <ConnectPage />
+                </Gate>
+              }
+            />
+            <Route
+              element={
+                <Gate need="workspace">
+                  <AppShell />
+                </Gate>
+              }
+            >
               {appRoutes.map(([path, el]) => (
                 <Route key={path} path={`/${path}`} element={<Lazy>{el}</Lazy>} />
               ))}
