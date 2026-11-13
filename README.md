@@ -2,6 +2,8 @@
 
 Nền tảng tiếp nhận chứng từ, đối soát đa nguồn, phê duyệt, chốt kỳ và bằng chứng toàn vẹn cho doanh nghiệp Việt Nam — **Web · Android · iOS**, xây dựng theo sơ đồ hoạt động (FigJam) và bộ giao diện Figma "ARGOLET · Web app · Android · iOS · 4.2" (40 màn hình).
 
+**Mở trực tiếp:** https://konkonban.github.io/ARGOLET/ (máy tính và điện thoại).
+
 **Tài khoản trải nghiệm:** `ketoan@minhan.example` · mật khẩu `Argolet@2026` (dữ liệu mẫu "Minh An Commerce", kỳ tháng 10/2026).
 
 ## Cấu trúc
@@ -17,6 +19,18 @@ Nền tảng tiếp nhận chứng từ, đối soát đa nguồn, phê duyệt,
 | `e2e`             | Kiểm thử đầu-cuối Playwright trên bản build production                                                                                                                                                                                                                                              |
 
 **Công nghệ:** TypeScript 6 (strict) · React 19 + Vite 8 · Expo SDK 58 / React Native 0.88 · Fastify 5 · PostgreSQL 16 / PGlite · Node.js 26 LTS · Vitest 5 · Playwright · ESLint 10 + Prettier (kiểm tra trong CI).
+
+## Cơ sở dữ liệu
+
+PostgreSQL 16+ (hoặc PGlite nhúng), lược đồ quan hệ `argolet`:
+
+- 45 bảng nghiệp vụ, cột có kiểu (`numeric` cho tiền, `timestamptz`, `date`…).
+- 86 khoá ngoại, có kèm `tenant_id`, nên dữ liệu các tổ chức không bao giờ tham chiếu chéo.
+- 166 ràng buộc `CHECK`, cùng các ràng buộc duy nhất theo từng tổ chức.
+- Lịch sử bất biến (nhật ký kiểm toán, phiên bản chứng từ, bằng chứng) do trigger bảo vệ.
+- Migration có phiên bản và checksum; CSDL của bản đầu tiên được tự nâng cấp.
+
+Tài liệu thiết kế và sơ đồ quan hệ: [docs/database](docs/database/README.md). Từ điển dữ liệu sinh tự động: [docs/database/data-dictionary.md](docs/database/data-dictionary.md).
 
 ## Chạy trên máy
 
@@ -71,7 +85,7 @@ E2E cần build trước (`pnpm build`) và Chromium của Playwright (`pnpm --f
 
 `pnpm --filter @argolet/web build` tạo `apps/web/dist` — đặt lên bất kỳ hosting tĩnh nào (GitHub Pages, Cloudflare Pages, Netlify, Vercel, S3…). Toàn bộ nghiệp vụ chạy trong trình duyệt với dữ liệu mẫu riêng cho từng người dùng.
 
-**GitHub Pages:** workflow `.github/workflows/pages.yml` tự build và xuất bản khi đẩy lên nhánh. Bật một lần: _Settings → Pages → Build and deployment → Source: GitHub Actions_. Địa chỉ: `https://konkonban.github.io/ARGOLET/`. Tên miền riêng: thêm ở _Settings → Pages → Custom domain_ và tạo bản ghi DNS `CNAME` trỏ về `konkonban.github.io`.
+**GitHub Pages (đang bật):** workflow `.github/workflows/pages.yml` tự build và xuất bản mỗi lần đẩy lên nhánh. Địa chỉ: https://konkonban.github.io/ARGOLET/. Tên miền riêng: thêm ở _Settings → Pages → Custom domain_ và tạo bản ghi DNS `CNAME` trỏ về `konkonban.github.io`.
 
 ### 2. Máy chủ đầy đủ (API + web, dữ liệu dùng chung) — dùng cho doanh nghiệp thật
 

@@ -15,6 +15,7 @@ import {
   DEMO_PASSWORD,
 } from '@argolet/app';
 import type { ApiConfig } from './config';
+import { SCHEMA_VERSION } from './db';
 
 export const SESSION_COOKIE = 'argolet_session';
 export const CSRF_HEADER = 'x-argolet-request';
@@ -128,7 +129,12 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     }
   });
 
-  server.get('/healthz', async () => ({ ok: true, version: VERSION, store: deps.storeKind }));
+  server.get('/healthz', async () => ({
+    ok: true,
+    version: VERSION,
+    store: deps.storeKind,
+    schema: SCHEMA_VERSION,
+  }));
   server.get('/v1/meta', async () => ({
     name: 'ARGOLET',
     version: VERSION,

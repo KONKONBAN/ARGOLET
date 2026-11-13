@@ -2,7 +2,7 @@ import { createArgoletApp, demoClock, seedDemo, type ArgoletApp } from '@argolet
 import type { ApiConfig } from './config';
 import { serverHasher } from './hasher';
 import { ClaudeLlmClient, ClaudeVisionExtractionProvider } from './claude';
-import { PgStore, pgDriver, pgliteDriver } from './pgStore';
+import { PgStore, pgDriver, pgliteDriver } from './db';
 import { createMailNotifier } from './mailer';
 
 export interface Runtime {
@@ -21,7 +21,7 @@ export async function createRuntime(
       )
     : await pgDriver(config.databaseUrl);
   const store = new PgStore(driver, () => clock().toISOString());
-  await store.migrate();
+  await store.migrate(log);
   const app = createArgoletApp({
     store,
     hasher: serverHasher(),

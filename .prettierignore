@@ -10,3 +10,4 @@ pnpm-lock.yaml
 apps/web/public
 apps/mobile/assets
 e2e/fixtures
+docs/database/data-dictionary.md

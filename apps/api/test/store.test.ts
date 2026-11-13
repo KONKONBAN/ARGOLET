@@ -8,49 +8,26 @@ import {
   seedDemo,
   type Store,
 } from '@argolet/app';
-import { PgStore, pgDriver, pgliteDriver } from '../src/pgStore';
+import type { PgStore } from '../src/db';
+import { openStore, PG_URL, seedTenants } from './pg';
 
 /**
  * Storage conformance: the same behavioural contract must hold for the in-memory store,
  * embedded Postgres (PGlite) and a real PostgreSQL server (PG_TEST_URL).
  */
-const PG_URL = process.env.PG_TEST_URL;
 const opened: PgStore[] = [];
 
 async function makeStores(): Promise<[string, () => Promise<Store>][]> {
-  const list: [string, () => Promise<Store>][] = [
+  const sql = (kind: 'pglite' | 'postgres') => async () => {
+    const s = await openStore(kind);
+    opened.push(s);
+    return s;
+  };
+  return [
     ['memory', async () => new MemoryStore()],
-    [
-      'pglite',
-      async () => {
-        const s = new PgStore(await pgliteDriver());
-        await s.migrate();
-        opened.push(s);
-        return s;
-      },
-    ],
+    ['pglite', sql('pglite')],
+    ...(PG_URL ? [['postgres', sql('postgres')] as [string, () => Promise<Store>]] : []),
   ];
-  if (PG_URL) {
-    list.push([
-      'postgres',
-      async () => {
-        const s = new PgStore(await pgDriver(PG_URL));
-        await s.migrate();
-        await s.transaction(async (tx) => {
-          // isolate runs: clear previous data
-          void tx;
-        });
-        const { default: pg } = await import('pg');
-        const c = new pg.Client({ connectionString: PG_URL });
-        await c.connect();
-        await c.query('TRUNCATE argolet_rows');
-        await c.end();
-        opened.push(s);
-        return s;
-      },
-    ]);
-  }
-  return list;
 }
 
 afterAll(async () => {
@@ -62,6 +39,7 @@ const stores = await makeStores();
 describe.each(stores)('store conformance · %s', (_name, make) => {
   it('puts, gets, lists with filters and keeps tenants isolated', async () => {
     const store = await make();
+    await seedTenants(store, ['t1', 't2']);
     await store.transaction(async (tx) => {
       await tx.put('notifications', {
         id: 'n1',

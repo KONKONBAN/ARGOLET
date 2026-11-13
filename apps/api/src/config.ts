@@ -29,7 +29,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const production = env.NODE_ENV === 'production';
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
-    env.WEB_DIST,
+    // A relative WEB_DIST is resolved against the working directory (static serving needs an absolute path).
+    env.WEB_DIST ? path.resolve(env.WEB_DIST) : undefined,
     path.resolve(here, '../../web/dist'),
     path.resolve(here, '../web'),
     path.resolve(process.cwd(), 'apps/web/dist'),

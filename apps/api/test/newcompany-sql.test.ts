@@ -5,10 +5,10 @@
  */
 import { afterAll, describe, it } from 'vitest';
 import { ScryptHasher } from '@argolet/app';
-import { PgStore, pgDriver, pgliteDriver } from '../src/pgStore';
+import type { PgStore } from '../src/db';
+import { openStore, PG_URL } from './pg';
 import { newCompanyScenario } from '../../../packages/app/test/scenarios/newCompany';
 
-const PG_URL = process.env.PG_TEST_URL;
 const opened: PgStore[] = [];
 const hasher = new ScryptHasher(2 ** 10, 8, 1);
 
@@ -19,8 +19,7 @@ afterAll(async () => {
 describe('new company on SQL storage', () => {
   it('runs end to end on PGlite', async () => {
     await newCompanyScenario(async (now) => {
-      const s = new PgStore(await pgliteDriver(), now);
-      await s.migrate();
+      const s = await openStore('pglite', now);
       opened.push(s);
       return s;
     }, hasher);
@@ -30,13 +29,7 @@ describe('new company on SQL storage', () => {
     'runs end to end on PostgreSQL',
     async () => {
       await newCompanyScenario(async (now) => {
-        const s = new PgStore(await pgDriver(PG_URL!), now);
-        await s.migrate();
-        const { default: pg } = await import('pg');
-        const c = new pg.Client({ connectionString: PG_URL });
-        await c.connect();
-        await c.query('TRUNCATE argolet_rows');
-        await c.end();
+        const s = await openStore('postgres', now);
         opened.push(s);
         return s;
       }, hasher);

@@ -127,7 +127,17 @@ export function requireAmount(value: unknown, label: string): string {
         : '';
   if (!/^-?\d+(\.\d+)?$/.test(s))
     throw new AppError('VALIDATION', `${label} phải là số hợp lệ`, { field: label });
-  return s;
+  return canonicalDecimal(s);
+}
+
+/**
+ * The canonical spelling of a decimal ("007" → "7", "-0.00" → "0.00"), the way the database's
+ * numeric type stores it, so a stored amount always reads back exactly as written. The scale
+ * ("1.50") is kept.
+ */
+export function canonicalDecimal(s: string): string {
+  const t = s.replace(/^(-?)0+(?=\d)/, '$1');
+  return /^-0(\.0+)?$/.test(t) ? t.slice(1) : t;
 }
 
 export function periodOf(date: string): string {
@@ -185,5 +195,5 @@ export function requireDecimal(value: unknown, label: string): string {
         : '';
   if (!/^\d+(\.\d+)?$/.test(s))
     throw new AppError('VALIDATION', `${label} phải là số không âm (ví dụ 0.5)`, { field: label });
-  return s;
+  return canonicalDecimal(s);
 }

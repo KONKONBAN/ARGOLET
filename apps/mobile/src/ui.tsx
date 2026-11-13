@@ -207,7 +207,13 @@ export function Kpi({
       </Text>
       {note && (
         <Text
-          style={{ fontSize: 11, color: highlight ? C.heroMuted : C.muted, marginTop: 4, fontFamily: font }}
+          style={{
+            fontSize: 11,
+            color: highlight ? C.heroMuted : C.muted,
+            marginTop: 4,
+            fontFamily: font,
+            textAlign: 'center',
+          }}
         >
           {note}
         </Text>
@@ -648,6 +654,7 @@ const st = StyleSheet.create({
     borderRadius: R.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
+    alignItems: 'center',
   },
   btn: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   btnDefault: { backgroundColor: '#fff', borderWidth: 1, borderColor: C.line },

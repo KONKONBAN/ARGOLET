@@ -8,7 +8,8 @@
     "start": "node dist/main.mjs",
     "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:docs": "tsx scripts/db-docs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
