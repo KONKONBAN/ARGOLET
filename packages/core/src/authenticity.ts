@@ -1,6 +1,7 @@
 import { D, dec } from './decimal';
 import { invoiceSymbolProblems, taxCodeChecksumOk, type ExtractedInvoice } from './einvoice';
 import { editingSoftware, type ImageMeta } from './imagemeta';
+import { compareQrWithDocument, readQrContent } from './invoiceqr';
 
 /**
  * Signs that a document may be fake, altered or not deductible — the checks an accountant runs
@@ -56,11 +57,14 @@ export interface AuthenticityInput {
   /** Other documents from the same counterparty (by tax code or name). */
   history: HistoryDoc[];
   imageMeta?: ImageMeta | null;
+  /** Text of a QR code read from the photo / PDF of the document (the XML carries its own). */
+  qr?: string | null;
   /** Purchases from this amount (VAT included) must be paid without cash for input VAT to be deductible. */
   nonCashThreshold?: string;
 }
 
-const VALID_RATES = /^(0|5|8|10)%$|^KCT$|^KKKNT$|^KHAC:\d+(\.\d+)?%$/;
+/** QĐ 1450 Phụ lục V: 0%, 5%, 8%, 10%, KCT, KKKNT, KHAC:AB.CD% or plain KHAC (TT 103/2014 Điều 11). */
+const VALID_RATES = /^(0|5|8|10)%$|^KCT$|^KKKNT$|^KHAC(:\d{1,2}(\.\d{1,2})?%)?$/;
 /** Luật Thuế GTGT số 48/2024/QH15 (từ 01/07/2025): mua vào từ 5 triệu đồng phải thanh toán không dùng tiền mặt. */
 export const NON_CASH_THRESHOLD = '5000000';
 
@@ -343,6 +347,56 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
           : 'Ảnh không có thông tin máy chụp để đối chiếu',
     );
   }
+
+  // 15. QR code (QĐ 1450 Khoản 7 Mục IV Phần I): TLV data with the invoice identity and a CRC.
+  const qrRaw = (inv?.qrData || i.qr || '').trim();
+  if (qrRaw) {
+    const content = readQrContent(qrRaw);
+    if (content.kind === 'INVOICE') {
+      const q = content.qr;
+      const seen = new Set<string>();
+      const diffs = [
+        ...(inv
+          ? compareQrWithDocument(q, {
+              taxCode: inv.sellerTaxCode,
+              series: inv.symbol,
+              documentNo: inv.documentNo,
+              documentDate: inv.issueDate,
+              total: inv.total,
+            })
+          : []),
+        // Typed / extracted fields are in VND; the QR total is in the invoice currency.
+        ...compareQrWithDocument(q, inv && inv.currency !== 'VND' ? { ...f, total: undefined } : f),
+      ].filter((d) => !seen.has(d.field) && seen.add(d.field));
+      const format = q.problems.filter((p) => !p.startsWith('Mã kiểm tra CRC'));
+      add(
+        'QR',
+        'Mã QR của hóa đơn',
+        !q.crcOk || diffs.length ? 'FAIL' : format.length ? 'WARN' : 'PASS',
+        !q.crcOk
+          ? 'Mã kiểm tra CRC của mã QR không khớp — dữ liệu QR đã bị thay đổi hoặc ảnh chụp đọc sai'
+          : diffs.length
+            ? `Mã QR ghi ${diffs.map((d) => `${d.label} ${d.qr}`).join(', ')} nhưng chứng từ ghi ${diffs.map((d) => d.document).join(', ')}`
+            : format.length
+              ? format.join('; ')
+              : `Đúng chuẩn của cơ quan thuế, khớp MST ${q.sellerTaxCode}, ký hiệu ${q.symbol}, số ${q.documentNo}, ngày lập và tổng tiền`,
+      );
+    } else
+      add(
+        'QR',
+        'Mã QR của hóa đơn',
+        'NA',
+        content.kind === 'URL'
+          ? `Mã QR là đường dẫn tra cứu của nhà cung cấp hóa đơn (${content.host}), không chứa dữ liệu hóa đơn để đối chiếu`
+          : 'Mã QR không chứa thông tin tra cứu hóa đơn (có thể là mã thanh toán)',
+      );
+  } else if (inv || i.sourceKind === 'PHOTO')
+    add(
+      'QR',
+      'Mã QR của hóa đơn',
+      'NA',
+      inv ? 'Tệp XML không kèm dữ liệu QR (không bắt buộc)' : 'Không đọc được mã QR trên ảnh',
+    );
 
   const fails = checks.filter((c) => c.status === 'FAIL').length;
   const warns = checks.filter((c) => c.status === 'WARN').length;

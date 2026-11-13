@@ -11,6 +11,7 @@ export * from './finance';
 export * from './documents';
 export * from './einvoice';
 export * from './imagemeta';
+export * from './invoiceqr';
 export * from './authenticity';
 export * from './rbac';
 export * from './approvals';

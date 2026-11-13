@@ -628,6 +628,13 @@ img {
   flex: none;
   margin-top: 2px;
 }
+.quality-list li.muted {
+  color: var(--muted);
+}
+.quality-list li.muted svg {
+  flex: none;
+  margin-top: 2px;
+}
 .quality-list li.warn svg {
   color: #b45309;
   flex: none;

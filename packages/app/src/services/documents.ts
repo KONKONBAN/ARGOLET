@@ -12,6 +12,8 @@ import {
   parseEInvoiceXml,
   assessAuthenticity,
   readImageMeta,
+  readQrContent,
+  type ExtractionField,
   type ImageMeta,
   parsePosCsv,
   randomHex,
@@ -58,6 +60,8 @@ export interface IntakeFile {
   /** Base64 for binary files; plain text is accepted for XML/CSV. */
   contentBase64?: string | undefined;
   text?: string | undefined;
+  /** Text of a QR code the client read on this photo / PDF (the e-invoice QR, QĐ 1450). */
+  qr?: string | undefined;
 }
 
 interface DecodedFile {
@@ -180,7 +184,9 @@ export class DocumentService {
       const name = requireText(f.name, 'Tên tệp', 200);
       const d = decodeFile(f);
       if (d.bytes.length > MAX_FILE_BYTES) throw new AppError('VALIDATION', `Tệp ${name} vượt quá 15 MB`);
-      return { name, mime: f.mime ?? '', ...d, sha: sha256Hex(d.bytes) };
+      const qr = typeof f.qr === 'string' && f.qr.trim() ? f.qr.trim() : undefined;
+      if (qr && qr.length > 512) throw new AppError('VALIDATION', `Dữ liệu mã QR của ${name} quá dài`);
+      return { name, mime: f.mime ?? '', ...d, sha: sha256Hex(d.bytes), qr };
     });
     // OCR / VLM extraction runs outside the DB transaction.
     const extractions = new Map<number, Awaited<ReturnType<AppCore['deps']['extraction']['extract']>>>();
@@ -414,15 +420,37 @@ export class DocumentService {
             };
           } else {
             const ex = extractions.get(i)!;
-            const get = (n: keyof DocumentFields) => ex.fields.find((x) => x.name === n)?.value ?? '';
+            // The e-invoice QR printed on the paper (read by the client) carries the invoice identity
+            // exactly as issued: used for any field the extraction did not read, if its CRC is valid.
+            const qrRead = f.qr ? readQrContent(f.qr) : null;
+            const qr =
+              qrRead?.kind === 'INVOICE' && qrRead.qr.crcOk && !qrRead.qr.problems.length ? qrRead.qr : null;
+            const fromQr: ExtractionField[] = qr
+              ? [
+                  { name: 'taxCode', value: qr.sellerTaxCode, confidence: 0.99 },
+                  { name: 'series', value: qr.symbol, confidence: 0.99 },
+                  { name: 'documentNo', value: qr.documentNo, confidence: 0.99 },
+                  { name: 'documentDate', value: qr.issueDate, confidence: 0.99 },
+                  ...(qr.currencyCode === '' || qr.currencyCode === '704'
+                    ? [{ name: 'total' as const, value: qr.total, confidence: 0.99 }]
+                    : []),
+                ]
+              : [];
+            const exFields = [
+              ...ex.fields.filter((x) => x.value),
+              ...fromQr.filter((q) => !ex.fields.some((x) => x.name === q.name && x.value)),
+            ];
+            const get = (n: keyof DocumentFields) => exFields.find((x) => x.name === n)?.value ?? '';
             // Nothing is invented: a date or total that was not read stays empty for a person to fill in.
             const fields = {
               supplier: get('supplier'),
               documentNo: get('documentNo'),
               documentDate: get('documentDate'),
               total: get('total') || '0',
+              ...(get('taxCode') ? { taxCode: get('taxCode') } : {}),
+              ...(get('series') ? { series: get('series') } : {}),
             };
-            const lowConfidence = ex.fields.filter((x) => x.confidence < 0.85).map((x) => x.name);
+            const lowConfidence = exFields.filter((x) => x.confidence < 0.85).map((x) => x.name);
             const issues = validateFields(
               { ...fields, lines: ex.lines.length ? ex.lines : undefined },
               { today: now.slice(0, 10), knownDocumentKeys: knownKeys, lowConfidence },
@@ -440,9 +468,10 @@ export class DocumentService {
               rows: [],
               rowKind: null,
               extraction: {
-                modelVersion: ex.modelVersion,
-                fields: ex.fields,
+                modelVersion: qr && !ex.fields.some((x) => x.value) ? 'qr-tt78-1450' : ex.modelVersion,
+                fields: exFields,
                 ...(imageMetas.has(i) ? { imageMeta: imageMetas.get(i) } : {}),
+                ...(f.qr ? { qr: f.qr } : {}),
               },
               issues,
               kind: 'EXPENSE',
@@ -667,6 +696,7 @@ export class DocumentService {
       sameDocumentAs: same?.code ?? null,
       history,
       imageMeta: doc.extraction?.imageMeta ?? null,
+      qr: doc.extraction?.qr ?? null,
     });
   }
 

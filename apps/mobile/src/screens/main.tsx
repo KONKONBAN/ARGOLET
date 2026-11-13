@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, Share, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { scanFromURLAsync } from 'expo-camera';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import {
   Bell,
@@ -35,7 +36,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react-native';
-import { D, formatDate, formatSignedVnd, formatVnd, formatShortDateTime } from '@argolet/core';
+import { D, formatDate, formatSignedVnd, formatVnd, formatShortDateTime, readQrContent } from '@argolet/core';
 import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
 import { useSession } from '../session';
 import { C, font } from '../theme';
@@ -543,6 +544,28 @@ function photoNote(f: { base64: string; width?: number; height?: number }) {
   return `${kb} · ${f.width}×${f.height} · ${ok ? 'đủ nét để đọc' : 'ảnh nhỏ, nên chụp gần hơn'}`;
 }
 
+/** Reads the QR code printed on a photographed invoice (native barcode scanner); null when none. */
+async function readQr(uri: string): Promise<string | null> {
+  try {
+    const found = (await scanFromURLAsync(uri, ['qr'])).map((r) => r.data.trim()).filter(Boolean);
+    return found.find((v) => readQrContent(v).kind === 'INVOICE') ?? found[0] ?? null;
+  } catch {
+    return null; // e.g. the web preview: the photo is still received, fields are typed in review
+  }
+}
+
+/** What the QR says, in one line (the server checks it again with the CRC). */
+function qrNote(raw: string | null | undefined): string | null {
+  if (raw === undefined) return 'Đang tìm mã QR hóa đơn…';
+  if (raw === null) return 'Không thấy mã QR hóa đơn';
+  const c = readQrContent(raw);
+  if (c.kind === 'INVOICE')
+    return c.qr.crcOk && !c.qr.problems.length
+      ? `QR hóa đơn ✓ ${c.qr.symbol} · số ${c.qr.documentNo} · ${formatVnd(c.qr.total)} · MST ${c.qr.sellerTaxCode}`
+      : `Mã QR hóa đơn bị lỗi: ${c.qr.problems[0]}`;
+  return c.kind === 'URL' ? `Mã QR là đường dẫn tra cứu (${c.host})` : 'Mã QR không chứa thông tin hóa đơn';
+}
+
 export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
   const { ctx } = useSession();
   const sites = ctx?.entities.filter((e) => e.kind === 'SITE') ?? [];
@@ -551,8 +574,18 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
   );
   const [location, setLocation] = useState('');
   const [files, setFiles] = useState<
-    { name: string; mime: string; base64: string; uri?: string; width?: number; height?: number }[]
+    {
+      name: string;
+      mime: string;
+      base64: string;
+      uri?: string;
+      width?: number;
+      height?: number;
+      qr?: string | null;
+    }[]
   >([]);
+  const scanned = (uri: string, qr: string | null) =>
+    setFiles((list) => list.map((f) => (f.uri === uri ? { ...f, qr } : f)));
   const intake = useMutation('documents.intake', { silent: true });
   const [result, setResult] = useState<Awaited<ReturnType<typeof intake.mutate>> | null>(null);
   const takePhoto = async (camera: boolean) => {
@@ -585,6 +618,7 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
         height: a.height,
       })),
     ]);
+    for (const a of r.assets) void readQr(a.uri).then((qr) => scanned(a.uri, qr));
   };
   const pickFile = async () => {
     const r = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
@@ -607,7 +641,12 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
               const r = await intake.mutate({
                 entityId,
                 location,
-                files: files.map((f) => ({ name: f.name, mime: f.mime, contentBase64: f.base64 })),
+                files: files.map((f) => ({
+                  name: f.name,
+                  mime: f.mime,
+                  contentBase64: f.base64,
+                  ...(f.qr ? { qr: f.qr } : {}),
+                })),
               });
               setResult(r);
               setFiles([]);
@@ -662,7 +701,7 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
             )
           }
           title={f.name}
-          subtitle={photoNote(f)}
+          subtitle={f.uri && f.mime.startsWith('image/') ? `${photoNote(f)}\n${qrNote(f.qr)}` : photoNote(f)}
           right={
             <Pressable onPress={() => setFiles((s) => s.filter((_, j) => j !== i))}>
               <Text style={{ color: C.action }}>Bỏ</Text>
@@ -731,6 +770,7 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
     documentDate: string;
     total: string;
     taxCode?: string | undefined;
+    series?: string | undefined;
   } | null>(null);
   const [ack, setAck] = useState(false);
   useEffect(() => {
@@ -798,6 +838,23 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
         editable={!ro}
         error={issue('supplier')}
         autoCapitalize="words"
+      />
+      <Input
+        label="MST người bán"
+        value={f.taxCode ?? ''}
+        onChangeText={(v) => setF({ ...f, taxCode: v })}
+        editable={!ro}
+        error={issue('taxCode')}
+        keyboardType="number-pad"
+        placeholder="10 hoặc 13 chữ số"
+      />
+      <Input
+        label="Ký hiệu hóa đơn"
+        value={f.series ?? ''}
+        onChangeText={(v) => setF({ ...f, series: v })}
+        editable={!ro}
+        autoCapitalize="characters"
+        placeholder="VD: 1C26TAA"
       />
       <Input
         label="Số chứng từ"

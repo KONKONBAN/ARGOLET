@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Camera,
+  CircleAlert,
   CircleCheck,
   Copy,
   FileSpreadsheet,
@@ -19,13 +20,15 @@ import {
   CloudUpload,
   TriangleAlert,
   History,
+  QrCode,
 } from 'lucide-react';
-import { formatVnd, formatDate } from '@argolet/core';
+import { formatVnd, formatDate, readQrContent } from '@argolet/core';
 import { ApiError } from '../api/backend';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
 import { AuthenticityPanel } from '../ui/authenticity';
 import { analyzePhoto, CameraCapture, QualityList, type PhotoQuality } from '../ui/camera';
+import { readQrFromImage } from '../ui/qr';
 import {
   Alert,
   Button,
@@ -157,14 +160,41 @@ export function DocumentsPage() {
   );
 }
 
-/** A file waiting to be sent: photos show a thumbnail and the result of the quality check. */
+/** What the QR code on a photo says: the invoice identity (checked with its CRC), a link, or nothing. */
+function QrNote({ raw }: { raw: string | null | undefined }) {
+  if (raw === undefined) return <p className="muted small">Đang tìm mã QR hóa đơn…</p>;
+  const c = raw === null ? null : readQrContent(raw);
+  const ok = c?.kind === 'INVOICE' && c.qr.crcOk && c.qr.problems.length === 0;
+  const text =
+    c === null
+      ? 'Không thấy mã QR hóa đơn trên ảnh — nhập các trường khi kiểm tra'
+      : c.kind === 'INVOICE'
+        ? ok
+          ? `Mã QR hóa đơn: ${c.qr.symbol} · số ${c.qr.documentNo} · ${formatDate(c.qr.issueDate)} · ${formatVnd(c.qr.total)} · MST ${c.qr.sellerTaxCode}`
+          : `Mã QR hóa đơn bị lỗi: ${c.qr.problems[0]}`
+        : c.kind === 'URL'
+          ? `Mã QR là đường dẫn tra cứu của nhà cung cấp hóa đơn (${c.host})`
+          : 'Mã QR không chứa thông tin hóa đơn (có thể là mã thanh toán)';
+  return (
+    <ul className="quality-list" aria-label="Mã QR hóa đơn">
+      <li className={ok ? 'ok' : c === null ? 'muted' : 'warn'}>
+        {ok ? <QrCode size={16} aria-hidden /> : <CircleAlert size={16} aria-hidden />}
+        <span>{text}</span>
+      </li>
+    </ul>
+  );
+}
+
+/** A file waiting to be sent: photos show a thumbnail, the quality check and the QR code read. */
 function PickedFile({
   file,
   quality,
+  qr,
   onRemove,
 }: {
   file: File;
   quality: PhotoQuality | undefined;
+  qr: string | null | undefined;
   onRemove: () => void;
 }) {
   const isImage = file.type.startsWith('image/');
@@ -190,6 +220,7 @@ function PickedFile({
         </div>
         {isImage &&
           (quality ? <QualityList q={quality} /> : <span className="muted small">Đang kiểm tra ảnh…</span>)}
+        {isImage && <QrNote raw={qr} />}
       </div>
     </div>
   );
@@ -219,6 +250,14 @@ export function CapturePage() {
     if (params.has('camera')) setParams({}, { replace: true });
   };
   const rate = (f: File, q: PhotoQuality) => setQuality((m) => new Map(m).set(f, q));
+  // The e-invoice QR printed on a photo: read in the browser, verified (CRC) and used on the server.
+  const [qrs, setQrs] = useState(() => new Map<File, string | null>());
+  const qrJobs = useRef(new Map<File, Promise<string | null>>());
+  const scanQr = (f: File) => {
+    const job = readQrFromImage(f).catch(() => null);
+    qrJobs.current.set(f, job);
+    return job.then((raw) => setQrs((m) => new Map(m).set(f, raw)));
+  };
   const intake = useMutation('documents.intake', { silent: true });
   const [result, setResult] = useState<Awaited<ReturnType<typeof intake.mutate>> | null>(null);
   const period = usePeriodLabel();
@@ -228,17 +267,25 @@ export function CapturePage() {
     setFiles((f) => [...f, ...picked].slice(0, 50));
     // Photos are checked (resolution, light, sharpness) before they are sent.
     for (const f of picked)
-      if (f.type.startsWith('image/'))
+      if (f.type.startsWith('image/')) {
         analyzePhoto(f)
           .then((q) => rate(f, q))
           .catch(() => undefined);
+        void scanQr(f);
+      }
   };
   const submit = async () => {
     try {
       const payload = await Promise.all(
         files.map(async (f) => {
           // Raw bytes for every file: the fingerprint must cover exactly what was received.
-          return { name: f.name, mime: f.type, contentBase64: await readFileAsBase64(f) };
+          const qr = await (qrJobs.current.get(f) ?? Promise.resolve(null));
+          return {
+            name: f.name,
+            mime: f.type,
+            contentBase64: await readFileAsBase64(f),
+            ...(qr ? { qr } : {}),
+          };
         }),
       );
       const r = await intake.mutate({ entityId, location, files: payload });
@@ -306,6 +353,7 @@ export function CapturePage() {
             onCapture={(file, q) => {
               setFiles((f) => [...f, file].slice(0, 50));
               rate(file, q);
+              void scanQr(file);
             }}
             onFallback={() => cameraRef.current?.click()}
           />
@@ -316,6 +364,7 @@ export function CapturePage() {
                   key={`${f.name}-${f.size}-${f.lastModified}-${i}`}
                   file={f}
                   quality={quality.get(f)}
+                  qr={qrs.get(f)}
                   onRemove={() => setFiles((s) => s.filter((_, j) => j !== i))}
                 />
               ))}
@@ -463,6 +512,7 @@ export function ReviewPage() {
     documentDate: string;
     total: string;
     taxCode?: string | undefined;
+    series?: string | undefined;
   } | null>(null);
   const [ack, setAck] = useState(false);
   const period = usePeriodLabel();
@@ -540,6 +590,24 @@ export function ReviewPage() {
             disabled={readOnly}
             error={fieldIssue('supplier')?.message}
           />
+          <div className="grid grid-2">
+            <TextInput
+              label="MST người bán"
+              value={fields.taxCode ?? ''}
+              onChange={set('taxCode')}
+              placeholder="10 hoặc 13 chữ số"
+              inputMode="numeric"
+              disabled={readOnly}
+              error={fieldIssue('taxCode')?.severity === 'error' ? fieldIssue('taxCode')?.message : undefined}
+            />
+            <TextInput
+              label="Ký hiệu hóa đơn"
+              value={fields.series ?? ''}
+              onChange={set('series')}
+              placeholder="VD: 1C26TAA"
+              disabled={readOnly}
+            />
+          </div>
           <TextInput
             label="Số chứng từ"
             value={fields.documentNo}

@@ -75,6 +75,8 @@ export interface ExtractedInvoice {
   totalVnd: string;
   /** Mã của cơ quan thuế ("" for invoices without a tax authority code). */
   taxAuthorityCode: string;
+  /** QR code data (<DLQRCode>, QĐ 1450 Khoản 7 Mục IV Phần I), "" when absent. */
+  qrData: string;
   /** A seller signature element (DSCKS/NBan/Signature) is present. */
   sellerSigned: boolean;
   /** Any signature element is present (seller or tax authority). */
@@ -138,7 +140,9 @@ export function splitInvoiceSymbol(
 export function invoiceSymbolProblems(sym: { formNo: string; series: string }, issueDate: string): string[] {
   const out: string[] = [];
   if (!/^[1-6]$/.test(sym.formNo)) out.push('Ký hiệu mẫu số phải là một chữ số từ 1 đến 6');
-  if (!/^[CK]\d{2}[TDLMNBGH][A-Z]{2}$/.test(sym.series))
+  // Letter 4 is the invoice type (TT78 / TT32: T, D, L, M, N, B, G, H…); any letter is accepted so a
+  // newly introduced type is not reported as a forgery.
+  if (!/^[CK]\d{2}[A-Z]{3}$/.test(sym.series))
     out.push('Ký hiệu hóa đơn không đúng định dạng (ví dụ C26TAA: C/K, năm 2 số, loại, 2 chữ cái)');
   else if (/^\d{4}-/.test(issueDate) && sym.series.slice(1, 3) !== issueDate.slice(2, 4))
     out.push(
@@ -289,6 +293,7 @@ export function parseEInvoiceXml(xml: string): ExtractedInvoice {
     vatVnd: toVnd(vat, rate),
     totalVnd: toVnd(total, rate),
     taxAuthorityCode: text(hdon, 'MCCQT'),
+    qrData: text(hdon, 'DLQRCode'),
     sellerSigned:
       !!sellerSig && (findAll(sellerSig, 'Signature').length > 0 || sellerSig.text.trim().length > 0),
     signed: findAll(hdon, 'Signature').length > 0 || !!dscks,

@@ -185,7 +185,13 @@ export interface DocumentRow extends BaseRow {
   rows: StructuredRow[];
   rowKind: 'BANK' | 'POS' | null;
   /** OCR / VLM result; for photos also the camera metadata (EXIF) used by the forgery checks. */
-  extraction: { modelVersion: string; fields: ExtractionField[]; imageMeta?: ImageMeta | undefined } | null;
+  extraction: {
+    modelVersion: string;
+    fields: ExtractionField[];
+    imageMeta?: ImageMeta | undefined;
+    /** QR code text read from the photo / PDF (e-invoice QR per QĐ 1450 when it parses as one). */
+    qr?: string | undefined;
+  } | null;
   issues: FieldIssue[];
   receivedAt: string;
   receivedBy: string;

@@ -4,6 +4,7 @@
  * working at once.
  */
 import { describe, expect, it } from 'vitest';
+import { buildInvoiceQr } from '@argolet/core';
 import { DEMO_EMAIL, DEMO_TENANT } from '../src';
 import { expectAppError, loginAs, seededApp } from './helpers';
 
@@ -144,6 +145,59 @@ describe('controls', () => {
     // Booked pre-VAT (2 000 000), the 200 000 VAT is input tax, not expense.
     const records = await store.read((tx) => tx.list('records', DEMO_TENANT, { documentId: id }));
     expect(records.map((x) => x.amount)).toEqual(['2000000']);
+  });
+
+  it('a photo with the e-invoice QR code is filled in from the QR and checked against it', async () => {
+    const { app } = await seededApp();
+    const acct = await loginAs(app, 'thanhha@minhan.example');
+    const qr = buildInvoiceQr({
+      sellerTaxCode: '0314222331',
+      formNo: '1',
+      series: 'C26TSX',
+      documentNo: '0000777',
+      issueDate: '2026-10-29',
+      total: '1650000',
+    });
+    // A tiny JPEG stands in for the photo; the client read the QR printed on it.
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64');
+    const r = await app.documents.intake(acct, {
+      files: [{ name: 'hoa-don-sua-xanh.jpg', mime: 'image/jpeg', contentBase64: jpeg, qr }],
+    });
+    const id = r.files[0]!.documentId;
+    const d = await app.documents.getDocument(acct, { documentId: id });
+    expect(d.document.fields).toMatchObject({
+      supplier: '',
+      taxCode: '0314222331',
+      series: '1C26TSX',
+      documentNo: '777',
+      documentDate: '2026-10-29',
+      total: '1650000',
+    });
+    const qrCheck = () => d.authenticity!.checks.find((c) => c.code === 'QR');
+    expect(qrCheck()?.status).toBe('PASS');
+    // Someone "corrects" the total to more than the invoice says: the QR contradicts it.
+    await app.documents.saveDraft(acct, {
+      documentId: id,
+      fields: { ...d.document.fields, supplier: 'Sữa Xanh', total: '7650000' },
+    });
+    const after = await app.documents.getDocument(acct, { documentId: id });
+    const check = after.authenticity!.checks.find((c) => c.code === 'QR')!;
+    expect(check.status).toBe('FAIL');
+    expect(check.detail).toMatch(/Tổng tiền thanh toán 1650000/);
+    // A QR whose CRC does not match fills in nothing.
+    const r2 = await app.documents.intake(acct, {
+      files: [
+        {
+          name: 'anh-2.jpg',
+          mime: 'image/jpeg',
+          contentBase64: Buffer.from([0xff, 0xd8, 0x00, 0xff, 0xd9]).toString('base64'),
+          qr: qr.slice(0, -4) + '0000',
+        },
+      ],
+    });
+    const d2 = await app.documents.getDocument(acct, { documentId: r2.files[0]!.documentId });
+    expect(d2.document.fields.documentNo).toBe('');
+    expect(d2.authenticity!.checks.find((c) => c.code === 'QR')?.status).toBe('FAIL');
   });
 
   it('a revoked session stops working immediately, the others keep going', async () => {
