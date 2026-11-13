@@ -633,6 +633,64 @@ img {
   flex: none;
   margin-top: 2px;
 }
+/* ───────── fake-document checks ───────── */
+.auth-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.auth-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.auth-ok,
+.auth-list li.pass svg {
+  color: #087452;
+}
+.auth-warn,
+.auth-list li.warn svg {
+  color: #b45309;
+}
+.auth-fail,
+.auth-list li.fail svg {
+  color: var(--danger);
+}
+.auth-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.auth-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.auth-list li svg {
+  flex: none;
+  margin-top: 2px;
+}
+.auth-list li.na svg {
+  color: var(--muted, #536978);
+}
+.auth-na {
+  margin-top: 10px;
+}
+.auth-na summary {
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.auth-foot a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
 .picked-file {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);

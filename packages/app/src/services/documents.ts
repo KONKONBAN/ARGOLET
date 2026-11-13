@@ -10,6 +10,9 @@ import {
   nextCode,
   parseBankStatementCsv,
   parseEInvoiceXml,
+  assessAuthenticity,
+  readImageMeta,
+  type ImageMeta,
   parsePosCsv,
   randomHex,
   saltedFingerprint,
@@ -181,8 +184,10 @@ export class DocumentService {
     });
     // OCR / VLM extraction runs outside the DB transaction.
     const extractions = new Map<number, Awaited<ReturnType<AppCore['deps']['extraction']['extract']>>>();
+    const imageMetas = new Map<number, ImageMeta>();
     for (const [i, f] of decoded.entries()) {
       const fmt = detectFormat(f.name, f.mime);
+      if (fmt === 'IMAGE') imageMetas.set(i, readImageMeta(f.bytes));
       if (chooseParser(fmt) === 'ocr_vlm') {
         extractions.set(
           i,
@@ -211,6 +216,7 @@ export class DocumentService {
       const batchId = newId('bat');
       const existingArtifacts = await tx.list('artifacts', ws.tenantId);
       const knownKeys = await this.knownKeys(tx, ws.tenantId);
+      const tenant = await tx.get('tenants', ws.tenantId, ws.tenantId);
       let docCodes = await this.allCodes(tx, ws.tenantId, 'documents');
       const created: {
         documentId: string;
@@ -271,40 +277,54 @@ export class DocumentService {
         try {
           if (fmt === 'XML') {
             const inv = parseEInvoiceXml(text ?? '');
+            // Our own sales invoice (seller = this organisation) is revenue, the buyer the counterparty.
+            const isSale = !!tenant?.taxCode && inv.sellerTaxCode === tenant.taxCode.trim();
+            const counterparty = isSale ? inv.buyerName : inv.sellerName;
             const fields = {
-              supplier: inv.sellerName,
+              supplier: counterparty,
               documentNo: inv.documentNo,
               documentDate: inv.issueDate,
-              total: inv.total,
-              taxCode: inv.sellerTaxCode || undefined,
+              total: inv.totalVnd,
+              taxCode: (isSale ? inv.buyerTaxCode : inv.sellerTaxCode) || undefined,
+              series: inv.symbol || undefined,
             };
-            const lines = inv.lines.map((l) => ({ description: l.description, amount: l.amount }));
+            const lines = vndLines(inv);
             const issues = validateFields(
-              { ...fields, lines: withVat(lines, inv.vat) },
+              { ...fields, lines: withVat(lines, inv.vatVnd) },
               { today: now.slice(0, 10), knownDocumentKeys: knownKeys },
             );
-            if (!inv.signed)
+            for (const m of inv.inconsistencies)
+              issues.push({ field: 'total', severity: 'error', message: m });
+            if (!inv.sellerSigned)
               issues.push({
                 field: 'documentNo',
                 severity: 'warning',
-                message: 'Hóa đơn XML không có chữ ký số',
+                message: 'Hóa đơn XML không có chữ ký số của người bán',
+              });
+            if (inv.currency !== 'VND' && inv.exchangeRate)
+              issues.push({
+                field: 'total',
+                severity: 'warning',
+                message: `Hóa đơn bằng ${inv.currency}: đã quy đổi ${inv.total} × tỷ giá ${inv.exchangeRate} = ${formatVnd(inv.totalVnd)} — kiểm tra tỷ giá ghi sổ`,
               });
             doc = {
               ...common,
-              title: inv.sellerName || 'Hóa đơn điện tử',
-              counterparty: inv.sellerName,
+              title: isSale
+                ? `Hóa đơn bán ra · ${counterparty || 'khách hàng'}`
+                : inv.sellerName || 'Hóa đơn điện tử',
+              counterparty,
               sourceKind: 'XML_EINVOICE',
               date: inv.issueDate,
-              amount: inv.total,
+              amount: inv.totalVnd,
               status: statusFromIssues(issues),
               fields,
               lines,
-              vat: inv.vat,
+              vat: inv.vatVnd,
               rows: [],
               rowKind: null,
               extraction: null,
               issues,
-              kind: 'EXPENSE',
+              kind: isSale ? 'REVENUE' : 'EXPENSE',
             };
           } else if (fmt === 'CSV') {
             const header = (text ?? '').split(/\r?\n/, 1)[0] ?? '';
@@ -395,10 +415,11 @@ export class DocumentService {
           } else {
             const ex = extractions.get(i)!;
             const get = (n: keyof DocumentFields) => ex.fields.find((x) => x.name === n)?.value ?? '';
+            // Nothing is invented: a date or total that was not read stays empty for a person to fill in.
             const fields = {
               supplier: get('supplier'),
               documentNo: get('documentNo'),
-              documentDate: get('documentDate') || now.slice(0, 10),
+              documentDate: get('documentDate'),
               total: get('total') || '0',
             };
             const lowConfidence = ex.fields.filter((x) => x.confidence < 0.85).map((x) => x.name);
@@ -411,14 +432,18 @@ export class DocumentService {
               title: 'Hóa đơn mua hàng',
               counterparty: fields.supplier,
               sourceKind: fmt === 'PDF' ? 'PDF' : 'PHOTO',
-              date: fields.documentDate,
+              date: fields.documentDate || now.slice(0, 10),
               amount: fields.total,
               status: issues.length ? 'NEEDS_REVIEW' : 'EXTRACTED',
               fields,
               lines: ex.lines,
               rows: [],
               rowKind: null,
-              extraction: { modelVersion: ex.modelVersion, fields: ex.fields },
+              extraction: {
+                modelVersion: ex.modelVersion,
+                fields: ex.fields,
+                ...(imageMetas.has(i) ? { imageMeta: imageMetas.get(i) } : {}),
+              },
               issues,
               kind: 'EXPENSE',
             };
@@ -545,7 +570,7 @@ export class DocumentService {
   }
 
   async getDocument(call: CallContext, p: { documentId: string }) {
-    return this.core.query(async (tx) => {
+    return this.core.query(async (tx, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'document.read');
       const doc = await findDoc(tx, ws.tenantId, p.documentId);
       inScope(ws, doc.entityId);
@@ -578,7 +603,70 @@ export class DocumentService {
           fingerprint: v.fingerprint,
         })),
         canValidate: this.core.can(ws, 'document.validate', doc.entityId),
+        authenticity: await this.authenticity(tx, ws.tenantId, doc, doc.fields, now),
       };
+    });
+  }
+
+  /**
+   * Fake / altered / non-deductible document signals (see core/authenticity): the invoice itself
+   * (XML re-read from the stored original), its addressee, duplicates and the counterparty history.
+   */
+  private async authenticity(
+    tx: Tx,
+    tenantId: string,
+    doc: DocumentRow,
+    fields: DocumentRow['fields'],
+    now: string,
+  ) {
+    if (doc.kind === 'STATEMENT') return null;
+    const artifact = doc.artifactId ? await tx.get('artifacts', tenantId, doc.artifactId) : undefined;
+    let invoice: ReturnType<typeof parseEInvoiceXml> | null = null;
+    if (doc.sourceKind === 'XML_EINVOICE' && artifact?.content) {
+      try {
+        invoice = parseEInvoiceXml(artifact.content);
+      } catch {
+        invoice = null;
+      }
+    }
+    const tenant = await tx.get('tenants', tenantId, tenantId);
+    const others = (await tx.list('documents', tenantId)).filter(
+      (d) => d.id !== doc.id && d.status !== 'REJECTED',
+    );
+    const key = documentKey(fields);
+    const same = others.find(
+      (d) => d.kind === doc.kind && d.fields.documentNo && documentKey(d.fields) === key,
+    );
+    const dupFile = artifact?.duplicateOf
+      ? others.find((d) => d.artifactId === artifact.duplicateOf)
+      : undefined;
+    const name = normName(fields.supplier);
+    const history = others
+      .filter(
+        (d) =>
+          d.status === 'VALIDATED' &&
+          d.kind === doc.kind &&
+          ((fields.taxCode && d.fields.taxCode === fields.taxCode) ||
+            (name && normName(d.fields.supplier) === name)),
+      )
+      .map((d) => ({
+        code: d.code,
+        supplier: d.fields.supplier,
+        taxCode: d.fields.taxCode,
+        total: d.fields.total,
+        date: d.fields.documentDate,
+      }));
+    return assessAuthenticity({
+      today: now.slice(0, 10),
+      kind: doc.kind,
+      sourceKind: doc.sourceKind,
+      fields,
+      invoice,
+      organisationTaxCode: tenant?.taxCode ?? null,
+      duplicateFileOf: dupFile?.code ?? (artifact?.duplicateOf ? 'tệp đã tiếp nhận' : null),
+      sameDocumentAs: same?.code ?? null,
+      history,
+      imageMeta: doc.extraction?.imageMeta ?? null,
     });
   }
 
@@ -639,8 +727,29 @@ export class DocumentService {
       const errors = issues.filter((i) => i.severity === 'error');
       if (errors.length) throw new AppError('VALIDATION', errors[0]!.message, { issues });
       const warnings = issues.filter((i) => i.severity === 'warning' && !i.message.includes('Độ tin cậy'));
-      if (warnings.length && !p.acknowledgeWarnings)
-        throw new AppError('VALIDATION', warnings[0]!.message, { issues, needsAcknowledge: true });
+      // A document with warnings or signs of forgery is only booked after someone confirms having
+      // checked it — one acknowledgement covering everything that was shown.
+      const auth = await this.authenticity(tx, ws.tenantId, doc, fields, now);
+      const failed = auth?.checks.filter((c) => c.status === 'FAIL') ?? [];
+      if ((warnings.length || failed.length) && !p.acknowledgeWarnings)
+        throw new AppError(
+          'VALIDATION',
+          failed.length
+            ? `Chứng từ có dấu hiệu bất thường: ${failed.map((c) => c.label.toLowerCase()).join(', ')}. Hãy đối chiếu bản gốc rồi xác nhận đã kiểm tra.`
+            : warnings[0]!.message,
+          { issues, needsAcknowledge: true, authenticity: auth },
+        );
+      if (failed.length)
+        await em.audit(
+          ws.tenantId,
+          actor(ws),
+          'document.authenticity_override',
+          doc.code,
+          failed
+            .map((c) => `${c.code}: ${c.detail}`)
+            .join(' | ')
+            .slice(0, 900),
+        );
       assertTransition(doc.status === 'NEEDS_RECON' ? 'EXTRACTED' : doc.status, 'VALIDATED');
       const version = doc.currentVersion + 1;
       const artifact = doc.artifactId ? await tx.get('artifacts', ws.tenantId, doc.artifactId) : undefined;
@@ -681,7 +790,7 @@ export class DocumentService {
       const periodId = periodOf(fields.documentDate);
       const records: { recordId: string; amount: string }[] = [];
       const putRecord = async (r: {
-        kind: 'EXPENSE' | 'ORDER' | 'BANK_TXN';
+        kind: 'EXPENSE' | 'REVENUE' | 'ORDER' | 'BANK_TXN';
         code: string;
         amount: string;
         date: string;
@@ -731,13 +840,17 @@ export class DocumentService {
         });
         records.push({ recordId, amount: r.amount });
       };
-      if (doc.kind === 'EXPENSE') {
+      if (doc.kind === 'EXPENSE' || doc.kind === 'REVENUE') {
+        // Enterprises deduct VAT: the expense / revenue is the amount before VAT and the VAT is
+        // input (1331) or output (33311) tax. Household businesses (HKD) do not: the full amount counts.
+        const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+        const vat = tenant.settings.accountingRegime !== 'HKD' && doc.vat ? D(doc.vat) : D(0);
         await putRecord({
-          kind: 'EXPENSE',
+          kind: doc.kind,
           code: doc.code,
-          amount: fields.total,
+          amount: D(fields.total).minus(vat).toFixed(),
           date: fields.documentDate,
-          channel: 'Chi phí',
+          channel: doc.kind === 'EXPENSE' ? 'Chi phí' : 'Hóa đơn bán ra',
           counterparty: fields.supplier,
           reference: fields.documentNo,
           payoutBatch: '',
@@ -855,6 +968,31 @@ const KIND_ORDER = ['POS', 'PLATFORM', 'BANK', 'EINVOICE', 'PAPER', 'EXCEL'];
 const order = (k: string) => KIND_ORDER.indexOf(k);
 
 /** Line items of an invoice plus its VAT, so they can be checked against the gross total. */
+/**
+ * Invoice lines in VND for the books: notes are dropped, discounts stay negative, and for a
+ * foreign-currency invoice the rounding remainder goes to the largest line so the lines add up
+ * exactly to the converted total before VAT.
+ */
+function vndLines(inv: ReturnType<typeof parseEInvoiceXml>): { description: string; amount: string }[] {
+  const rate = inv.exchangeRate || '1';
+  const lines = inv.lines
+    .filter((l) => l.kind !== 'NOTE' && (l.kind !== 'PROMOTION' || !D(l.amount).isZero()))
+    .map((l) => ({
+      description: l.kind === 'DISCOUNT' ? `Chiết khấu thương mại · ${l.description}` : l.description,
+      amount: D(l.amount).times(rate).toDecimalPlaces(0).toFixed(),
+    }));
+  if (!lines.length || !inv.subtotalVnd) return lines;
+  const diff = D(inv.subtotalVnd).minus(sum(lines.map((l) => l.amount)));
+  if (!diff.isZero() && diff.abs().lte(lines.length)) {
+    const i = lines.reduce(
+      (best, l, k) => (D(l.amount).abs().gt(D(lines[best]!.amount).abs()) ? k : best),
+      0,
+    );
+    lines[i] = { ...lines[i]!, amount: D(lines[i]!.amount).plus(diff).toFixed() };
+  }
+  return lines;
+}
+
 function withVat(lines: { description: string; amount: string }[], vat: string | undefined) {
   return vat && !D(vat).isZero() ? [...lines, { description: 'Thuế GTGT', amount: vat }] : lines;
 }
@@ -862,6 +1000,17 @@ function withVat(lines: { description: string; amount: string }[], vat: string |
 function extractBatchRef(description: string): string {
   const m = /\b(TT-\d+|S\d{2,}|LOT[-\w]+)\b/i.exec(description);
   return m ? m[1]!.toUpperCase() : '';
+}
+
+/** Supplier name without legal-form words, accents or punctuation ("Cty TNHH ABC" = "Công ty ABC"). */
+function normName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/\b(cong ty|cty|tnhh|co phan|cp|mtv|dntn|ho kinh doanh|hkd)\b/g, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function normalizeFields(f: DocumentRow['fields']): DocumentRow['fields'] {
@@ -883,6 +1032,7 @@ function normalizeFields(f: DocumentRow['fields']): DocumentRow['fields'] {
     documentDate: date,
     total: normalizedTotal || '0',
     taxCode: f.taxCode ? String(f.taxCode).trim() : undefined,
+    series: f.series ? String(f.series).trim().toUpperCase().slice(0, 12) : undefined,
   };
 }
 

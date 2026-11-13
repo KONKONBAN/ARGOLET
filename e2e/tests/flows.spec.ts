@@ -60,6 +60,48 @@ test.describe('core business flows', () => {
     await expectClean(w, info);
   });
 
+  test('a suspicious e-invoice is flagged and booked only after acknowledging the checks', async ({
+    page,
+  }, info) => {
+    const w = watch(page);
+    await login(page);
+    // Unsigned and issued to another company's tax code; the arithmetic is right.
+    const no = String(Date.now()).slice(-7);
+    const xml = info.outputPath(`hd-${no}.xml`);
+    await writeFile(
+      xml,
+      `<?xml version="1.0" encoding="UTF-8"?><HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>C26TNV</KHHDon><SHDon>${no}</SHDon><NLap>2026-10-30</NLap><HTTToan>CK</HTTToan></TTChung>
+<NDHDon><NBan><Ten>Nguyên liệu Việt</Ten><MST>0312345673</MST></NBan><NMua><Ten>Công ty khác</Ten><MST>0100109106</MST></NMua>
+<DSHHDVu><HHDVu><THHDVu>Cà phê hạt</THHDVu><ThTien>2000000</ThTien><TSuat>10%</TSuat></HHDVu></DSHHDVu>
+<TToan><THTTLTSuat><LTSuat><TSuat>10%</TSuat><ThTien>2000000</ThTien><TThue>200000</TThue></LTSuat></THTTLTSuat>
+<TgTCThue>2000000</TgTCThue><TgTThue>200000</TgTThue><TgTTTBSo>2200000</TgTTTBSo></TToan></NDHDon></DLHDon>
+<MCCQT>00ABCDEF0123456789</MCCQT></HDon>`,
+    );
+    await go(page, 'capture', 'Tiếp nhận chứng từ');
+    await page.locator('input[type=file][multiple]').setInputFiles(xml);
+    await page.getByRole('button', { name: /Tiếp nhận 1 tệp/ }).click();
+    await expect(page.getByText(/Đã tiếp nhận lô/)).toBeVisible();
+    await page.getByRole('button', { name: 'Kiểm tra' }).first().click();
+    await settled(page, 'Kiểm tra chứng từ');
+    const panel = page.getByRole('region', { name: 'Kiểm tra chứng từ giả' });
+    await expect(panel).toContainText('Rủi ro cao');
+    await expect(panel.locator('li.fail[data-check="SIGNATURE"]')).toContainText('Chữ ký số của người bán');
+    await expect(panel.locator('li.fail[data-check="ADDRESSEE"]')).toContainText('0100109106');
+    await expect(panel.locator('li.pass[data-check="TAX_CODE"]')).toBeVisible();
+    await expect(panel.locator('li.pass[data-check="ARITHMETIC"]')).toBeVisible();
+    await expect(panel.getByRole('link', { name: /cổng hóa đơn điện tử/ })).toHaveAttribute(
+      'href',
+      'https://hoadondientu.gdt.gov.vn/',
+    );
+    const confirm = page.getByRole('button', { name: 'Xác nhận chứng từ' });
+    await confirm.click();
+    await expect(page.getByText(/Chứng từ có dấu hiệu bất thường: .*chữ ký số/)).toBeVisible();
+    await page.getByRole('checkbox', { name: /Tôi đã kiểm tra và xác nhận cảnh báo/ }).check();
+    await confirm.click();
+    await expect(page).toHaveURL(/#\/evidence\/[^/]+$/);
+    await expectClean(w, info);
+  });
+
   test('integrity check: original passes, tampered file is detected', async ({ page }, info) => {
     const w = watch(page);
     await login(page);

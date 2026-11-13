@@ -199,7 +199,7 @@ export function parsePosCsv(text: string): PosOrderLine[] {
   }));
 }
 
-// ───────────── XML e-invoice (simplified HĐĐT schema) ─────────────
+// ───────────── XML (e-invoices: see einvoice.ts) ─────────────
 
 export interface XmlNode {
   name: string;
@@ -266,59 +266,6 @@ export function findText(node: XmlNode, ...path: string[]): string {
   return cur?.text.trim() ?? '';
 }
 
-export interface InvoiceLine {
-  description: string;
-  quantity: string;
-  unit: string;
-  unitPrice: string;
-  amount: string;
-}
-
-export interface ExtractedInvoice {
-  documentNo: string;
-  series: string;
-  issueDate: string;
-  sellerName: string;
-  sellerTaxCode: string;
-  buyerName: string;
-  buyerTaxCode: string;
-  currency: string;
-  lines: InvoiceLine[];
-  subtotal: string;
-  vat: string;
-  total: string;
-  signed: boolean;
-}
-
-export function parseEInvoiceXml(xml: string): ExtractedInvoice {
-  const root = parseXml(xml);
-  if (findAll(root, 'HDon').length === 0) throw new Error('Không phải hóa đơn điện tử (thiếu thẻ HDon)');
-  const lines = findAll(root, 'HHDVu').map((n) => ({
-    description: findText(n, 'THHDVu'),
-    quantity: findText(n, 'SLuong') || '1',
-    unit: findText(n, 'DVTinh'),
-    unitPrice: findText(n, 'DGia') || findText(n, 'ThTien'),
-    amount: findText(n, 'ThTien'),
-  }));
-  const subtotal = findText(root, 'TToan', 'TgTCThue') || dec(sum(lines.map((l) => l.amount || '0')));
-  const vat = findText(root, 'TToan', 'TgTThue') || '0';
-  return {
-    documentNo: findText(root, 'TTChung', 'SHDon'),
-    series: findText(root, 'TTChung', 'KHHDon'),
-    issueDate: parseDate(findText(root, 'TTChung', 'NLap')),
-    sellerName: findText(root, 'NBan', 'Ten'),
-    sellerTaxCode: findText(root, 'NBan', 'MST'),
-    buyerName: findText(root, 'NMua', 'Ten'),
-    buyerTaxCode: findText(root, 'NMua', 'MST'),
-    currency: findText(root, 'TTChung', 'DVTTe') || 'VND',
-    lines,
-    subtotal,
-    vat,
-    total: findText(root, 'TToan', 'TgTTTBSo') || dec(D(subtotal).plus(vat)),
-    signed: findAll(root, 'Signature').length > 0 || findAll(root, 'DSCKS').length > 0,
-  };
-}
-
 // ───────────── Field validation (board 02 "Kiểm chứng trường dữ liệu") ─────────────
 
 export interface DocumentFields {
@@ -327,6 +274,8 @@ export interface DocumentFields {
   documentDate: string; // YYYY-MM-DD
   total: string;
   taxCode?: string | undefined;
+  /** Invoice symbol (ký hiệu hóa đơn, e.g. 1C26TAA) when the document is an invoice. */
+  series?: string | undefined;
   lines?: { description: string; amount: string }[] | undefined;
 }
 
@@ -390,7 +339,9 @@ export function validateFields(
     issues.push({
       field: 'duplicate',
       severity: 'error',
-      message: 'Chứng từ trùng số và nhà cung cấp đã tiếp nhận',
+      message: f.taxCode
+        ? 'Hóa đơn trùng MST, ký hiệu và số với hóa đơn đã tiếp nhận'
+        : 'Chứng từ trùng số và nhà cung cấp đã tiếp nhận',
     });
   for (const field of opts.lowConfidence ?? []) {
     if (!issues.some((i) => i.field === field)) {
@@ -404,8 +355,20 @@ export function validateFields(
   return issues;
 }
 
-export function documentKey(f: Pick<DocumentFields, 'supplier' | 'documentNo'>): string {
-  return `${norm(f.supplier)}#${f.documentNo.trim().toUpperCase()}`;
+/**
+ * Identity of a document for duplicate detection. An invoice is identified by the seller's tax
+ * code, its symbol (which carries the year) and its number — numbers restart for every symbol and
+ * year, and a supplier name can be spelt many ways. Without a tax code: supplier name + number +
+ * year. Leading zeros of numeric numbers are not significant (0000123 = 123).
+ */
+export function documentKey(
+  f: Pick<DocumentFields, 'supplier' | 'documentNo' | 'taxCode' | 'series'> & { documentDate?: string },
+): string {
+  const raw = f.documentNo.trim().toUpperCase();
+  const no = /^\d+$/.test(raw) ? raw.replace(/^0+(?=\d)/, '') : raw;
+  const tax = (f.taxCode ?? '').trim();
+  if (tax) return `MST:${tax}#${(f.series ?? '').trim().toUpperCase()}#${no}`;
+  return `${norm(f.supplier)}#${no}#${(f.documentDate ?? '').slice(0, 4)}`;
 }
 
 /** OCR / VLM provider contract. Implementations return fields + bbox + confidence + model version. */

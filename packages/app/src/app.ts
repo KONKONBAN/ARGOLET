@@ -21,7 +21,7 @@ import { FinanceService } from './services/finance';
 import { ModuleService } from './services/modules';
 import { AssistantService } from './services/assistant';
 import { onMatchResolvedValidateDocuments } from './services/consumers';
-import { FilenameHintExtractionProvider } from './extraction';
+import { ManualEntryExtractionProvider } from './extraction';
 import { ScryptHasher } from './hashers';
 
 export interface ArgoletAppOptions {
@@ -41,7 +41,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
     store: opts.store,
     hasher: opts.hasher ?? new ScryptHasher(),
     notifier: opts.notifier ?? { sendCode: async () => undefined },
-    extraction: opts.extraction ?? new FilenameHintExtractionProvider(),
+    extraction: opts.extraction ?? new ManualEntryExtractionProvider(),
     llm: opts.llm ?? null,
     clock: opts.clock ?? (() => new Date()),
     config: { ...DEFAULT_CONFIG, ...opts.config },

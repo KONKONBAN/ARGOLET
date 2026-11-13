@@ -61,6 +61,7 @@ import {
   Title,
 } from '../ui';
 import type { ScreenProps } from '../App';
+import { AuthenticityCard } from '../authenticity';
 
 const toneOf = (s: string) =>
   s === 'VALIDATED' ? 'success' : s === 'NEEDS_REVIEW' || s === 'NEEDS_RECON' ? 'warning' : 'neutral';
@@ -789,6 +790,7 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
           style={[T.small, { marginTop: 6 }]}
         >{`${d.sourceLabel} · ${doc.data.artifact?.filename ?? ''}`}</Text>
       </Card>
+      {doc.data.authenticity && <AuthenticityCard result={doc.data.authenticity} />}
       <Input
         label="Nhà cung cấp"
         value={f.supplier}

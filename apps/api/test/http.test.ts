@@ -242,7 +242,7 @@ describe('HTTP API', () => {
 
   it('runs intake → confirm → evidence verify over HTTP', async () => {
     const cookie = await webLogin('thanhha@minhan.example');
-    const xml = `<HDon><DLHDon><TTChung><SHDon>00888</SHDon><NLap>2026-10-30</NLap></TTChung><NDHDon><NBan><Ten>Sữa Xanh</Ten><MST>0313334444</MST></NBan><DSHHDVu><HHDVu><THHDVu>Sữa</THHDVu><ThTien>900000</ThTien></HHDVu></DSHHDVu><TToan><TgTCThue>900000</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>900000</TgTTTBSo></TToan></NDHDon></DLHDon><DSCKS><Signature/></DSCKS></HDon>`;
+    const xml = `<HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>C26TSX</KHHDon><SHDon>00888</SHDon><NLap>2026-10-30</NLap></TTChung><NDHDon><NBan><Ten>Sữa Xanh</Ten><MST>0313334441</MST></NBan><NMua><Ten>Minh An Commerce</Ten><MST>0309876547</MST></NMua><DSHHDVu><HHDVu><THHDVu>Sữa</THHDVu><ThTien>900000</ThTien></HHDVu></DSHHDVu><TToan><TgTCThue>900000</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>900000</TgTTTBSo></TToan></NDHDon></DLHDon><MCCQT Id="cqt">00F0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5</MCCQT><DSCKS><NBan><Signature/></NBan></DSCKS></HDon>`;
     const up = await server.inject({
       method: 'POST',
       url: '/v1/import-batches',

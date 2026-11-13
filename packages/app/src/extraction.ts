@@ -1,52 +1,52 @@
 import type { ExtractionProvider, ExtractionResult } from '@argolet/core';
 
 /**
- * Offline OCR/VLM stand-in used by the demo backend and tests. It never invents numbers:
- * it reads structured hints embedded in the filename
- * (e.g. "HD-00318_7250000_2026-10-31_Nguyen-lieu-Viet.jpg") and otherwise returns empty
- * fields with low confidence so a person must fill them in.
- * The API server swaps this for the Claude vision provider when ANTHROPIC_API_KEY is set.
+ * Used when no OCR / vision model is configured (no ANTHROPIC_API_KEY on the server, or the app
+ * running entirely in the browser). It never reads numbers from the image and never guesses: the
+ * fields stay empty for a person to type from the original, EXCEPT when the file name follows the
+ * explicit naming convention "<số chứng từ>_<tổng tiền>_<YYYY-MM-DD>_<nhà cung cấp>"
+ * (e.g. "PN-551_1840000_2026-10-30_Bao-bi-An-Phat.jpg") — and even then the values are marked
+ * low-confidence so the reviewer checks them against the image. Camera file names such as
+ * "IMG_20261113_153045.jpg" carry no document data and are ignored.
  */
-export class FilenameHintExtractionProvider implements ExtractionProvider {
-  readonly modelVersion = 'ocr-offline-hints-1.0';
+export class ManualEntryExtractionProvider implements ExtractionProvider {
+  readonly modelVersion = 'manual-entry-1.0';
 
   async extract(input: { bytes: Uint8Array; mime: string; filename: string }): Promise<ExtractionResult> {
-    const base = input.filename.replace(/\.[^.]+$/, '');
-    const parts = base.split(/_+/);
-    const docNo = parts.find((p) => /^[A-Z]{1,4}-?\d{3,}$/i.test(p)) ?? '';
-    const total = parts.find((p) => /^\d{4,}$/.test(p)) ?? '';
-    const date = parts.find((p) => /^\d{4}-\d{2}-\d{2}$/.test(p)) ?? '';
-    const supplierPart = parts.find(
-      (p) => p !== docNo && p !== total && p !== date && /[A-Za-zÀ-ỹ]{3,}/.test(p) && !/^\d/.test(p),
-    );
-    const supplier = (supplierPart ?? '').replace(/-/g, ' ').trim();
+    const hint = parseNamingConvention(input.filename);
+    const field = (name: 'supplier' | 'documentNo' | 'documentDate' | 'total', value: string) => ({
+      name,
+      value,
+      confidence: value ? 0.6 : 0,
+      page: 1,
+    });
     return {
       modelVersion: this.modelVersion,
       fields: [
-        {
-          name: 'supplier',
-          value: supplier,
-          confidence: supplier ? 0.9 : 0.2,
-          bbox: [40, 60, 420, 90],
-          page: 1,
-        },
-        {
-          name: 'documentNo',
-          value: docNo.toUpperCase(),
-          confidence: docNo ? 0.93 : 0.2,
-          bbox: [40, 100, 300, 120],
-          page: 1,
-        },
-        {
-          name: 'documentDate',
-          value: date,
-          confidence: date ? 0.88 : 0.2,
-          bbox: [300, 100, 460, 120],
-          page: 1,
-        },
-        { name: 'total', value: total, confidence: total ? 0.95 : 0.2, bbox: [300, 520, 460, 550], page: 1 },
+        field('supplier', hint?.supplier ?? ''),
+        field('documentNo', hint?.documentNo ?? ''),
+        field('documentDate', hint?.documentDate ?? ''),
+        field('total', hint?.total ?? ''),
       ],
       lines: [],
     };
   }
+}
+
+const CAMERA_NAME = /^(IMG|PXL|DSC|DCIM|PHOTO|SCREENSHOT|SCAN|ANH|HOA-DON|CAPTURE|WIN|MVIMG)\b/i;
+
+/** "<no>_<amount>_<YYYY-MM-DD>_<supplier>": all four parts or nothing. */
+export function parseNamingConvention(
+  filename: string,
+): { documentNo: string; total: string; documentDate: string; supplier: string } | null {
+  const base = filename.replace(/\.[^.]+$/, '');
+  if (CAMERA_NAME.test(base)) return null;
+  const m = /^([A-Z]{1,6}-?\d{2,12})_(\d{4,15})_(\d{4}-\d{2}-\d{2})_([^_]{3,80})$/i.exec(base);
+  if (!m || Number.isNaN(Date.parse(m[3]!))) return null;
+  return {
+    documentNo: m[1]!.toUpperCase(),
+    total: m[2]!,
+    documentDate: m[3]!,
+    supplier: m[4]!.replace(/-/g, ' ').trim(),
+  };
 }

@@ -1,5 +1,6 @@
 import {
   isValidTaxCode,
+  taxCodeChecksumOk,
   newId,
   nextCode,
   normalizeEmail,
@@ -166,6 +167,14 @@ export class OrgService {
     const taxCode = (p.taxCode ?? '').trim();
     if (taxCode && !isValidTaxCode(taxCode))
       throw new AppError('VALIDATION', 'Mã số thuế phải gồm 10 hoặc 13 chữ số', { field: 'taxCode' });
+    if (taxCode && !taxCodeChecksumOk(taxCode))
+      throw new AppError(
+        'VALIDATION',
+        'Mã số thuế không hợp lệ (sai chữ số kiểm tra) — vui lòng kiểm tra lại',
+        {
+          field: 'taxCode',
+        },
+      );
     return this.core.command(call, async (tx, em, now) => {
       const auth = await this.core.requireAuth(tx, call);
       const tenantId = newId('ten');

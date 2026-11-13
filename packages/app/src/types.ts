@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   DocumentStatus,
   ExtractionField,
+  ImageMeta,
   FieldIssue,
   LedgerReceipt,
   LedgerState,
@@ -174,6 +175,8 @@ export interface DocumentRow extends BaseRow {
     documentDate: string;
     total: string;
     taxCode?: string | undefined;
+    /** Invoice symbol (ký hiệu, e.g. 1C26TAA): with the tax code and number it identifies an invoice. */
+    series?: string | undefined;
   };
   lines: { description: string; amount: string }[];
   /** VAT of an e-invoice (lines are net amounts; total = lines + VAT). */
@@ -181,7 +184,8 @@ export interface DocumentRow extends BaseRow {
   /** Structured rows parsed from statements / POS exports (become BusinessRecords on confirmation). */
   rows: StructuredRow[];
   rowKind: 'BANK' | 'POS' | null;
-  extraction: { modelVersion: string; fields: ExtractionField[] } | null;
+  /** OCR / VLM result; for photos also the camera metadata (EXIF) used by the forgery checks. */
+  extraction: { modelVersion: string; fields: ExtractionField[]; imageMeta?: ImageMeta | undefined } | null;
   issues: FieldIssue[];
   receivedAt: string;
   receivedBy: string;

@@ -9,10 +9,10 @@ async function freshApp(): Promise<ArgoletApp> {
 }
 
 const xmlInvoice = (no: string, total: number, seller = 'Cà phê Cầu Đất') => `<?xml version="1.0"?>
-<HDon><DLHDon><TTChung><KHHDon>1C26TCD</KHHDon><SHDon>${no}</SHDon><NLap>2026-10-30</NLap><DVTTe>VND</DVTTe></TTChung>
-<NDHDon><NBan><Ten>${seller}</Ten><MST>0311112222</MST></NBan><NMua><Ten>Minh An Retail</Ten><MST>0309876543</MST></NMua>
+<HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>C26TCD</KHHDon><SHDon>${no}</SHDon><NLap>2026-10-30</NLap><DVTTe>VND</DVTTe></TTChung>
+<NDHDon><NBan><Ten>${seller}</Ten><MST>0311112228</MST></NBan><NMua><Ten>Minh An Retail</Ten><MST>0309876547</MST></NMua>
 <DSHHDVu><HHDVu><THHDVu>Cà phê Arabica</THHDVu><SLuong>5</SLuong><DGia>${total / 5}</DGia><ThTien>${total}</ThTien></HHDVu></DSHHDVu>
-<TToan><TgTCThue>${total}</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>${total}</TgTTTBSo></TToan></NDHDon></DLHDon><DSCKS><NBan><Signature/></NBan></DSCKS></HDon>`;
+<TToan><TgTCThue>${total}</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>${total}</TgTTTBSo></TToan></NDHDon></DLHDon><MCCQT Id="cqt">00F0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5</MCCQT><DSCKS><NBan><Signature/></NBan></DSCKS></HDon>`;
 
 describe('01–03 · account, sign-in and organisation', () => {
   it('registers with OTP, signs in, creates an organisation (OrgAdmin)', async () => {
@@ -69,7 +69,7 @@ describe('01–03 · account, sign-in and organisation', () => {
     const org = await app.org.createOrganization(call, {
       name: 'Công ty An',
       orgType: 'Hộ kinh doanh',
-      taxCode: '0312345679',
+      taxCode: '0313334441',
     });
     const ctx = await app.org.context(call);
     expect(ctx.tenant.id).toBe(org.tenantId);

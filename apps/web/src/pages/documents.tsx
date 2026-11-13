@@ -24,6 +24,7 @@ import { formatVnd, formatDate } from '@argolet/core';
 import { ApiError } from '../api/backend';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
+import { AuthenticityPanel } from '../ui/authenticity';
 import { analyzePhoto, CameraCapture, QualityList, type PhotoQuality } from '../ui/camera';
 import {
   Alert,
@@ -529,6 +530,7 @@ export function ReviewPage() {
           subtitle={`${d.sourceLabel} · Tiếp nhận ${formatDate(d.receivedAt)}, ${new Date(Date.parse(d.receivedAt) + 7 * 3600e3).toISOString().slice(11, 16)}`}
         >
           <OriginalPreview doc={d} artifact={doc.data.artifact} />
+          {doc.data.authenticity && <AuthenticityPanel result={doc.data.authenticity} />}
         </Card>
         <Card title="Nội dung trích xuất" subtitle="Đối chiếu từng trường trước khi xác nhận">
           <TextInput

@@ -91,6 +91,61 @@ describe('controls', () => {
     );
   });
 
+  it('a forged e-invoice is flagged as high risk and cannot be booked', async () => {
+    const { app, store } = await seededApp();
+    const acct = await loginAs(app, 'thanhha@minhan.example');
+    // The genuine invoice in the demo books passes every check.
+    const genuine = await app.documents.getDocument(acct, { documentId: 'CT-1027' });
+    expect(genuine.authenticity?.level).toBe('LOW');
+    expect(genuine.authenticity?.checks.filter((c) => c.status === 'FAIL')).toEqual([]);
+    // A look-alike: seller tax code with a wrong check digit, issued to another company, unsigned,
+    // no tax-authority code, and a VAT amount that does not match the rate.
+    const forged = `<HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>C26TNV</KHHDon><SHDon>00999</SHDon><NLap>2026-10-30</NLap></TTChung>
+      <NDHDon><NBan><Ten>Nguyên liệu Việt</Ten><MST>0312345678</MST></NBan><NMua><Ten>Công ty khác</Ten><MST>0100109106</MST></NMua>
+      <DSHHDVu><HHDVu><THHDVu>Cà phê hạt</THHDVu><ThTien>2000000</ThTien><TSuat>10%</TSuat></HHDVu></DSHHDVu>
+      <TToan><THTTLTSuat><LTSuat><TSuat>10%</TSuat><ThTien>2000000</ThTien><TThue>100000</TThue></LTSuat></THTTLTSuat>
+      <TgTCThue>2000000</TgTCThue><TgTThue>100000</TgTThue><TgTTTBSo>2100000</TgTTTBSo></TToan></NDHDon></DLHDon></HDon>`;
+    const r = await app.documents.intake(acct, { files: [{ name: 'hd-00999.xml', text: forged }] });
+    const id = r.files[0]!.documentId;
+    const d = await app.documents.getDocument(acct, { documentId: id });
+    const failed = d.authenticity!.checks.filter((c) => c.status === 'FAIL').map((c) => c.code);
+    expect(d.authenticity!.level).toBe('HIGH');
+    expect(failed).toEqual(
+      expect.arrayContaining(['TAX_CODE', 'ADDRESSEE', 'SIGNATURE', 'TAX_AUTHORITY_CODE', 'ARITHMETIC']),
+    );
+    // The arithmetic error alone already blocks the confirmation outright.
+    await expectAppError(app.documents.confirmDocument(acct, { documentId: id }), 'VALIDATION');
+    const records = await store.read((tx) => tx.list('records', DEMO_TENANT, { documentId: id }));
+    expect(records).toHaveLength(0);
+  });
+
+  it('confirming a document with failed checks requires acknowledgement and is audited', async () => {
+    const { app, store } = await seededApp();
+    const acct = await loginAs(app, 'thanhha@minhan.example');
+    // Arithmetic is right, but the invoice is unsigned and addressed to another company.
+    const xml = `<HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>C26TNV</KHHDon><SHDon>00998</SHDon><NLap>2026-10-30</NLap></TTChung>
+      <NDHDon><NBan><Ten>Nguyên liệu Việt</Ten><MST>0312345673</MST></NBan><NMua><Ten>Công ty khác</Ten><MST>0100109106</MST></NMua>
+      <DSHHDVu><HHDVu><THHDVu>Cà phê hạt</THHDVu><ThTien>2000000</ThTien><TSuat>10%</TSuat></HHDVu></DSHHDVu>
+      <TToan><THTTLTSuat><LTSuat><TSuat>10%</TSuat><ThTien>2000000</ThTien><TThue>200000</TThue></LTSuat></THTTLTSuat>
+      <TgTCThue>2000000</TgTCThue><TgTThue>200000</TgTThue><TgTTTBSo>2200000</TgTTTBSo></TToan></NDHDon></DLHDon>
+      <MCCQT>00ABCDEF0123456789</MCCQT></HDon>`;
+    const r = await app.documents.intake(acct, { files: [{ name: 'hd-00998.xml', text: xml }] });
+    const id = r.files[0]!.documentId;
+    const err = await app.documents.confirmDocument(acct, { documentId: id }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'VALIDATION', details: { needsAcknowledge: true } });
+    expect((err as Error).message).toMatch(/dấu hiệu bất thường.*chữ ký số/);
+    const ok = await app.documents.confirmDocument(acct, { documentId: id, acknowledgeWarnings: true });
+    expect(ok.version).toBe(1);
+    const audit = await store.read((tx) =>
+      tx.list('audit', DEMO_TENANT, { action: 'document.authenticity_override' }),
+    );
+    expect(audit).toHaveLength(1);
+    expect(audit[0]!.detail).toMatch(/SIGNATURE/);
+    // Booked pre-VAT (2 000 000), the 200 000 VAT is input tax, not expense.
+    const records = await store.read((tx) => tx.list('records', DEMO_TENANT, { documentId: id }));
+    expect(records.map((x) => x.amount)).toEqual(['2000000']);
+  });
+
   it('a revoked session stops working immediately, the others keep going', async () => {
     const { app } = await seededApp();
     const phone = await loginAs(app, DEMO_EMAIL, DEMO_TENANT);

@@ -155,7 +155,8 @@ describe('documents', () => {
     const inv = parseEInvoiceXml(xml);
     expect(inv).toMatchObject({
       documentNo: '00318',
-      series: '1C26TAA',
+      series: 'C26TAA',
+      symbol: '1C26TAA',
       issueDate: '2026-10-31',
       sellerName: 'Nguyên liệu Việt & Cộng sự',
       sellerTaxCode: '0312345678',

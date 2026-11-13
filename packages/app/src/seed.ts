@@ -125,7 +125,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       tenantId: T,
       name: 'Minh An Commerce',
       orgType: 'Doanh nghiệp thương mại',
-      taxCode: '0312345678',
+      taxCode: '0309876547',
       policyVersion: 'policy-2026.10',
       settings: {
         currency: 'VND',
@@ -222,7 +222,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       tenantId: 'ten_anviet',
       name: 'An Việt Logistics',
       orgType: 'Logistics',
-      taxCode: '0315556677',
+      taxCode: '0315556672',
       policyVersion: 'policy-2026.10',
       settings: {
         currency: 'VND',
@@ -556,9 +556,10 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
   };
   const xml1027 = `<?xml version="1.0" encoding="UTF-8"?>
 <HDon><DLHDon><TTChung><PBan>2.0.1</PBan><THDon>HÓA ĐƠN GIÁ TRỊ GIA TĂNG</THDon><KHHDon>1C26TNV</KHHDon><SHDon>00412</SHDon><NLap>2026-10-30</NLap><DVTTe>VND</DVTTe></TTChung>
-<NDHDon><NBan><Ten>Nguyên liệu Việt</Ten><MST>0312345678</MST><DChi>Quận 7, TP. Hồ Chí Minh</DChi></NBan><NMua><Ten>Minh An Retail</Ten><MST>0309876543</MST></NMua>
+<NDHDon><NBan><Ten>Nguyên liệu Việt</Ten><MST>0312345673</MST><DChi>Quận 7, TP. Hồ Chí Minh</DChi></NBan><NMua><Ten>Minh An Retail</Ten><MST>0309876547</MST></NMua>
 <DSHHDVu><HHDVu><STT>1</STT><THHDVu>Cà phê hạt Robusta</THHDVu><DVTinh>kg</DVTinh><SLuong>8</SLuong><DGia>300000</DGia><ThTien>2400000</ThTien></HHDVu><HHDVu><STT>2</STT><THHDVu>Sữa tươi tiệt trùng</THHDVu><DVTinh>hộp</DVTinh><SLuong>32</SLuong><DGia>40000</DGia><ThTien>1280000</ThTien></HHDVu></DSHHDVu>
 <TToan><TgTCThue>3680000</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>3680000</TgTTTBSo><TgTTTBChu>Ba triệu sáu trăm tám mươi nghìn đồng</TgTTTBChu></TToan></NDHDon></DLHDon>
+<MCCQT Id="cqt">00F0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5</MCCQT>
 <DSCKS><NBan><Signature Id="seller">MIIDemoSignatureValue</Signature></NBan></DSCKS></HDon>
 `;
   plans.push({
@@ -617,7 +618,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       amount: '3680000',
       status: 'VALIDATED',
       kind: 'EXPENSE',
-      fields: expFields('Nguyên liệu Việt', '00412', day(30), '3680000', '0312345678'),
+      fields: expFields('Nguyên liệu Việt', '00412', day(30), '3680000', '0312345673'),
       lines: [
         { description: 'Cà phê hạt Robusta', amount: '2400000' },
         { description: 'Sữa tươi tiệt trùng', amount: '1280000' },
@@ -818,6 +819,19 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
     'Thiết bị Bếp Việt',
     'Nhà đất Quận 3',
   ];
+  // Each supplier has its own (fictitious, checksum-valid) tax code: one code per legal entity.
+  const supplierTaxCode: Record<string, string> = {
+    'Nguyên liệu Việt': '0312345673',
+    'Sữa Xanh': '0314222331',
+    'Bao bì An Phát': '0314333440',
+    'Điện lực TP.HCM': '0300444567',
+    'Cấp nước Sài Gòn': '0304555677',
+    'Vận tải Phương Nam': '0314666778',
+    'Cà phê Cầu Đất': '0314777887',
+    'Văn phòng phẩm Hồng Hà': '0314888996',
+    'Thiết bị Bếp Việt': '0314999008',
+    'Nhà đất Quận 3': '0315111338',
+  };
   const titles: Record<string, string> = {
     'Điện lực TP.HCM': 'Hóa đơn tiền điện',
     'Cấp nước Sài Gòn': 'Hóa đơn tiền nước',
@@ -866,7 +880,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
           `HD-${String(100 + i).padStart(5, '0')}`,
           day(d),
           String(e.amount),
-          kindSrc === 'XML_EINVOICE' ? '0312345678' : undefined,
+          kindSrc === 'XML_EINVOICE' ? supplierTaxCode[e.supplier] : undefined,
         ),
       },
     });

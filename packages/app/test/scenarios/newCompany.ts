@@ -43,9 +43,9 @@ const bank = `Ngày giao dịch,Mã tham chiếu,Nội dung,Ghi có,Ghi nợ,Đ�
 const xml = (
   no: string,
   amount: number,
-) => `<?xml version="1.0"?><HDon><DLHDon><TTChung><KHHDon>C26TBM</KHHDon><SHDon>${no}</SHDon><NLap>2026-11-09</NLap><DVTTe>VND</DVTTe></TTChung>
-<NDHDon><NBan><Ten>Công ty TNHH Bột mì Sao Vàng</Ten><MST>0312987654</MST></NBan><NMua><Ten>Tiệm bánh Thu Hà</Ten><MST>8765432109</MST></NMua>
-<DSHHDVu><HHDVu><THHDVu>Bột mì</THHDVu><SLuong>1</SLuong><ThTien>${amount}</ThTien></HHDVu></DSHHDVu><TToan><TgTCThue>${amount}</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>${amount}</TgTTTBSo></TToan></NDHDon></DLHDon><DSCKS>ok</DSCKS></HDon>`;
+) => `<?xml version="1.0"?><HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>C26TBM</KHHDon><SHDon>${no}</SHDon><NLap>2026-11-09</NLap><DVTTe>VND</DVTTe></TTChung>
+<NDHDon><NBan><Ten>Công ty TNHH Bột mì Sao Vàng</Ten><MST>0312987656</MST></NBan><NMua><Ten>Tiệm bánh Thu Hà</Ten><MST>8765432103</MST></NMua>
+<DSHHDVu><HHDVu><THHDVu>Bột mì</THHDVu><SLuong>1</SLuong><ThTien>${amount}</ThTien></HHDVu></DSHHDVu><TToan><TgTCThue>${amount}</TgTCThue><TgTThue>0</TgTThue><TgTTTBSo>${amount}</TgTTTBSo></TToan></NDHDon></DLHDon><MCCQT Id="cqt">00F0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5</MCCQT><DSCKS><NBan><Signature/></NBan></DSCKS></HDon>`;
 
 export async function newCompanyScenario(
   makeStore: (now: () => string) => Store | Promise<Store>,
@@ -60,7 +60,7 @@ export async function newCompanyScenario(
   const org = await app.org.createOrganization(owner, {
     name: 'Tiệm bánh Thu Hà',
     orgType: 'Hộ kinh doanh',
-    taxCode: '8765432109',
+    taxCode: '8765432103',
   });
   let ctx = await app.org.context(owner);
   expect(ctx.tenant.settings.currentPeriod).toBe('2026-11');
@@ -103,7 +103,7 @@ export async function newCompanyScenario(
 
   // Intake: POS export, bank statement, two e-invoices
   // A VAT invoice (net lines + VAT = gross total) must pass review and confirmation.
-  const vatXml = `<?xml version="1.0"?><HDon><DLHDon><TTChung><KHHDon>C26TBM</KHHDon><SHDon>0000999</SHDon><NLap>2026-11-09</NLap></TTChung><NDHDon><NBan><Ten>Công ty TNHH Bột mì Sao Vàng</Ten><MST>0312987654</MST></NBan><DSHHDVu><HHDVu><THHDVu>Bột mì</THHDVu><ThTien>2500000</ThTien></HHDVu></DSHHDVu><TToan><TgTCThue>2500000</TgTCThue><TgTThue>250000</TgTThue><TgTTTBSo>2750000</TgTTTBSo></TToan></NDHDon></DLHDon><DSCKS>ok</DSCKS></HDon>`;
+  const vatXml = `<?xml version="1.0"?><HDon><DLHDon><TTChung><KHMSHDon>1</KHMSHDon><KHHDon>C26TBM</KHHDon><SHDon>0000999</SHDon><NLap>2026-11-09</NLap></TTChung><NDHDon><NBan><Ten>Công ty TNHH Bột mì Sao Vàng</Ten><MST>0312987656</MST></NBan><NMua><Ten>Tiệm bánh Thu Hà</Ten><MST>8765432103</MST></NMua><DSHHDVu><HHDVu><THHDVu>Bột mì</THHDVu><ThTien>2500000</ThTien></HHDVu></DSHHDVu><TToan><TgTCThue>2500000</TgTCThue><TgTThue>250000</TgTThue><TgTTTBSo>2750000</TgTTTBSo></TToan></NDHDon></DLHDon><MCCQT Id="cqt">00F0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5</MCCQT><DSCKS><NBan><Signature/></NBan></DSCKS></HDon>`;
   const vatDoc = (
     await app.documents.intake(owner, { entityId: store1.id, files: [{ name: 'hd-vat.xml', text: vatXml }] })
   ).files[0]!;
