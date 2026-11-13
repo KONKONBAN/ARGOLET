@@ -15,15 +15,21 @@ export function LoginPage() {
   const { backend } = useBackend();
   const { refresh } = useSession();
   const navigate = useNavigate();
-  const [contact, setContact] = useState('');
-  const [password, setPassword] = useState('');
+  const demo = backend.info.demo;
+  // The demo deployment opens with its account filled in: one tap on "Đăng nhập" is enough.
+  const [contact, setContact] = useState(demo?.email ?? '');
+  const [password, setPassword] = useState(demo?.password ?? '');
   const [remember, setRemember] = useState(true);
   const [totp, setTotp] = useState('');
   const [needTotp, setNeedTotp] = useState(false);
+  const [missing, setMissing] = useState(false);
   const login = useMutation('auth.login', { silent: true });
-  const demo = backend.info.demo;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!contact.trim() || !password) {
+      setMissing(true);
+      return;
+    }
     try {
       const r = await login.mutate({ contact, password, remember, totpCode: needTotp ? totp : undefined });
       await refresh();
@@ -39,14 +45,23 @@ export function LoginPage() {
     <AuthLayout>
       <h1 className="auth-title">Đăng nhập</h1>
       <p className="auth-sub">Đăng nhập vào không gian làm việc của bạn.</p>
+      {demo && (
+        <div className="demo-box mb-16">
+          <b>Bản trải nghiệm:</b> đã điền sẵn tài khoản {demo.email} · mật khẩu <b>{demo.password}</b>. Bấm{' '}
+          <b>Đăng nhập</b> để vào.
+        </div>
+      )}
       <form onSubmit={submit} noValidate>
         <TextInput
           label="Email"
           type="email"
+          inputMode="email"
           autoComplete="username"
+          autoCapitalize="none"
           value={contact}
           onChange={(e) => setContact(e.target.value)}
-          placeholder="ketoan@minhan.example"
+          placeholder="Nhập email hoặc số điện thoại"
+          error={missing && !contact.trim() ? 'Vui lòng nhập email hoặc số điện thoại' : undefined}
           required
         />
         <PasswordInput
@@ -54,7 +69,8 @@ export function LoginPage() {
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••••••"
+          placeholder="Nhập mật khẩu"
+          error={missing && !password ? 'Vui lòng nhập mật khẩu' : undefined}
           required
         />
         {needTotp && (
@@ -77,14 +93,7 @@ export function LoginPage() {
             <Alert tone="danger">{login.error.message}</Alert>
           </div>
         )}
-        <Button
-          type="submit"
-          variant="primary"
-          block
-          size="lg"
-          loading={login.loading}
-          disabled={!contact || !password}
-        >
+        <Button type="submit" variant="primary" block size="lg" loading={login.loading}>
           Đăng nhập
         </Button>
       </form>
@@ -94,19 +103,17 @@ export function LoginPage() {
       <Button block size="lg" onClick={() => navigate('/register')}>
         Tạo tài khoản ARGOLET
       </Button>
-      {demo && (
+      {demo && (contact !== demo.email || password !== demo.password) && (
         <div className="demo-box">
-          <b>Tài khoản trải nghiệm:</b> {demo.email} · mật khẩu <b>{demo.password}</b>
-          <br />
           <button
             className="link-btn"
-            style={{ marginTop: 6 }}
             onClick={() => {
               setContact(demo.email);
               setPassword(demo.password);
+              setMissing(false);
             }}
           >
-            Điền thông tin trải nghiệm
+            Điền lại tài khoản trải nghiệm
           </button>
         </div>
       )}
@@ -144,7 +151,7 @@ export function RegisterPage() {
           autoComplete="name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          placeholder="Nguyễn Minh Anh"
+          placeholder="Họ và tên của bạn"
           error={fieldError(reg.error, 'Họ và tên')}
         />
         <TextInput
@@ -152,7 +159,7 @@ export function RegisterPage() {
           autoComplete="email"
           value={contact}
           onChange={(e) => setContact(e.target.value)}
-          placeholder="ketoan@minhan.example"
+          placeholder="Nhập email hoặc số điện thoại"
           error={fieldError(reg.error, 'contact')}
         />
         <PasswordInput
@@ -316,7 +323,7 @@ export function ResetPage() {
             type="email"
             value={contact}
             onChange={(e) => setContact(e.target.value)}
-            placeholder="ketoan@minhan.example"
+            placeholder="Nhập email hoặc số điện thoại"
           />
           {req.error && <Alert tone="danger">{req.error.message}</Alert>}
           <div style={{ marginTop: 28 }}>
@@ -479,7 +486,7 @@ export function CreateOrgPage() {
           label="Tên tổ chức"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Minh An Commerce"
+          placeholder="Tên cửa hàng hoặc công ty"
           error={fieldError(create.error, 'Tên tổ chức')}
         />
         <div className="field">

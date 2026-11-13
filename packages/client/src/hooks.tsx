@@ -37,6 +37,8 @@ interface Entry {
   error?: ApiError;
   promise?: Promise<void>;
   stale: boolean;
+  /** The data predates a change made since (a mutation): shown, but marked as refreshing. */
+  outdated?: boolean;
 }
 const cache = new Map<string, Entry>();
 const listeners = new Set<() => void>();
@@ -51,8 +53,24 @@ const subscribe = (l: () => void) => {
 };
 
 export function invalidateAll(): void {
-  for (const e of cache.values()) e.stale = true;
+  for (const e of cache.values()) {
+    e.stale = true;
+    if (e.data !== undefined) e.outdated = true;
+  }
   emit();
+}
+
+const isRefreshing = () => {
+  for (const e of cache.values()) if (e.outdated && e.promise) return true;
+  return false;
+};
+
+/**
+ * True while data shown on screen is being reloaded after a change: screens dim their lists
+ * (and report aria-busy) so an outdated row — a group that was just confirmed — is not acted on.
+ */
+export function useRefreshing(): boolean {
+  return useSyncExternalStore(subscribe, isRefreshing, () => false);
 }
 
 export function clearCache(): void {

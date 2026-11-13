@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRefreshing } from '@argolet/client';
 import {
   Check,
   ChevronLeft,
@@ -56,12 +57,15 @@ export function Screen({
   scroll?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  // While data on screen is reloaded after a change, it is dimmed and not tappable.
+  const refreshing = useRefreshing();
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }} aria-busy={refreshing || undefined}>
       {scroll ? (
         <ScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: footer ? 110 : 32 }}
           keyboardShouldPersistTaps="handled"
+          style={refreshing ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
         >
           {children}
         </ScrollView>

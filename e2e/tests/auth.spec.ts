@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectClean, fillLogin, login, settled, typeOtp, watch } from './helpers';
+import { DEMO, expectClean, fillLogin, login, settled, typeOtp, watch } from './helpers';
 
 test.describe('authentication & workspace onboarding', () => {
   test('wrong password keeps the user on the login page with an error', async ({ page }, info) => {
@@ -8,6 +8,31 @@ test.describe('authentication & workspace onboarding', () => {
     await expect(page.getByRole('alert')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
     await expectClean(w, info);
+  });
+
+  test('the demo account is filled in: one click on "Đăng nhập" enters', async ({ page }, info) => {
+    const w = watch(page);
+    await page.goto('/#/login');
+    await expect(page.getByLabel('Email', { exact: true })).toHaveValue(DEMO.contact);
+    await expect(page.getByLabel('Mật khẩu', { exact: true })).toHaveValue(DEMO.password);
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Chọn không gian làm việc' })).toBeVisible();
+    await expectClean(w, info);
+  });
+
+  test('empty fields explain what is missing instead of a dead button', async ({ page }) => {
+    await page.goto('/#/login');
+    await page.getByLabel('Email', { exact: true }).fill('');
+    await page.getByLabel('Mật khẩu', { exact: true }).fill('');
+    const submit = page.getByRole('button', { name: 'Đăng nhập', exact: true });
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    await expect(page.getByText('Vui lòng nhập email hoặc số điện thoại')).toBeVisible();
+    await expect(page.getByText('Vui lòng nhập mật khẩu')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+    await page.getByRole('button', { name: 'Điền lại tài khoản trải nghiệm' }).click();
+    await submit.click();
+    await expect(page.getByRole('heading', { name: 'Chọn không gian làm việc' })).toBeVisible();
   });
 
   test('protected screens redirect to login when signed out', async ({ page }) => {

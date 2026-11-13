@@ -27,7 +27,7 @@ import {
 import logo from '../assets/logo.jpg';
 import hero from '../assets/hero.jpg';
 import banner from '../assets/banner.jpg';
-import { useBackend, useMutation, useQuery } from '../api/hooks';
+import { useBackend, useMutation, useQuery, useRefreshing } from '../api/hooks';
 import { Avatar, useToast } from '../ui/components';
 import { useSession } from './session';
 
@@ -88,6 +88,7 @@ const NAV_MODULES = [
 export function AppShell() {
   const { ctx, me, signOut } = useSession();
   const { backend } = useBackend();
+  const refreshing = useRefreshing();
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
@@ -275,7 +276,11 @@ export function AppShell() {
             <Avatar name={ctx.member.displayName} />
           </button>
         </header>
-        <main id="content">
+        <main
+          id="content"
+          aria-busy={refreshing || undefined}
+          className={refreshing ? 'refreshing' : undefined}
+        >
           <Outlet />
         </main>
         <nav className="bottom-nav" aria-label="Điều hướng nhanh">

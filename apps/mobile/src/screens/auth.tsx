@@ -79,14 +79,20 @@ const fieldErr = (e: ApiError | undefined, f: string) =>
 export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
   const { backend } = useBackend();
   const { refresh } = useSession();
-  const [contact, setContact] = useState('');
-  const [password, setPassword] = useState('');
+  const demo = backend.info.demo;
+  // The demo build opens with its account filled in: one tap on "Đăng nhập" is enough.
+  const [contact, setContact] = useState(demo?.email ?? '');
+  const [password, setPassword] = useState(demo?.password ?? '');
   const [remember, setRemember] = useState(true);
   const [totp, setTotp] = useState('');
   const [needTotp, setNeedTotp] = useState(false);
+  const [missing, setMissing] = useState(false);
   const login = useMutation('auth.login', { silent: true });
-  const demo = backend.info.demo;
   const submit = async () => {
+    if (!contact.trim() || !password) {
+      setMissing(true);
+      return;
+    }
     try {
       await login.mutate({ contact, password, remember, totpCode: needTotp ? totp : undefined });
       await refresh();
@@ -98,13 +104,21 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
   };
   return (
     <AuthFrame title="Đăng nhập" subtitle="Đăng nhập vào không gian làm việc của bạn.">
+      {demo && (
+        <Notice tone="info">
+          Bản trải nghiệm: đã điền sẵn tài khoản {demo.email} · mật khẩu {demo.password}. Chạm Đăng nhập để
+          vào.
+        </Notice>
+      )}
       <Input
         label="Email"
         value={contact}
         onChangeText={setContact}
         keyboardType="email-address"
+        autoCapitalize="none"
         autoComplete="email"
-        placeholder="ketoan@minhan.example"
+        placeholder="Nhập email hoặc số điện thoại"
+        error={missing && !contact.trim() ? 'Vui lòng nhập email hoặc số điện thoại' : undefined}
       />
       <Input
         label="Mật khẩu"
@@ -112,7 +126,8 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
         onChangeText={setPassword}
         secure
         autoComplete="password"
-        placeholder="••••••••••••"
+        placeholder="Nhập mật khẩu"
+        error={missing && !password ? 'Vui lòng nhập mật khẩu' : undefined}
       />
       {needTotp && (
         <View style={{ marginBottom: 14 }}>
@@ -144,20 +159,15 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
       {login.error && login.error.details?.reason !== 'MFA_REQUIRED' && (
         <Notice tone="danger">{login.error.message}</Notice>
       )}
-      <Button
-        title="Đăng nhập"
-        variant="primary"
-        loading={login.loading}
-        disabled={!contact || !password}
-        onPress={submit}
-      />
+      <Button title="Đăng nhập" variant="primary" loading={login.loading} onPress={submit} />
       <Gap />
       <Button title="Tạo tài khoản" onPress={() => navigation.navigate('Register')} />
-      {demo && (
+      {demo && (contact !== demo.email || password !== demo.password) && (
         <Pressable
           onPress={() => {
             setContact(demo.email);
             setPassword(demo.password);
+            setMissing(false);
           }}
           style={{
             marginTop: 18,
@@ -171,8 +181,7 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
           accessibilityRole="button"
         >
           <Text style={{ fontSize: 12, color: '#2C5B4B', lineHeight: 18 }}>
-            Tài khoản trải nghiệm: {demo.email} · mật khẩu {demo.password}
-            {'\n'}Chạm để điền thông tin
+            Chạm để điền lại tài khoản trải nghiệm
           </Text>
         </Pressable>
       )}
@@ -243,7 +252,7 @@ export function RegisterScreen({ navigation, route }: ScreenProps<'Register'>) {
         value={fullName}
         onChangeText={setFullName}
         autoCapitalize="words"
-        placeholder="Nguyễn Minh Anh"
+        placeholder="Họ và tên của bạn"
         error={fieldErr(reg.error, 'Họ và tên')}
       />
       <Input
@@ -251,7 +260,7 @@ export function RegisterScreen({ navigation, route }: ScreenProps<'Register'>) {
         value={contact}
         onChangeText={setContact}
         keyboardType="email-address"
-        placeholder="ketoan@minhan.example"
+        placeholder="Nhập email hoặc số điện thoại"
         error={fieldErr(reg.error, 'contact')}
       />
       <Input
@@ -373,7 +382,7 @@ export function ResetScreen({ navigation }: ScreenProps<'Reset'>) {
             value={contact}
             onChangeText={setContact}
             keyboardType="email-address"
-            placeholder="ketoan@minhan.example"
+            placeholder="Nhập email hoặc số điện thoại"
           />
           <Button
             title="Gửi liên kết khôi phục"
@@ -487,7 +496,7 @@ export function CreateOrgScreen() {
         value={name}
         onChangeText={setName}
         autoCapitalize="words"
-        placeholder="Minh An Commerce"
+        placeholder="Tên cửa hàng hoặc công ty"
         error={fieldErr(create.error, 'Tên tổ chức')}
       />
       <Input label="Loại hình" value={orgType} onChangeText={setOrgType} autoCapitalize="sentences" />
@@ -536,7 +545,7 @@ export function InviteScreen({ route }: ScreenProps<'Invite'>) {
             value={code}
             onChangeText={setCode}
             autoCapitalize="characters"
-            placeholder="MOI-2026"
+            placeholder="VD: MOI-2026"
           />
           {inv.error && <Notice tone="danger">{inv.error.message}</Notice>}
           <Button

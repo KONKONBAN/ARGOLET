@@ -738,6 +738,14 @@ table.table {
   color: #9fb2bd;
 }
 
+/* Data on screen is being reloaded after a change: rows are outdated until it arrives. */
+main.refreshing tbody,
+main.refreshing .list-rows {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(var(--n), minmax(0, 1fr));
