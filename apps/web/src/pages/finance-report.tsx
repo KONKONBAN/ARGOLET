@@ -4,8 +4,17 @@ import { ArrowDownRight, ArrowUpRight, Calculator, FileSpreadsheet, Inbox, Info 
 import { formatCompactVnd, formatNumber, formatPercent, formatVnd, D } from '@argolet/core';
 import type { OpResult } from '@argolet/client';
 import { useBackend, useQuery } from '../api/hooks';
-import { Button, ErrorNote, PageLoading, downloadBase64, useToast } from '../ui/components';
-import { usePeriodLabel } from './overview';
+import {
+  Button,
+  ErrorNote,
+  KpiRow,
+  PageHeader,
+  PageLoading,
+  downloadBase64,
+  useToast,
+} from '../ui/components';
+import { ModuleTabs } from './g1';
+import { PageFoot, usePeriodLabel } from './overview';
 
 export const FINANCE_TABS = [
   { to: '/finance-report', label: 'Báo cáo tài chính' },
@@ -61,47 +70,28 @@ function Segmented<T extends string>({
   );
 }
 
-/** Headline figure with its change against the previous month. */
-function FinKpi({
-  label,
-  value,
+/** Change against the previous month, as the note under a headline figure. */
+function Delta({
   current,
   previous,
   previousLabel,
   costLike,
-  highlight,
-  note,
 }: {
-  label: string;
-  value: string;
   current: string;
   previous?: string | undefined;
   previousLabel: string;
-  /** For costs a rise is not good news: the arrow colour is inverted. */
+  /** For costs a rise is not good news: the colour is inverted. */
   costLike?: boolean;
-  highlight?: boolean;
-  note?: string;
 }) {
-  let delta: React.ReactNode = (
-    <span className="muted">{note ?? `Chưa có số liệu ${previousLabel} để so sánh`}</span>
-  );
-  if (!note && previous !== undefined && !D(previous).isZero()) {
-    const ch = D(current).minus(previous).div(D(previous).abs());
-    const up = ch.gte(0);
-    const good = costLike ? !up : up;
-    delta = (
-      <span className={good ? 'up' : 'down'}>
-        {up ? <ArrowUpRight size={14} aria-hidden /> : <ArrowDownRight size={14} aria-hidden />}
-        {formatPercent(ch.abs(), 1)} so với {previousLabel}
-      </span>
-    );
-  }
+  if (previous === undefined || D(previous).isZero()) return <>Chưa có số liệu {previousLabel} để so sánh</>;
+  const ch = D(current).minus(previous).div(D(previous).abs());
+  const up = ch.gte(0);
+  const good = costLike ? !up : up;
   return (
-    <div className={`fin-kpi${highlight ? ' hl' : ''}`}>
-      <span className="fin-kpi-l">{label}</span>
-      <b className="fin-kpi-v num">{value}</b>
-      <span className="fin-kpi-d">{delta}</span>
-    </div>
+    <span className={`delta ${good ? 'up' : 'down'}`}>
+      {up ? <ArrowUpRight size={14} aria-hidden /> : <ArrowDownRight size={14} aria-hidden />}
+      {formatPercent(ch.abs(), 1)} so với {previousLabel}
+    </span>
   );
 }
 
@@ -358,84 +348,71 @@ export function FinanceReportPage() {
   const about = `${r.note} ${r.basis}${noDocs.length ? ` Chưa có chứng từ cho: ${noDocs.join('; ')}.` : ''}`;
 
   return (
-    <div className="page fin-page">
-      <header className="fin-head">
-        <h1 className="page-title">Báo cáo tài chính</h1>
-        <div className="fin-actions">
-          <Segmented label="Khoảng thời gian" value={months} options={RANGES} onChange={setMonths} />
-          {r.appraisalHint && r.canAppraise && (
-            <Button
-              size="sm"
-              icon={<Calculator size={16} />}
-              title={`${r.appraisalHint.note} Dòng tiền ≈ ${formatNumber(D(r.appraisalHint.annualCashflowMillions))} triệu đ/năm.`}
-              onClick={() => navigate(`/finance?new=1&cashflow=${r.appraisalHint!.annualCashflowMillions}`)}
-            >
-              Thẩm định từ số liệu
-            </Button>
-          )}
-          {r.canExport && (
-            <Button
-              size="sm"
-              variant="primary"
-              icon={<FileSpreadsheet size={16} />}
-              loading={exporting}
-              disabled={empty}
-              onClick={() => void exportReport()}
-            >
-              Xuất Excel
-            </Button>
-          )}
-        </div>
-      </header>
-      <nav className="fin-tabs" aria-label="Tài chính">
-        {FINANCE_TABS.map((x) => (
-          <button
-            key={x.to}
-            type="button"
-            className={x.to === '/finance-report' ? 'on' : undefined}
-            aria-current={x.to === '/finance-report' ? 'page' : undefined}
-            onClick={() => navigate(x.to)}
-          >
-            {x.label}
-          </button>
-        ))}
-        <span className="fin-scope small muted">
-          {period} · {r.location} · chỉ chứng từ đã xác nhận
-        </span>
-      </nav>
-
-      <div className="fin-kpis">
-        <FinKpi
-          label="Doanh thu thuần"
-          value={r.current.netRevenueLabel}
-          current={cur.netRevenue}
-          previous={prev?.netRevenue}
-          previousLabel={prevLabel}
-        />
-        <FinKpi
-          label="Chi phí"
-          value={r.current.totalCostsLabel}
-          current={cur.totalCosts}
-          previous={prev?.totalCosts}
-          previousLabel={prevLabel}
-          costLike
-        />
-        <FinKpi
-          label="Kết quả thu − chi"
-          value={r.current.resultLabel}
-          current={cur.result}
-          previousLabel={prevLabel}
-          note={`Biên lợi nhuận ${r.current.marginLabel}`}
-          highlight
-        />
-        <FinKpi
-          label="Tiền thu về"
-          value={formatVnd(cur.received)}
-          current={cur.received}
-          previous={prev?.received}
-          previousLabel={prevLabel}
-        />
-      </div>
+    <div className="page">
+      <PageHeader
+        eyebrow="Tài chính"
+        title="Báo cáo tài chính"
+        subtitle={`Kết quả kinh doanh từ chứng từ đã xác nhận · ${r.location}`}
+        period={period}
+        actions={
+          <>
+            <Segmented label="Khoảng thời gian" value={months} options={RANGES} onChange={setMonths} />
+            {r.appraisalHint && r.canAppraise && (
+              <Button
+                icon={<Calculator size={18} />}
+                title={`${r.appraisalHint.note} Dòng tiền ≈ ${formatNumber(D(r.appraisalHint.annualCashflowMillions))} triệu đ/năm.`}
+                onClick={() => navigate(`/finance?new=1&cashflow=${r.appraisalHint!.annualCashflowMillions}`)}
+              >
+                Thẩm định từ số liệu
+              </Button>
+            )}
+            {r.canExport && (
+              <Button
+                variant="primary"
+                icon={<FileSpreadsheet size={18} />}
+                loading={exporting}
+                disabled={empty}
+                onClick={() => void exportReport()}
+              >
+                Xuất Excel
+              </Button>
+            )}
+          </>
+        }
+      />
+      <ModuleTabs tabs={FINANCE_TABS} current="/finance-report" />
+      <KpiRow
+        items={[
+          {
+            label: 'Doanh thu thuần',
+            value: r.current.netRevenueLabel,
+            note: <Delta current={cur.netRevenue} previous={prev?.netRevenue} previousLabel={prevLabel} />,
+          },
+          {
+            label: 'Chi phí',
+            value: r.current.totalCostsLabel,
+            note: (
+              <Delta
+                current={cur.totalCosts}
+                previous={prev?.totalCosts}
+                previousLabel={prevLabel}
+                costLike
+              />
+            ),
+          },
+          {
+            label: 'Kết quả thu − chi',
+            value: r.current.resultLabel,
+            note: `Biên lợi nhuận ${r.current.marginLabel}`,
+            highlight: true,
+          },
+          {
+            label: 'Tiền thu về',
+            value: formatVnd(cur.received),
+            note: <Delta current={cur.received} previous={prev?.received} previousLabel={prevLabel} />,
+          },
+        ]}
+      />
 
       {empty ? (
         <section className="card fin-empty">
@@ -489,6 +466,7 @@ export function FinanceReportPage() {
           </div>
         </div>
       )}
+      <PageFoot />
     </div>
   );
 }
