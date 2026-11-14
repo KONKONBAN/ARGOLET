@@ -187,7 +187,7 @@ describe('demo dataset matches the Figma design', () => {
     expect(a.kpis.map((k) => k.value)).toEqual(['12 tài sản', '25.000 kWh', '2 lịch']);
     const l = await app.modules.logistics(call);
     expect(l.shipment!.freeTimeEnd).toBe('02/11/2026');
-    expect(l.shipment!.freeTimeNote).toContain('Còn 2 ngày theo biểu phí BPL-10');
+    expect(l.shipment!.freeTimeNote).toBe('Còn 2 ngày miễn phí');
     const lf = await app.modules.logisticsFinance(call);
     expect(lf.shipment!.kpis.map((k) => k.value)).toEqual(['24.000.000 đ', '18.200.000 đ', '5.800.000 đ']);
     expect(lf.shipment!.kpis[2]!.note).toBe('Biên lợi nhuận gộp 24,17%');

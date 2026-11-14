@@ -888,7 +888,7 @@ export function BooksPage() {
             }
           }}
         >
-          {d.regime === 'HKD' ? 'Xuất sổ kế toán (Excel)' : 'Xuất bảng kê chứng từ (Excel)'}
+          Xuất sổ kế toán (Excel)
         </Button>
       </div>
       <PageFoot />

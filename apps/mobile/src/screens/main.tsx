@@ -149,11 +149,11 @@ export function OverviewScreen({ navigation }: { navigation: unknown }) {
   return (
     <Screen>
       <Title title="Tổng quan kinh doanh" subtitle={`${o.periodLabel} · VND`} />
-      <Hero label="Dòng tiền thuần" value={o.netLabel} note={`Doanh thu − chi phí · ${o.periodLabel}`}>
+      <Hero label="Dòng tiền thuần" value={o.netLabel} note={o.periodLabel}>
         <HeroSplit
           items={[
-            { label: 'Doanh thu', value: o.revenueLabel, note: o.revenueNote },
-            { label: 'Chi phí', value: o.expenseLabel, note: o.expenseNote },
+            { label: 'Doanh thu', value: o.revenueLabel },
+            { label: 'Chi phí', value: o.expenseLabel },
           ]}
         />
       </Hero>
@@ -1110,11 +1110,7 @@ export function ReconDetailScreen({ route, navigation }: ScreenProps<'ReconDetai
       <Text
         style={[T.small, { marginBottom: 8 }]}
       >{`${g.code} · ${g.statusLabel} · ${formatDate(orders[0]?.date ?? receipts[0]?.date ?? new Date().toISOString())}`}</Text>
-      <Hero
-        label="Tiền thực nhận"
-        value={formatVnd(g.received)}
-        note={`Tổng đơn ${formatVnd(g.gross)} − Phí ${formatVnd(D(g.fee).plus(g.refund).plus(g.discount))}`}
-      />
+      <Hero label="Tiền thực nhận" value={formatVnd(g.received)} />
       <Card title="Cấu thành khoản nhận">
         <KV
           rows={[
@@ -1180,12 +1176,12 @@ export function MatchScreen({ route, navigation }: ScreenProps<'Match'>) {
           {
             label: `Tổng ${orders.length} đơn hàng`,
             value: formatVnd(g.gross),
-            note: `Nhóm ${g.code} · trước phí`,
+            note: `Nhóm ${g.code}`,
           },
           {
             label: `${receipts.length} khoản tiền đã nhận`,
             value: formatVnd(g.received),
-            note: receipts.map((r) => formatVnd(r.amount)).join(' + '),
+            note: `${receipts.length} khoản nhận`,
           },
           {
             label: 'Chênh lệch sau phí',
@@ -1238,7 +1234,7 @@ export function ApprovalScreen({ route, navigation }: ScreenProps<'Approval'>) {
   const [open, setOpen] = useState(false);
   const [comment, setComment] = useState('');
   if (!data.data) return data.error ? <ErrorView error={data.error} /> : <Loading />;
-  const { approval: a, canDecide, blockedReason, roleNote } = data.data;
+  const { approval: a, canDecide, blockedReason } = data.data;
   const act = async (decision: 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES') => {
     try {
       await withStepUp(() =>
@@ -1289,7 +1285,6 @@ export function ApprovalScreen({ route, navigation }: ScreenProps<'Approval'>) {
             done: true,
           }))}
         />
-        <Text style={T.small}>{roleNote}</Text>
       </Card>
       {blockedReason && <Notice tone="info">{blockedReason}</Notice>}
       {decide.error && <Notice tone="danger">{decide.error.message}</Notice>}
@@ -1482,7 +1477,7 @@ export function DecisionPackScreen() {
         />
       }
     >
-      <Hero label="Dòng tiền thuần" value={d.kpis.netLabel} note={d.kpis.netNote} />
+      <Hero label="Dòng tiền thuần" value={d.kpis.netLabel} />
       <Chip tone={d.status === 'CLOSED' ? 'success' : 'warning'}>{d.statusLabel}</Chip>
       <Gap />
       <Card title="Số liệu & căn cứ">

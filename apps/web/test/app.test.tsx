@@ -147,6 +147,7 @@ describe('every screen renders without errors', () => {
     ['projects', /Dự án/],
     ['finance-report', 'Báo cáo tài chính'],
     ['finance-tools', 'Công cụ tính toán'],
+    ['finance-books', 'Sổ sách & chỉ số'],
     ['finance', /Phân tích tài chính|Thẩm định/],
     ['scenarios', /kịch bản/i],
     ['assets', /Tài sản/],

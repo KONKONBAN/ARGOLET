@@ -1,0 +1,108 @@
+name: Mobile apps (Android APK · iOS)
+
+# Builds the installable apps and publishes them on the "mobile-latest" release:
+#  - Android: ARGOLET-android.apk — install directly on any Android phone;
+#  - iOS: ARGOLET-ios-simulator.zip — runs in the iOS Simulator (Xcode). Installing on an iPhone
+#    needs an Apple Developer account to sign the app (TestFlight / App Store).
+# Preview builds (APP_ENV=preview) work without a server, with clearly-labelled sample data, and
+# connect to a company's ARGOLET server when one is set in the app.
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/mobile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_ENV: preview
+  RELEASE_TAG: mobile-latest
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Use JDK 17 (React Native build)
+        run: |
+          if [ -n "${JAVA_HOME_17_X64:-}" ]; then echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"; fi
+      - run: pnpm install --frozen-lockfile
+      - name: Generate the native Android project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --no-install
+      - name: Build the APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64
+      - name: Name the file
+        run: cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk ARGOLET-android.apk
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ARGOLET-android-apk
+          path: ARGOLET-android.apk
+      - name: Publish on the mobile release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" \
+            --prerelease --target "$GITHUB_SHA" --title "ARGOLET · ứng dụng di động (bản mới nhất)" \
+            --notes "Android: tải ARGOLET-android.apk và mở trên điện thoại để cài. iOS: ARGOLET-ios-simulator.zip chạy trên iOS Simulator; cài trên iPhone cần ký bằng tài khoản Apple Developer (TestFlight / App Store)." || true
+          gh release upload "$RELEASE_TAG" ARGOLET-android.apk --clobber
+
+  ios:
+    name: iOS (Simulator build)
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate the native iOS project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios --no-install
+      - name: Install CocoaPods dependencies
+        working-directory: apps/mobile/ios
+        run: pod install
+      - name: Build for the iOS Simulator (no signing needed)
+        working-directory: apps/mobile/ios
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ARGOLET.xcworkspace -scheme ARGOLET -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO | tail -n 60
+      - name: Package the app
+        run: |
+          cd apps/mobile/ios/build/Build/Products/Release-iphonesimulator
+          zip -qry "$GITHUB_WORKSPACE/ARGOLET-ios-simulator.zip" ARGOLET.app
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ARGOLET-ios-simulator
+          path: ARGOLET-ios-simulator.zip
+      - name: Publish on the mobile release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" \
+            --prerelease --target "$GITHUB_SHA" --title "ARGOLET · ứng dụng di động (bản mới nhất)" \
+            --notes "Android: tải ARGOLET-android.apk và mở trên điện thoại để cài. iOS: ARGOLET-ios-simulator.zip chạy trên iOS Simulator; cài trên iPhone cần ký bằng tài khoản Apple Developer (TestFlight / App Store)." || true
+          gh release upload "$RELEASE_TAG" ARGOLET-ios-simulator.zip --clobber

@@ -288,6 +288,20 @@ export const operations = {
     '/v1/finance/report/export',
     (a, c, p: ParamsOf<Svc['finance']['exportReport']>) => a.finance.exportReport(c, p),
   ),
+  'ledger.overview': op('GET', '/v1/ledger', (a, c, p: ParamsOf<Svc['ledger']['overview']>) =>
+    a.ledger.overview(c, p),
+  ),
+  'ledger.journal': op('GET', '/v1/ledger/journal', (a, c, p: ParamsOf<Svc['ledger']['journal']>) =>
+    a.ledger.journal(c, p),
+  ),
+  'ledger.saveSettings': op(
+    'POST',
+    '/v1/ledger/settings',
+    (a, c, p: ParamsOf<Svc['ledger']['saveSettings']>) => a.ledger.saveSettings(c, p),
+  ),
+  'ledger.export': op('GET', '/v1/ledger/export', (a, c, p: ParamsOf<Svc['ledger']['exportBooks']>) =>
+    a.ledger.exportBooks(c, p),
+  ),
   'finance.appraisal': op('GET', '/v1/finance/appraisal', (a, c, p: ParamsOf<Svc['finance']['appraisal']>) =>
     a.finance.appraisal(c, p),
   ),

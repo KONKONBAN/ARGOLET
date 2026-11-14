@@ -132,6 +132,21 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
         timezone: 'Asia/Ho_Chi_Minh',
         periodType: 'MONTH',
         accountingRegime: 'TT133',
+        // Số dư đầu tháng 10/2026 khi bắt đầu dùng ARGOLET (tổng Nợ = tổng Có = 863 triệu đồng).
+        ledger: {
+          openingPeriod: '2026-10',
+          opening: {
+            '111': '35000000',
+            '112': '420000000',
+            '152': '48000000',
+            '211': '360000000',
+            '214': '-72000000',
+            '331': '-58000000',
+            '341': '-200000000',
+            '4111': '-450000000',
+            '4211': '-83000000',
+          },
+        },
         packages: ['G1', 'G2', 'G3', 'G4'],
         currentPeriod: '2026-10',
         dataLocation: 'Việt Nam',

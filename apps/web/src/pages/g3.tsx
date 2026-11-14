@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Calculator, CircleCheck, Columns3, FileText, MapPin, Plus, Wrench } from 'lucide-react';
-import { formatShortDateTime } from '@argolet/core';
+import {
+  BookOpenCheck,
+  Calculator,
+  CircleCheck,
+  Columns3,
+  FileText,
+  MapPin,
+  Plus,
+  Wrench,
+} from 'lucide-react';
+import { D, formatShortDateTime } from '@argolet/core';
+import type { OpResult } from '@argolet/client';
 import { useMutation, useQuery } from '../api/hooks';
 import { CashflowColumns } from '../ui/charts';
 import {
@@ -423,6 +433,16 @@ interface AssumptionForm {
   salvageValue?: string;
 }
 const fmtThousands = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+type BooksAppraisal = Extract<OpResult<'ledger.overview'>, { applicable: true }>['appraisal'];
+/** The cash flow, discount rate (WACC) and debt service the books give, over what the person typed. */
+const withBooks = (f: AssumptionForm, b: BooksAppraisal): AssumptionForm => ({
+  ...f,
+  ...(b.annualCashflowMillions ? { annualCashflow: b.annualCashflowMillions } : {}),
+  ...(b.discountRate
+    ? { discountRatePct: D(b.discountRate).times(100).toDecimalPlaces(2).toFixed().replace('.', ',') }
+    : {}),
+  ...(b.annualDebtServiceMillions ? { annualDebtService: b.annualDebtServiceMillions } : {}),
+});
 const toAssumptions = (f: AssumptionForm) => ({
   investment: f.investment.replace(/\./g, ''),
   annualCashflow: f.annualCashflow.replace(/\./g, ''),
@@ -482,6 +502,8 @@ export function FinancePage() {
   const data = useQuery('finance.appraisal', { projectId }, { keepPrevious: true });
   const recalc = useMutation('finance.recalculate', { silent: true });
   const create = useMutation('finance.createProject', { silent: true });
+  const booksQuery = useQuery('ledger.overview', { months: '12' });
+  const books = booksQuery.data?.applicable ? booksQuery.data.appraisal : null;
   const [edits, setEdits] = useState<{ id: string; form: AssumptionForm } | null>(null);
   // Opened from the finance report with the average result of confirmed months (?new=1&cashflow=…).
   const [sp, setSp] = useSearchParams();
@@ -521,13 +543,14 @@ export function FinancePage() {
   const openCreate = () => {
     create.reset();
     setNewName('');
-    setNewForm({
+    const blank = {
       investment: '',
       annualCashflow: '',
       years: '5',
       discountRatePct: '10',
       annualDebtService: '',
-    });
+    };
+    setNewForm(books ? withBooks(blank, books) : blank);
     setNewOpen(true);
   };
   const createModal = (
@@ -563,6 +586,17 @@ export function FinancePage() {
         onChange={(e) => setNewName(e.target.value)}
         placeholder="Lắp điện mặt trời áp mái"
       />
+      {books && (
+        <div className="books-pull">
+          <Button
+            size="sm"
+            icon={<BookOpenCheck size={16} />}
+            onClick={() => setNewForm(withBooks(newForm, books))}
+          >
+            Lấy từ sổ sách
+          </Button>
+        </div>
+      )}
       <AssumptionFields form={newForm} setForm={setNewForm} />
       {create.error && <ErrorNote error={create.error} />}
     </Modal>
@@ -640,7 +674,21 @@ export function FinancePage() {
         }}
       />
       <div className="grid split-side">
-        <Card title="Giả định đầu vào" subtitle={`${d.project.name} · ${d.project.scenarioName}`}>
+        <Card
+          title="Giả định đầu vào"
+          subtitle={`${d.project.name} · ${d.project.scenarioName}`}
+          actions={
+            books && d.canRun ? (
+              <Button
+                size="sm"
+                icon={<BookOpenCheck size={16} />}
+                onClick={() => setForm(withBooks(form, books))}
+              >
+                Lấy từ sổ sách
+              </Button>
+            ) : undefined
+          }
+        >
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -1538,9 +1586,6 @@ export function LogisticsFinancePage() {
               { key: 'a', header: 'Số tiền', render: (r) => r.amountLabel, align: 'right' },
             ]}
           />
-          <p className="table-foot">
-            {s.tariff.replace('Biểu phí: ', 'Biểu phí ').replace(' · Hiệu lực từ', ' · Áp dụng từ')}.
-          </p>
         </Card>
         <Card title="Phân bổ giá vốn" subtitle="Theo trọng lượng">
           {s.allocation.map((a) => (

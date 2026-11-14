@@ -215,7 +215,7 @@ export function ClosePage() {
         subtitle="Rà soát điều kiện và xác nhận phạm vi chốt."
         period={period}
       />
-      <div className="grid split-main">
+      <div>
         <Card>
           <div className="row-between wrap">
             <h2 style={{ fontSize: 20, fontWeight: 700 }}>{s.periodLabel}</h2>
@@ -293,30 +293,6 @@ export function ClosePage() {
             </p>
           )}
         </Card>
-        <Card title="Trình tự chốt kỳ">
-          <div className="mt-16">
-            <Timeline
-              items={[
-                {
-                  title: 'Rà soát dữ liệu',
-                  sub: 'Chứng từ · Đối soát · Phê duyệt',
-                  done: s.blocking === 0 || s.status === 'CLOSED',
-                },
-                {
-                  title: 'Xác nhận phạm vi',
-                  sub: 'Đơn vị · Kỳ · Người có quyền',
-                  done: s.status === 'CLOSED',
-                },
-                {
-                  title: 'Lưu phiên bản chốt',
-                  sub: 'Bằng chứng và lịch sử truy vết',
-                  done: s.status === 'CLOSED',
-                },
-              ]}
-            />
-          </div>
-          <div className="note-box">{s.roleNote}</div>
-        </Card>
       </div>
       <Modal
         open={confirmOpen}
@@ -366,9 +342,9 @@ export function DecisionPackPage() {
       />
       <KpiRow
         items={[
-          { label: 'Doanh thu trong kỳ', value: d.kpis.revenueLabel, note: d.scopeLabel },
+          { label: 'Doanh thu trong kỳ', value: d.kpis.revenueLabel },
           { label: 'Chi phí đã ghi nhận', value: d.kpis.expenseLabel },
-          { label: 'Dòng tiền thuần', value: d.kpis.netLabel, note: d.kpis.netNote, highlight: true },
+          { label: 'Dòng tiền thuần', value: d.kpis.netLabel, highlight: true },
         ]}
       />
       <div className="grid split-main">

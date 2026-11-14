@@ -21,6 +21,7 @@ import { CloseService } from './services/close';
 import { EvidenceService } from './services/evidence';
 import { DashboardService } from './services/dashboard';
 import { FinanceService } from './services/finance';
+import { LedgerService } from './services/ledger';
 import { ModuleService } from './services/modules';
 import { AssistantService } from './services/assistant';
 import { ConnectionService } from './services/connections';
@@ -68,6 +69,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
   const evidence = new EvidenceService(core);
   const dashboard = new DashboardService(core);
   const finance = new FinanceService(core);
+  const ledger = new LedgerService(core);
   const modules = new ModuleService(core);
   const assistant = new AssistantService(core);
   const connections = new ConnectionService(core, documents);
@@ -95,6 +97,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
     evidence,
     dashboard,
     finance,
+    ledger,
     modules,
     assistant,
     connections,

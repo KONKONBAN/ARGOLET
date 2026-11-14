@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FileSpreadsheet } from 'lucide-react';
+import { useQuery } from '../api/hooks';
+import { BookOpenCheck, FileSpreadsheet } from 'lucide-react';
 import {
   agio,
   annuityFutureValue,
@@ -185,17 +186,19 @@ function Figures({
 function Calc({
   title,
   subtitle,
+  actions,
   inputs,
   children,
 }: {
   title: string;
   subtitle?: ReactNode;
+  actions?: ReactNode;
   inputs: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="calc">
-      <Card title={title} subtitle={subtitle} className="calc-in">
+      <Card title={title} subtitle={subtitle} actions={actions} className="calc-in">
         <div className="calc-fields">{inputs}</div>
       </Card>
       <div className="calc-out">{children}</div>
@@ -216,6 +219,22 @@ const round = (v: string | { toFixed: () => string }) =>
     .toDecimalPlaces(0)
     .toFixed();
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
+/** The figures the automatic books give the calculators (null for household businesses). */
+function useBooksFigures() {
+  const q = useQuery('ledger.overview', { months: '12' });
+  return q.data?.applicable ? q.data.calculators : null;
+}
+const whole = (v: string) => D(v).toDecimalPlaces(0).abs().toFixed();
+const pctText = (v: string) => D(v).times(100).toDecimalPlaces(2).toFixed().replace('.', ',');
+
+function PullFromBooks({ onPull }: { onPull: () => void }) {
+  return (
+    <Button size="sm" icon={<BookOpenCheck size={16} />} onClick={onPull}>
+      Lấy từ sổ sách
+    </Button>
+  );
+}
 
 function LoanTool() {
   const [f, setF] = useState({
@@ -472,6 +491,7 @@ function LeverageTool() {
     unitVariable: '',
   });
   const set = (p: Partial<typeof f>) => setF({ ...f, ...p });
+  const books = useBooksFigures();
   const t = pct(f.tax);
   const has = (k: keyof typeof f) => money(f[k]) !== '';
   const lev =
@@ -532,6 +552,24 @@ function LeverageTool() {
   return (
     <Calc
       title="Số liệu kỳ phân tích"
+      actions={
+        books && (
+          <PullFromBooks
+            onPull={() =>
+              set({
+                revenue: whole(books.revenue),
+                variable: whole(books.variableCosts),
+                fixed: D(books.fixedCosts).isNegative() ? '0' : whole(books.fixedCosts),
+                interest: whole(books.interest),
+                tax: D(books.taxRate).times(100).toFixed(),
+                assets: whole(books.totalAssets),
+                equity: whole(books.equity),
+                preferred: '',
+              })
+            }
+          />
+        )
+      }
 
       inputs={
         <>
@@ -1058,6 +1096,7 @@ function AnnuityTool() {
 // ───────── 6 · Chi phí sử dụng vốn bình quân ─────────
 function WaccTool() {
   const [w, setW] = useState({ equity: '', debt: '', re: '', rf: '', beta: '', rm: '', rd: '', tax: '20' });
+  const books = useBooksFigures();
   const capm =
     pct(w.rf) !== null && w.beta && pct(w.rm) !== null
       ? capmCostOfEquity(String(pct(w.rf)), w.beta.replace(',', '.'), String(pct(w.rm)))
@@ -1079,6 +1118,22 @@ function WaccTool() {
   return (
     <Calc
       title="Cơ cấu và chi phí vốn"
+      actions={
+        books && (
+          <PullFromBooks
+            onPull={() =>
+              setW({
+                ...w,
+                equity: whole(books.equity),
+                debt: whole(books.debt),
+                rd: books.costOfDebt ? pctText(books.costOfDebt) : w.rd,
+                re: books.costOfEquity ? pctText(books.costOfEquity) : w.re,
+                tax: D(books.taxRate).times(100).toFixed(),
+              })
+            }
+          />
+        )
+      }
 
       inputs={
         <>

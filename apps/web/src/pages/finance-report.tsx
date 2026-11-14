@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, Calculator, FileSpreadsheet, Inbox, Info } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Calculator, FileSpreadsheet, Inbox } from 'lucide-react';
 import { formatCompactVnd, formatNumber, formatPercent, formatVnd, D } from '@argolet/core';
 import type { OpResult } from '@argolet/client';
 import { useBackend, useQuery } from '../api/hooks';
@@ -18,6 +18,7 @@ import { PageFoot, usePeriodLabel } from './overview';
 
 export const FINANCE_TABS = [
   { to: '/finance-report', label: 'Báo cáo tài chính' },
+  { to: '/finance-books', label: 'Sổ sách & chỉ số' },
   { to: '/finance', label: 'Thẩm định dự án' },
   { to: '/scenarios', label: 'So sánh kịch bản' },
   { to: '/finance-tools', label: 'Công cụ tính toán' },
@@ -42,7 +43,7 @@ interface Line {
 }
 
 /** A small segmented control (range, view). */
-function Segmented<T extends string>({
+export function Segmented<T extends string>({
   label,
   value,
   options,
@@ -84,7 +85,7 @@ function Delta({
   /** For costs a rise is not good news: the colour is inverted. */
   costLike?: boolean;
 }) {
-  if (previous === undefined || D(previous).isZero()) return <>Chưa có số liệu {previousLabel} để so sánh</>;
+  if (previous === undefined || D(previous).isZero()) return null;
   const ch = D(current).minus(previous).div(D(previous).abs());
   const up = ch.gte(0);
   const good = costLike ? !up : up;
@@ -269,7 +270,6 @@ export function FinanceReportPage() {
   const prev = r.months.at(-2);
   const prevLabel = prev ? shortMonth(prev.label) : 'tháng trước';
   const groups = Object.keys(r.costCaptions) as (keyof typeof r.costCaptions)[];
-  const noDocs = groups.filter((k) => D(t.costs[k]).isZero()).map((k) => r.costCaptions[k].toLowerCase());
   const empty = r.sourceCount === 0;
 
   // Rows of the statement; each row reads its figure from a month or from the range totals.
@@ -348,7 +348,6 @@ export function FinanceReportPage() {
       },
       { replace: true },
     );
-  const about = `${r.note} ${r.basis}${noDocs.length ? ` Chưa có chứng từ cho: ${noDocs.join('; ')}.` : ''}`;
 
   return (
     <div className="page">
@@ -432,11 +431,7 @@ export function FinanceReportPage() {
           <section className="card fin-statement">
             <div className="fin-card-head">
               <h2 className="card-title">
-                Kết quả kinh doanh{' '}
-                <span className="fin-about" tabIndex={0} title={about} aria-label={about}>
-                  <Info size={15} aria-hidden />
-                </span>
-                <span className="small muted fin-unit">Đơn vị: đồng</span>
+                Kết quả kinh doanh <span className="small muted fin-unit">Đơn vị: đồng</span>
               </h2>
               <Segmented
                 label="Cách xem"

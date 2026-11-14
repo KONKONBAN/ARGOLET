@@ -15,6 +15,7 @@ import { type AppCore, actor, requireFound, requireText } from '../core';
 import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { FinanceProjectRow } from '../types';
+import { booksAnalysis } from './ledger';
 import { financeReport, financeReportXlsx, type ReportQuery } from './report';
 
 const years = (v: string | null) => (v === null ? 'Không hoàn vốn' : `${formatNumber(D(v), 2)} năm`);
@@ -70,7 +71,8 @@ export class FinanceService {
         eaaLabel: formatMillions(r.eaa),
         piNote: r.pi
           ? D(r.pi).gte(1)
-            ? 'Dòng tiền bù đủ vốn đầu tư' : 'Dòng tiền chưa bù đủ vốn đầu tư'
+            ? 'Dòng tiền bù đủ vốn đầu tư'
+            : 'Dòng tiền chưa bù đủ vốn đầu tư'
           : 'Chưa có vốn đầu tư',
         npvNote: `Chiết khấu ${formatNumber(D(p.assumptions.discountRate).times(100), 0)}% / năm`,
         irrNote: `So với suất chiết khấu ${formatNumber(D(p.assumptions.discountRate).times(100), 0)}%`,
@@ -133,6 +135,15 @@ export class FinanceService {
         1,
       );
       const cf = D(assumptions.annualCashflow);
+      // Scenarios follow how much the books' monthly results actually vary (one standard deviation
+      // below / above the average); without enough months, ±1/6 of the base cash flow.
+      const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      const books = (await booksAnalysis(tx, ws, tenant))?.appraisal;
+      const base = books?.annualCashflowMillions ? D(books.annualCashflowMillions) : null;
+      const [low, high] =
+        books?.scenarios && base && base.gt(0)
+          ? [D(books.scenarios.low).div(base), D(books.scenarios.high).div(base)]
+          : [D(5).div(6), D(7).div(6)];
       const id = newId('fin');
       const proj = (await tx.put('financeProjects', {
         id,
@@ -141,9 +152,9 @@ export class FinanceService {
         name,
         assumptions,
         scenarios: [
-          { name: 'Thận trọng', annualCashflow: cf.times(5).div(6).toDecimalPlaces(2).toFixed() },
+          { name: 'Thận trọng', annualCashflow: cf.times(low).toDecimalPlaces(2).toFixed() },
           { name: 'Cơ sở', annualCashflow: cf.toFixed() },
-          { name: 'Tích cực', annualCashflow: cf.times(7).div(6).toDecimalPlaces(2).toFixed() },
+          { name: 'Tích cực', annualCashflow: cf.times(high).toDecimalPlaces(2).toFixed() },
         ],
         lastCalcRunId: null,
       })) as FinanceProjectRow;
@@ -188,8 +199,7 @@ export class FinanceService {
       packageCode: 'G3',
       rulesVersion: 'finance-rules-2026.10',
       assumptions,
-      method:
-        'NPV, IRR, MIRR, PI, hoàn vốn giản đơn và có chiết khấu, EAA, DSCR',
+      method: 'NPV, IRR, MIRR, PI, hoàn vốn giản đơn và có chiết khấu, EAA, DSCR',
       result,
       createdAt: now,
     });
@@ -248,7 +258,7 @@ export class FinanceService {
         })),
         sensitivity:
           low && base
-            ? `Dòng tiền giảm từ ${formatNumber(D(base.annualCashflow))} xuống ${formatNumber(D(low.annualCashflow))} triệu đồng/năm làm NPV chuyển từ ${D(base.npv).gte(0) ? '+' : ''}${formatNumber(D(base.npv), 2)} xuống ${formatNumber(D(low.npv), 2)} triệu đồng. Các kịch bản cùng vốn đầu tư ${formatNumber(D(proj.assumptions.investment))} triệu, thời hạn ${proj.assumptions.years} năm và suất chiết khấu ${formatNumber(D(proj.assumptions.discountRate).times(100))}%.`
+            ? `Dòng tiền giảm từ ${formatNumber(D(base.annualCashflow))} xuống ${formatNumber(D(low.annualCashflow))} triệu đồng/năm làm NPV chuyển từ ${D(base.npv).gte(0) ? '+' : ''}${formatNumber(D(base.npv), 2)} xuống ${formatNumber(D(low.npv), 2)} triệu đồng.`
             : '',
         npvPerMillion: sens,
         empty: false as const,

@@ -101,13 +101,13 @@ export function OverviewPage() {
             note: o.periodLabel,
             net: true,
           },
-          { label: 'Doanh thu', value: o.revenueLabel, note: o.revenueNote },
-          { label: 'Chi phí', value: o.expenseLabel, note: o.expenseNote },
+          { label: 'Doanh thu', value: o.revenueLabel },
+          { label: 'Chi phí', value: o.expenseLabel },
         ].map((x) => (
           <div key={x.label} className="hero-col">
             <div className="hero-label">{x.label}</div>
             <div className={`hero-value num${x.net ? ' net' : ''}`}>{x.value}</div>
-            <div className="hero-label small">{keepPhrases(x.note)}</div>
+            {'note' in x && x.note && <div className="hero-label small">{keepPhrases(x.note)}</div>}
           </div>
         ))}
         <div className="hero-ring" aria-hidden />

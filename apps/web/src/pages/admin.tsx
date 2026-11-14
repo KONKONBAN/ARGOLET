@@ -767,6 +767,36 @@ export function SettingsPage() {
 }
 
 // ───────── Bảo mật tài khoản (02 · quản lý tài khoản và thiết bị) ─────────
+/** A readable device name from the browser's user agent ("Chrome · Windows"). */
+function deviceName(ua: string) {
+  if (!ua) return '—';
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /OPR\//.test(ua)
+      ? 'Opera'
+      : /Chrome\//.test(ua)
+        ? 'Chrome'
+        : /Firefox\//.test(ua)
+          ? 'Firefox'
+          : /Safari\//.test(ua)
+            ? 'Safari'
+            : /okhttp|Expo|Dalvik|CFNetwork/i.test(ua)
+              ? 'Ứng dụng ARGOLET'
+              : ua.slice(0, 40);
+  const os = /iPhone|iPad|iOS/.test(ua)
+    ? 'iOS'
+    : /Android/.test(ua)
+      ? 'Android'
+      : /Windows/.test(ua)
+        ? 'Windows'
+        : /Mac OS X|Macintosh/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : '';
+  return os ? `${browser} · ${os}` : browser;
+}
+
 export function SecurityPage() {
   const toast = useToast();
   const { me, signOut } = useSession();
@@ -903,10 +933,6 @@ export function SecurityPage() {
             </>
           ) : (
             <>
-              <p className="muted small mb-16">
-                Khi bật, đăng nhập và thao tác nhạy cảm (phê duyệt lớn, chốt kỳ) yêu cầu mã từ ứng dụng xác
-                thực.
-              </p>
               <Button
                 variant="primary"
                 icon={<KeyRound size={18} />}
@@ -935,7 +961,7 @@ export function SecurityPage() {
                   (r.channel === 'mobile' ? 'Ứng dụng di động' : 'Web') + (r.current ? ' · phiên này' : ''),
                 strong: true,
               },
-              { key: 'u', header: 'Thiết bị', render: (r) => (r.userAgent || '—').slice(0, 60) },
+              { key: 'u', header: 'Thiết bị', render: (r) => deviceName(r.userAgent) },
               {
                 key: 'l',
                 header: 'Hoạt động gần nhất',
@@ -996,31 +1022,26 @@ export function ModulesPage() {
           to: '/documents',
           icon: Boxes,
           t: 'Chứng từ & nhập dữ liệu',
-          s: 'Tiếp nhận, trích xuất, kiểm tra, lưu phiên bản',
         },
         {
           to: '/reconciliation',
           icon: GitCompareArrows,
           t: 'Đối soát đa nguồn',
-          s: 'Ghép M:N đơn – tiền – phí – chứng từ',
         },
         {
           to: '/finance-report',
           icon: ChartColumn,
           t: 'Báo cáo tài chính',
-          s: 'Kết quả kinh doanh theo tháng từ chứng từ đã xác nhận',
         },
         {
           to: '/close',
           icon: Lock,
           t: 'Chốt kỳ & Decision Pack',
-          s: 'Phê duyệt, snapshot theo kỳ và bằng chứng',
         },
         {
           to: '/evidence',
           icon: ShieldCheck,
           t: 'Bằng chứng toàn vẹn',
-          s: 'Merkle root, biên nhận, kiểm chứng hồ sơ',
         },
       ],
     },
@@ -1031,48 +1052,44 @@ export function ModulesPage() {
           to: '/daily-close',
           icon: Store,
           t: 'Chốt ca & chốt ngày',
-          s: 'Tiền tại quầy, chuyển khoản, nền tảng',
         },
-        { to: '/inventory', icon: Boxes, t: 'Kho & giá thành', s: 'Định mức, hao hụt, giá vốn' },
-        { to: '/purchasing', icon: Truck, t: 'Mua hàng & công nợ', s: 'Đơn mua, hạn trả, đề nghị chi' },
-        { to: '/books', icon: History, t: 'Sổ sách & thuế', s: 'Sổ, bản kê nháp theo cấu hình' },
+        { to: '/inventory', icon: Boxes, t: 'Kho & giá thành' },
+        { to: '/purchasing', icon: Truck, t: 'Mua hàng & công nợ' },
+        { to: '/books', icon: History, t: 'Sổ sách & thuế' },
       ],
     },
     {
       code: 'G2 · Kế toán / thương mại',
       items: [
-        { to: '/clients', icon: Handshake, t: 'Không gian khách hàng', s: 'Ủy quyền có hạn và phạm vi' },
+        { to: '/clients', icon: Handshake, t: 'Không gian khách hàng' },
         {
           to: '/sales',
           icon: ChartColumn,
           t: 'Bán hàng & thu nợ',
-          s: 'Cơ hội → hợp đồng → giao nhận → thu nợ',
         },
       ],
     },
     {
       code: 'G3 · Dự án / logistics',
       items: [
-        { to: '/projects', icon: FolderKanban, t: 'Dự án & công việc', s: 'WBS, ngân sách, cam kết chi' },
+        { to: '/projects', icon: FolderKanban, t: 'Dự án & công việc' },
         {
           to: '/finance',
           icon: ChartColumn,
           t: 'Thẩm định dự án',
-          s: 'NPV, IRR, hoàn vốn, DSCR, kịch bản',
         },
-        { to: '/assets', icon: Zap, t: 'Tài sản & đo lường', s: 'Vận hành, bảo trì, M&V năng lượng' },
-        { to: '/logistics', icon: Truck, t: 'Logistics', s: 'Sự kiện lô hàng, free time, landed cost' },
+        { to: '/assets', icon: Zap, t: 'Tài sản & đo lường' },
+        { to: '/logistics', icon: Truck, t: 'Logistics' },
       ],
     },
     {
       code: 'G4 · Nhóm công ty',
       items: [
-        { to: '/group', icon: Network, t: 'Điều hành tập đoàn', s: 'Pháp nhân, tiến độ dữ liệu kỳ' },
+        { to: '/group', icon: Network, t: 'Điều hành tập đoàn' },
         {
           to: '/intercompany',
           icon: GitCompareArrows,
           t: 'Đối soát nội bộ',
-          s: 'Cặp giao dịch, lệch kỳ / FX, loại trừ nháp',
         },
       ],
     },
@@ -1102,10 +1119,7 @@ export function ModulesPage() {
                   onClick={() => navigate(it.to)}
                 >
                   <it.icon size={22} color="#087452" />
-                  <span>
-                    <div className="choice-title">{it.t}</div>
-                    <div className="choice-sub">{it.s}</div>
-                  </span>
+                  <span className="choice-title">{it.t}</span>
                   <ChevronRight size={16} color="#536978" />
                 </button>
               ))}

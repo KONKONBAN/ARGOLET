@@ -84,6 +84,16 @@ export interface HkdSettings {
   /** PIT rate on taxable income for INCOME (S2c line 4). */
   incomePitRate?: string | undefined;
 }
+export interface LedgerSettings {
+  /** First month of the books; opening balances are those at its first day. */
+  openingPeriod?: string | undefined;
+  /** Signed balances (debit positive) of balance-sheet accounts at the start of openingPeriod. */
+  opening?: Record<string, string> | undefined;
+  /** Inventory (152 + 156) counted at the end of a month, by month. */
+  stockCounts?: Record<string, string> | undefined;
+  /** Corporate income tax rate set by the accountant ("0.2"); automatic by revenue when absent. */
+  citRate?: string | undefined;
+}
 export interface TenantSettings {
   currency: string;
   timezone: string;
@@ -93,6 +103,8 @@ export interface TenantSettings {
   /** Registered address, printed on the accounting books. */
   address?: string | undefined;
   hkd?: HkdSettings | undefined;
+  /** Automatic double-entry books: opening balances, stock counts and the income-tax rate. */
+  ledger?: LedgerSettings | undefined;
   /** Generative AI for the assistant: off unless an administrator picks a provider. */
   ai?: { provider: 'claude' | 'openai' | 'off' } | undefined;
   packages: ('G1' | 'G2' | 'G3' | 'G4')[];

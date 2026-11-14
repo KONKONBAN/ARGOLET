@@ -10,6 +10,7 @@ export * from './reconciliation';
 export * from './finance';
 export * from './finmath';
 export * from './ratios';
+export * from './accounting';
 export * from './documents';
 export * from './einvoice';
 export * from './imagemeta';

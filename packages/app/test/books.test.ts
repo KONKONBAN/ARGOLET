@@ -15,18 +15,18 @@ const xml = (b64: string) => {
 };
 
 describe('accounting books export', () => {
-  it('a company gets the confirmed source records in a real .xlsx, not a CSV', async () => {
+  it('a company gets its double-entry books of the month in a real .xlsx', async () => {
     const { app } = await seededApp();
     const admin = await loginAs(app);
     const f = await app.modules.exportBooks(admin);
     expect(f).toMatchObject({
-      filename: 'bang-ke-chung-tu-2026-10.xlsx',
+      filename: 'so-ke-toan-2026-10-den-2026-10.xlsx',
       mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      forms: ['Bảng kê chứng từ'],
+      forms: ['S03a-DNN', 'F01-DNN', 'B02-DNN', 'Báo cáo tình hình tài chính', 'Chỉ số tài chính'],
     });
     const text = xml(f.contentBase64);
-    expect(text).toContain('BẢNG KÊ CHỨNG TỪ ĐÃ XÁC NHẬN');
-    expect(text).toContain('S03a-DNN (Thông tư 133/2016/TT-BTC)');
+    expect(text).toContain('SỔ NHẬT KÝ CHUNG (Mẫu số S03a-DNN)');
+    expect(text).toContain('BẢNG CÂN ĐỐI TÀI KHOẢN (Mẫu số F01-DNN)');
   });
 
   it('a household gets the forms of its tax method, totals equal to the confirmed sales', async () => {

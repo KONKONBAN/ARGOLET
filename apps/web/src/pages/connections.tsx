@@ -290,10 +290,7 @@ export function ConnectionsPage() {
                     {has ? 'Thêm tài khoản khác' : 'Kết nối'}
                   </Button>
                 ) : (
-                  <>
-                    <Chip tone="warning">Cần tài liệu từ đối tác</Chip>
-                    <p className="muted small">{p.howTo}</p>
-                  </>
+                  <Chip tone="warning">Cần tài liệu từ đối tác</Chip>
                 )}
               </div>
             );

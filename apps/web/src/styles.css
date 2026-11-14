@@ -3150,3 +3150,110 @@ html[data-text-size='large'] .sidebar {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
+
+/* ───────── Sổ sách & chỉ số: books kept from confirmed documents ───────── */
+.books-notice {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.books-notice .alert {
+  flex: 1;
+  margin: 0;
+}
+
+.books-ratios .kv-row {
+  padding: 7px 0;
+  font-size: 13px;
+}
+.books-table tbody th,
+.books-page .report-table tbody th {
+  text-align: left;
+  font-weight: 400;
+  white-space: normal;
+}
+.books-table tr.strong-row th,
+.books-table tr.strong-row td {
+  font-weight: 700;
+}
+.books-page .report-table thead th {
+  padding: 8px 12px;
+}
+.books-page .report-table td,
+.books-page .report-table tbody th {
+  padding: 4px 12px;
+  line-height: 1.45;
+}
+.books-page .report-table tbody th {
+  min-width: 0;
+}
+.books-code {
+  display: inline-block;
+  min-width: 46px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.books-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.books-side {
+  gap: 12px;
+}
+.books-journal td,
+.books-journal th {
+  padding: 8px 12px;
+}
+.books-opening {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  margin-top: 4px;
+}
+.books-opening .field > label {
+  font-size: 13px;
+}
+.books-diff {
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: 13px;
+}
+.books-diff.ok {
+  background: var(--success-bg);
+  color: var(--success);
+}
+@media (max-width: 1180px) {
+  .books-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .books-ratios,
+  .books-page .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .books-opening {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .books-notice {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@container content (max-width: 1100px) {
+  html[data-text-size='large'] .books-split,
+  html[data-text-size='large'] .books-ratios {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.books-pull {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 8px;
+}

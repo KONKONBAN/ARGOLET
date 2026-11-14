@@ -307,10 +307,6 @@ export function IntercompanyPage() {
         <p className="mt-8" style={{ lineHeight: 1.7 }}>
           {p.nextAction}
         </p>
-        <p className="small muted mt-8">
-          Bút toán loại trừ dạng nháp: Nợ {p.eliminationDraft.debit} / Có {p.eliminationDraft.credit} ·{' '}
-          {Number(p.eliminationDraft.amount).toLocaleString('vi-VN')} đ
-        </p>
         <div className="row mt-24" style={{ justifyContent: 'flex-end' }}>
           {p.status === 'MATCHED' ? (
             <Alert tone="success">Hai phía đã khớp số liệu.</Alert>

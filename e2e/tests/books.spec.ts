@@ -16,15 +16,15 @@ test('accounting books are exported as real Excel files on the Ministry of Finan
   const w = watch(page);
   await login(page);
   await go(page, 'books', 'Sổ sách & thuế');
-  // A company (Thông tư 133): the confirmed source records, for the accountant's postings.
+  // A company (Thông tư 133): the double-entry books kept automatically from confirmed documents.
   const company = await workbook(
     Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Xuất bảng kê chứng từ (Excel)' }).click(),
+      page.getByRole('button', { name: 'Xuất sổ kế toán (Excel)' }).click(),
     ]).then(([d]) => d),
   );
-  expect(company.name).toBe('bang-ke-chung-tu-2026-10.xlsx');
-  expect(company.text).toContain('BẢNG KÊ CHỨNG TỪ ĐÃ XÁC NHẬN');
+  expect(company.name).toBe('so-ke-toan-2026-10-den-2026-10.xlsx');
+  expect(company.text).toContain('SỔ NHẬT KÝ CHUNG (Mẫu số S03a-DNN)');
 
   if (info.project.name !== 'static') return expectClean(w, info); // API mode shares the organisation
 

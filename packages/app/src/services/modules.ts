@@ -37,6 +37,7 @@ import { AppError, type CallContext, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { AssetRow, DealRow, IntercompanyRow, PurchaseOrderRow, ShipmentRow, WbsTask } from '../types';
 import { buildBooks } from './books';
+import { companyBooksFile } from './ledger';
 import { periodTotals } from './report';
 import { defaultSite, scoped } from './documents';
 import { localDate, addDays } from './approvals';
@@ -69,7 +70,6 @@ const WBS_STATUS: Record<WbsTask['status'], { label: string; tone: string }> = {
   NOT_STARTED: { label: 'Chưa bắt đầu', tone: 'neutral' },
 };
 
-const scopeNote = (periodId: string) => `Phạm vi kỳ ${formatPeriod(periodId).toLowerCase()}`;
 const millions = (v: string) => `${formatNumber(D(v).div(1_000_000), 0)} triệu đ`;
 
 export class ModuleService {
@@ -85,7 +85,6 @@ export class ModuleService {
   async dailyClose(call: CallContext, p: { shiftId?: string } = {}) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      const periodId = await this.period(ws.tenantId, tx);
       const shifts = (await scoped(tx, ws, 'dailyCloses')).sort(
         (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
       );
@@ -102,9 +101,9 @@ export class ModuleService {
       const counted = sum((current?.lines ?? []).map((l) => l.counted));
       return {
         kpis: [
-          { label: 'Thu tại quầy', value: formatVnd(counter), note: scopeNote(periodId), highlight: true },
-          { label: 'Thu qua nền tảng', value: formatVnd(platform), note: scopeNote(periodId) },
-          { label: 'Tiền thực kiểm', value: formatVnd(counted), note: scopeNote(periodId) },
+          { label: 'Thu tại quầy', value: formatVnd(counter), highlight: true },
+          { label: 'Thu qua nền tảng', value: formatVnd(platform) },
+          { label: 'Tiền thực kiểm', value: formatVnd(counted) },
         ],
         shift: current
           ? {
@@ -178,7 +177,6 @@ export class ModuleService {
   async inventory(call: CallContext, p: { recipeId?: string } = {}) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      const periodId = await this.period(ws.tenantId, tx);
       const items = (await scoped(tx, ws, 'inventoryItems')).sort((a, b) =>
         a.createdAt.localeCompare(b.createdAt),
       );
@@ -207,10 +205,9 @@ export class ModuleService {
           {
             label: recipe ? `Giá thành / ${recipe.name.toLowerCase()}` : 'Giá thành',
             value: cost ? formatVnd(cost.total) : '—',
-            note: scopeNote(periodId),
           },
-          { label: 'Nguyên liệu sắp hết', value: `${low.length} mặt hàng`, note: scopeNote(periodId) },
-          { label: 'Tồn kho ghi nhận', value: formatVnd(value), note: scopeNote(periodId) },
+          { label: 'Nguyên liệu sắp hết', value: `${low.length} mặt hàng` },
+          { label: 'Tồn kho ghi nhận', value: formatVnd(value) },
         ],
         items: items.map((i) => ({
           id: i.id,
@@ -259,7 +256,6 @@ export class ModuleService {
   async purchasing(call: CallContext) {
     return this.core.query(async (tx, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      const periodId = await this.period(ws.tenantId, tx);
       const pos = (await scoped(tx, ws, 'purchaseOrders')).sort((a, b) =>
         b.code.localeCompare(a.code, undefined, { numeric: true }),
       );
@@ -270,7 +266,6 @@ export class ModuleService {
           {
             label: 'Công nợ phải trả',
             value: formatVnd(sum(open.map((p) => p.outstanding))),
-            note: scopeNote(periodId),
           },
           {
             label: 'Đến hạn trong 7 ngày',
@@ -281,9 +276,8 @@ export class ModuleService {
                 7,
               ),
             ),
-            note: scopeNote(periodId),
           },
-          { label: 'Đơn mua đang mở', value: `${open.length} đơn`, note: scopeNote(periodId) },
+          { label: 'Đơn mua đang mở', value: `${open.length} đơn` },
         ],
         items: open.map((p) => ({
           id: p.id,
@@ -390,14 +384,12 @@ export class ModuleService {
           {
             label: 'Doanh thu đã ghi nhận',
             value: formatVnd(t.netRevenue),
-            note: scopeNote(periodId),
           },
           {
             label: 'Chi phí có chứng từ',
             value: formatVnd(t.totalCosts),
-            note: scopeNote(periodId),
           },
-          { label: 'Hồ sơ cần bổ sung', value: `${needs} hồ sơ`, note: scopeNote(periodId) },
+          { label: 'Hồ sơ cần bổ sung', value: `${needs} hồ sơ` },
         ],
         title: `Sổ kế toán & dữ liệu kỳ tháng ${Number(periodId.slice(5))}`,
         items: [
@@ -449,7 +441,10 @@ export class ModuleService {
       const periodId = p.periodId ?? tenant.settings.currentPeriod;
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodId))
         throw new AppError('VALIDATION', 'Kỳ phải có dạng YYYY-MM');
-      return buildBooks(tx, ws, tenant, periodId, this.core.deps.clock());
+      // Household businesses keep the TT152 books; companies get the automatic double-entry books.
+      if (tenant.settings.accountingRegime === 'HKD')
+        return buildBooks(tx, ws, tenant, periodId, this.core.deps.clock());
+      return { ...(await companyBooksFile(tx, ws, tenant, periodId, this.core.deps.clock())), note: '' };
     });
   }
 
@@ -524,7 +519,6 @@ export class ModuleService {
   async sales(call: CallContext, p: PageParams = {}) {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      const periodId = await this.period(ws.tenantId, tx);
       const deals = (await tx.list('deals', ws.tenantId)).sort((a, b) =>
         b.code.localeCompare(a.code, undefined, { numeric: true }),
       );
@@ -539,17 +533,14 @@ export class ModuleService {
           {
             label: 'Giá trị cơ hội',
             value: formatVnd(sum(deals.filter((d) => d.status !== 'DONE').map((d) => d.value))),
-            note: scopeNote(periodId),
           },
           {
             label: 'Hợp đồng đang thực hiện',
             value: `${contracts.length} hợp đồng`,
-            note: scopeNote(periodId),
           },
           {
             label: 'Công nợ phải thu',
             value: formatVnd(sum(receivable.map((d) => d.value))),
-            note: scopeNote(periodId),
           },
         ],
         ...(() => {
@@ -673,7 +664,6 @@ export class ModuleService {
   async assets(call: CallContext) {
     return this.core.query(async (tx, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
-      const periodId = await this.period(ws.tenantId, tx);
       const rows = (await tx.list('assets', ws.tenantId)).sort((a, b) =>
         a.createdAt.localeCompare(b.createdAt),
       );
@@ -686,9 +676,9 @@ export class ModuleService {
       const due = assets.filter(isDue);
       return {
         kpis: [
-          { label: 'Tài sản đang vận hành', value: `${assets.length} tài sản`, note: scopeNote(periodId) },
-          { label: 'Tiết kiệm năng lượng', value: `${formatNumber(savings)} kWh`, note: scopeNote(periodId) },
-          { label: 'Lịch bảo trì đến hạn', value: `${due.length} lịch`, note: scopeNote(periodId) },
+          { label: 'Tài sản đang vận hành', value: `${assets.length} tài sản` },
+          { label: 'Tiết kiệm năng lượng', value: `${formatNumber(savings)} kWh` },
+          { label: 'Lịch bảo trì đến hạn', value: `${due.length} lịch` },
         ],
         title: `Đo lường & kiểm chứng · ${requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức').name}`,
         items: rows
@@ -747,7 +737,7 @@ export class ModuleService {
           freeTimeEnd: formatDate(end),
           freeTimeNote:
             daysLeft >= 0
-              ? `Còn ${daysLeft} ngày theo biểu phí ${sh.tariffCode}. Xem chi tiết để dự kiến chi phí phát sinh.`
+              ? `Còn ${daysLeft} ngày miễn phí`
               : `Đã quá ${-daysLeft} ngày miễn phí theo biểu phí ${sh.tariffCode}. Chi phí lưu bãi đang phát sinh.`,
           status: sh.status,
         },
@@ -863,7 +853,6 @@ export class ModuleService {
           {
             label: 'Pháp nhân trong phạm vi',
             value: `${rows.length} đơn vị`,
-            note: 'Quyền truy xuống theo pháp nhân',
           },
           {
             label: 'Đã gửi dữ liệu kỳ',
@@ -928,7 +917,6 @@ export class ModuleService {
             {
               label: `Phải trả · ${ic.sideB.name}`,
               value: formatVnd(ic.sideB.amount),
-              note: `Cùng kỳ ${formatPeriod(ic.periodId).toLowerCase()}`,
             },
             {
               label: 'Chênh lệch',

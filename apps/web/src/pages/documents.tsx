@@ -6,7 +6,6 @@ import {
   Copy,
   FileSpreadsheet,
   FileText,
-  Info,
   Landmark,
   ListFilter,
   MonitorSmartphone,
@@ -42,7 +41,6 @@ import {
   Pagination,
   SearchBox,
   TextInput,
-  Timeline,
   readFileAsBase64,
   useToast,
 } from '../ui/components';
@@ -443,17 +441,6 @@ export function CapturePage() {
               </div>
             ))}
           </Card>
-          <Card title="Quy trình tiếp nhận">
-            <Timeline
-              items={[
-                { title: 'Tiếp nhận', sub: 'Chọn nguồn và bản gốc' },
-                { title: 'Trích xuất', sub: 'Ảnh · XML · Excel' },
-                { title: 'Kiểm tra', sub: 'Số tiền · Ngày · Mã · Trùng' },
-                { title: 'Chuẩn hóa', sub: 'Nối đơn, tiền và chứng từ' },
-                { title: 'Lưu phiên bản', sub: 'Giữ nguồn và lịch sử' },
-              ]}
-            />
-          </Card>
         </div>
       </div>
       <PageFoot />
@@ -802,8 +789,6 @@ export function IngestionPage() {
     );
   const b = data.data.latest;
   const sel = data.data.sources.find((s) => s.id === source);
-  const stage = b ? (b.needsReview ? 2 : 4) : -1;
-  const steps = ['Tiếp nhận', 'Trích xuất', 'Kiểm tra', 'Chuẩn hóa', 'Lưu phiên bản'];
   return (
     <div className="page">
       <PageHeader
@@ -874,16 +859,6 @@ export function IngestionPage() {
                 </span>
                 <span />
               </div>
-              <div className="list-item">
-                <span className="icon-tile">
-                  <Info size={18} />
-                </span>
-                <span>
-                  <div className="li-title">Nguồn và phiên bản được lưu</div>
-                  <div className="li-sub">Liên kết đơn · chứng từ · tiền · công nợ · {b.parserVersion}</div>
-                </span>
-                <span />
-              </div>
               <Button
                 variant="primary"
                 block
@@ -901,13 +876,6 @@ export function IngestionPage() {
             </Button>
           )}
         </Card>
-      </div>
-      <div className="pipeline" aria-label="Tiến trình xử lý lô">
-        {steps.map((s, i) => (
-          <div key={s} className={`step${i < stage ? ' done' : i === stage ? ' current' : ''}`}>
-            {s}
-          </div>
-        ))}
       </div>
       <Modal
         open={!!sel}

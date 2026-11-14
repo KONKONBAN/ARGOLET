@@ -22,7 +22,6 @@ import {
   type CostCategory,
   type HkdHeader,
   type MoneyAccount,
-  type XCell,
   type XSheet,
 } from '@argolet/core';
 import type { WorkspaceState } from '../runtime';
@@ -210,56 +209,6 @@ function businessLines(s: Source, revenue: BookLine[]): BusinessLineBook[] {
   return [{ ...first, lines: revenue }, ...declared.slice(1).map((l) => ({ ...l, lines: [] }))];
 }
 
-/** Confirmed records of a company, for its accountant (not a statutory form). */
-function sourceListing(s: Source): XSheet {
-  const head: XCell[] = ['Ngày', 'Chứng từ', 'Loại', 'Đối tác / nội dung', 'Số tiền'].map((v) => ({
-    v,
-    s: 'head',
-  }));
-  const kind: Record<BusinessRecordRow['kind'], string> = {
-    ORDER: 'Doanh thu bán hàng',
-    REVENUE: 'Hóa đơn bán ra',
-    EXPENSE: 'Chi phí, mua vào',
-    BANK_TXN: 'Giao dịch ngân hàng',
-    CASH: 'Tiền mặt',
-  };
-  const regime =
-    s.tenant.settings.accountingRegime === 'TT99'
-      ? 'S03a-DN (Thông tư 99/2025/TT-BTC)'
-      : 'S03a-DNN (Thông tư 133/2016/TT-BTC)';
-  const rows: (XCell | null)[][] = [
-    [{ v: `Đơn vị: ${s.tenant.name}`, s: 'unit' }],
-    [{ v: `Mã số thuế: ${s.tenant.taxCode ?? ''}`, s: 'unit' }],
-    [],
-    [{ v: 'BẢNG KÊ CHỨNG TỪ ĐÃ XÁC NHẬN', s: 'title' }],
-    [{ v: `${monthLabel(s.periodId)} · ${s.location}`, s: 'subtitle' }],
-    [{ v: 'Đơn vị tính: đồng', s: 'unitNote' }],
-    head,
-    ...s.records.map((r): XCell[] => [
-      { v: `${r.date.slice(8, 10)}/${r.date.slice(5, 7)}/${r.date.slice(0, 4)}`, s: 'date' },
-      { v: docCode(s, r), s: 'cellCenter' },
-      { v: kind[r.kind], s: 'cell' },
-      { v: [r.counterparty, r.description].filter(Boolean).join(' · ') || r.channel, s: 'cell' },
-      { v: Number(r.amount), s: 'money' },
-    ]),
-    [],
-    [
-      {
-        v: `Ghi chú: đây là dữ liệu nguồn để lập sổ. Sổ Nhật ký chung mẫu ${regime} cần định khoản Nợ/Có cho từng nghiệp vụ — kế toán định khoản trước khi ghi sổ.`,
-        s: 'note',
-      },
-    ],
-  ];
-  const n = rows.length;
-  return {
-    name: 'Bảng kê chứng từ',
-    cols: [13, 13, 22, 50, 18],
-    rows,
-    merges: ['A1:E1', 'A2:E2', 'A4:E4', 'A5:E5', 'A6:E6', `A${n}:E${n}`],
-    heights: { 4: 24, [n]: 36 },
-  };
-}
-
 export interface BooksFile {
   filename: string;
   mime: string;
@@ -276,30 +225,20 @@ export async function buildBooks(
   now: Date,
 ): Promise<BooksFile> {
   const s = await load(tx, ws, tenant, periodId);
-  const hkd = tenant.settings.accountingRegime === 'HKD';
-  let sheets: XSheet[];
-  let forms: string[];
-  let note: string;
-  if (hkd) {
-    const method = tenant.settings.hkd?.method;
-    forms = hkdForms(method ?? 'EXEMPT');
-    const h = header(s);
-    const revenue = revenueLines(s);
-    sheets = forms.map((f) => {
-      if (f === 'S1a-HKD') return sheetS1a(h, revenue);
-      if (f === 'S2a-HKD') return sheetS2a(h, businessLines(s, revenue));
-      if (f === 'S2b-HKD') return sheetS2b(h, businessLines(s, revenue));
-      if (f === 'S2c-HKD') return sheetS2c(h, revenue, costLines(s), tenant.settings.hkd?.incomePitRate);
-      return sheetS2e(h, moneyAccounts(s));
-    });
-    note = method
-      ? `Mẫu ${forms.join(', ')} theo Thông tư 152/2025/TT-BTC.`
-      : 'Chưa chọn phương pháp nộp thuế: xuất mẫu S1a-HKD. Chọn phương pháp trong Cài đặt để có đúng bộ sổ.';
-  } else {
-    forms = ['Bảng kê chứng từ'];
-    sheets = [sourceListing(s)];
-    note = 'Doanh nghiệp: bảng kê chứng từ đã xác nhận để kế toán định khoản và ghi Sổ Nhật ký chung.';
-  }
+  const method = tenant.settings.hkd?.method;
+  const forms = hkdForms(method ?? 'EXEMPT');
+  const h = header(s);
+  const revenue = revenueLines(s);
+  const sheets: XSheet[] = forms.map((f) => {
+    if (f === 'S1a-HKD') return sheetS1a(h, revenue);
+    if (f === 'S2a-HKD') return sheetS2a(h, businessLines(s, revenue));
+    if (f === 'S2b-HKD') return sheetS2b(h, businessLines(s, revenue));
+    if (f === 'S2c-HKD') return sheetS2c(h, revenue, costLines(s), tenant.settings.hkd?.incomePitRate);
+    return sheetS2e(h, moneyAccounts(s));
+  });
+  const note = method
+    ? `Mẫu ${forms.join(', ')} theo Thông tư 152/2025/TT-BTC.`
+    : 'Chưa chọn phương pháp nộp thuế: xuất mẫu S1a-HKD. Chọn phương pháp trong Cài đặt để có đúng bộ sổ.';
   const bytes = buildXlsx(sheets, {
     title: `Sổ kế toán ${monthLabel(periodId)}`,
     author: 'ARGOLET',
@@ -308,7 +247,7 @@ export async function buildBooks(
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return {
-    filename: `${hkd ? 'so-ke-toan-hkd' : 'bang-ke-chung-tu'}-${periodId}.xlsx`,
+    filename: `so-ke-toan-hkd-${periodId}.xlsx`,
     mime: XLSX_MIME,
     contentBase64: btoa(bin),
     forms,

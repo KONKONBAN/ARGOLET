@@ -104,7 +104,7 @@ const NAV_MODULES = [
     to: '/finance-report',
     label: 'Tài chính',
     icon: ChartColumn,
-    match: ['/finance-report', '/finance', '/scenarios', '/finance-tools'],
+    match: ['/finance-report', '/finance-books', '/finance', '/scenarios', '/finance-tools'],
   },
   {
     to: '/modules',

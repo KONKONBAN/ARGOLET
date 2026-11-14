@@ -730,7 +730,7 @@ export function BooksScreen() {
     <Screen
       footer={
         <Button
-          title={d.regime === 'HKD' ? 'Xuất sổ kế toán (Excel)' : 'Xuất bảng kê chứng từ (Excel)'}
+          title="Xuất sổ kế toán (Excel)"
           variant="primary"
           loading={exporting}
           onPress={async () => {
@@ -2590,7 +2590,7 @@ export function SecurityScreen() {
               )
             }
             title={`${s.channel === 'mobile' ? 'Ứng dụng di động' : 'Web'}${s.current ? ' · phiên này' : ''}`}
-            subtitle={s.userAgent.slice(0, 50)}
+            subtitle={deviceName(s.userAgent)}
             right={
               s.current ? (
                 <Button small title="Đăng xuất" onPress={() => void signOut()} />
@@ -2604,4 +2604,32 @@ export function SecurityScreen() {
       <Hero label="Tài khoản" value={me?.user.fullName ?? ''} note={me?.user.email ?? me?.user.phone ?? ''} />
     </Screen>
   );
+}
+
+/** A readable device name from the user agent ("Chrome · Windows"). */
+function deviceName(ua: string) {
+  if (!ua) return '—';
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /Chrome\//.test(ua)
+      ? 'Chrome'
+      : /Firefox\//.test(ua)
+        ? 'Firefox'
+        : /Safari\//.test(ua)
+          ? 'Safari'
+          : /okhttp|Expo|Dalvik|CFNetwork/i.test(ua)
+            ? 'Ứng dụng ARGOLET'
+            : ua.slice(0, 40);
+  const os = /iPhone|iPad|iOS/.test(ua)
+    ? 'iOS'
+    : /Android/.test(ua)
+      ? 'Android'
+      : /Windows/.test(ua)
+        ? 'Windows'
+        : /Mac OS X|Macintosh/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : '';
+  return os ? `${browser} · ${os}` : browser;
 }
