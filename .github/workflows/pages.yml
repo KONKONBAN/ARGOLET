@@ -29,6 +29,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter "@argolet/web..."
       - run: pnpm --filter @argolet/web build
+        env:
+          VITE_STATIC_DEMO: '1'
       - id: pages
         uses: actions/configure-pages@v6
         continue-on-error: true
