@@ -1225,9 +1225,6 @@ export function MatchScreen({ route, navigation }: ScreenProps<'Match'>) {
       {can('recon.confirm') && (g.status === 'PROPOSED' || g.status === 'DISCREPANCY') && (
         <Button title="Xác nhận ngay" loading={c.confirm.loading} onPress={c.run} />
       )}
-      <Text style={[T.small, { marginTop: 12 }]}>
-        AI đề xuất · Bộ tính xác định tính toán · Người có quyền xác nhận
-      </Text>
       {c.sheet}
     </Screen>
   );
@@ -1419,8 +1416,7 @@ function ClosedPeriods() {
         `Bộ chốt kỳ ${d.periodId} · v${d.version}`,
         [
           `${d.members} bản ghi · ${d.approvals.length} phê duyệt`,
-          `Quy tắc ${d.rulesVersion}`,
-          `Digest ${d.manifestDigest.slice(0, 24)}…`,
+
           d.receipt
             ? `Biên nhận ${d.receipt.batchCode} · khối ${d.receipt.blockNumber}`
             : 'Đang tạo bằng chứng',

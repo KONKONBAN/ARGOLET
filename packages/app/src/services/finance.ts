@@ -70,17 +70,11 @@ export class FinanceService {
         eaaLabel: formatMillions(r.eaa),
         piNote: r.pi
           ? D(r.pi).gte(1)
-            ? 'PI ≥ 1: hiện giá dòng tiền vượt vốn đầu tư'
-            : 'PI < 1: hiện giá dòng tiền chưa bù đủ vốn đầu tư'
+            ? 'Dòng tiền bù đủ vốn đầu tư' : 'Dòng tiền chưa bù đủ vốn đầu tư'
           : 'Chưa có vốn đầu tư',
         npvNote: `Chiết khấu ${formatNumber(D(p.assumptions.discountRate).times(100), 0)}% / năm`,
         irrNote: `So với suất chiết khấu ${formatNumber(D(p.assumptions.discountRate).times(100), 0)}%`,
-        dscrNote: `CFADS ${formatNumber(p.assumptions.annualCashflow)} / Trả nợ ${formatNumber(p.assumptions.annualDebtService)}`,
-        footnote: `CF0 = ${formatNumber(D(r.cashflows[0]!))} · CF1–CF${p.assumptions.years} = +${formatNumber(D(p.assumptions.annualCashflow))} · ${
-          p.assumptions.salvageValue && !D(p.assumptions.salvageValue).isZero()
-            ? `Giá trị thanh lý ${formatNumber(D(p.assumptions.salvageValue))} cộng vào năm ${p.assumptions.years}`
-            : 'Không có giá trị thanh lý'
-        } · MIRR tái đầu tư theo suất chiết khấu`,
+        dscrNote: 'Khả năng trả nợ từ dòng tiền',
       },
       lastCalcRunId: p.lastCalcRunId,
     };
@@ -195,7 +189,7 @@ export class FinanceService {
       rulesVersion: 'finance-rules-2026.10',
       assumptions,
       method:
-        'NPV/IRR/MIRR (chiết khấu cuối kỳ), PI = PV dòng tiền / vốn đầu tư, hoàn vốn giản đơn và có chiết khấu nội suy tuyến tính, EAA, DSCR = CFADS / nghĩa vụ nợ',
+        'NPV, IRR, MIRR, PI, hoàn vốn giản đơn và có chiết khấu, EAA, DSCR',
       result,
       createdAt: now,
     });

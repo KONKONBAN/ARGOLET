@@ -57,7 +57,7 @@ export function GroupPage() {
       />
       <ModuleTabs tabs={G4_TABS} current="/group" />
       <KpiRow items={d.kpis} />
-      <Card title={d.title} subtitle="Dữ liệu phục vụ hợp nhất · Chưa phải báo cáo hợp nhất đã kiểm toán">
+      <Card title={d.title}>
         <DataTable
           rows={d.items}
           rowKey={(r) => r.id}

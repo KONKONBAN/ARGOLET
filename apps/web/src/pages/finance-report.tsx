@@ -132,25 +132,27 @@ function MonthBars({ months }: { months: { label: string; revenue: string; costs
           <i className="out" /> Chi phí
         </span>
       </div>
-      <table className="sr-only">
-        <caption>Doanh thu thuần và chi phí theo tháng (đồng)</caption>
-        <thead>
-          <tr>
-            <th>Tháng</th>
-            <th>Doanh thu thuần</th>
-            <th>Chi phí</th>
-          </tr>
-        </thead>
-        <tbody>
-          {months.map((m) => (
-            <tr key={m.label}>
-              <td>{m.label}</td>
-              <td>{m.revenue}</td>
-              <td>{m.costs}</td>
+      <div className="sr-only">
+        <table>
+          <caption>Doanh thu thuần và chi phí theo tháng (đồng)</caption>
+          <thead>
+            <tr>
+              <th>Tháng</th>
+              <th>Doanh thu thuần</th>
+              <th>Chi phí</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {months.map((m) => (
+              <tr key={m.label}>
+                <td>{m.label}</td>
+                <td>{m.revenue}</td>
+                <td>{m.costs}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -353,7 +355,7 @@ export function FinanceReportPage() {
       <PageHeader
         eyebrow="Tài chính"
         title="Báo cáo tài chính"
-        subtitle={`Kết quả kinh doanh từ chứng từ đã xác nhận · ${r.location}`}
+        subtitle={`Kết quả kinh doanh · ${r.location}`}
         period={period}
         actions={
           <>
@@ -434,7 +436,7 @@ export function FinanceReportPage() {
                 <span className="fin-about" tabIndex={0} title={about} aria-label={about}>
                   <Info size={15} aria-hidden />
                 </span>
-                <span className="small muted fin-unit">Đơn vị: đồng · {t.documents} chứng từ nguồn</span>
+                <span className="small muted fin-unit">Đơn vị: đồng</span>
               </h2>
               <Segmented
                 label="Cách xem"

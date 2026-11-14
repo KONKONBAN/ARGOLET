@@ -355,7 +355,7 @@ export class CloseService {
           rows: [
             ['Doanh thu thuần', revenue.toFixed(), 'Chứng từ đã xác nhận · sau hoàn tiền, chiết khấu'],
             ['Chi phí', expense.toFixed(), 'Chứng từ chi · phí nền tảng'],
-            ['Kết quả thu − chi', net.toFixed(), 'Tính toán = doanh thu thuần − chi phí'],
+            ['Kết quả thu − chi', net.toFixed(), 'Tính tự động'],
             ['Chứng từ đã soát', `${validated}/${g.docs.length}`, 'Hồ sơ xác nhận'],
             ['Nhóm đối soát đã xác nhận', String(confirmed), 'Đơn · tiền · phí'],
             ['Trạng thái', closed ? 'Đã chốt' : 'Bản nháp', label],

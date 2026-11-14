@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, FileSpreadsheet, Plus, Send } from 'lucide-react';
 import { useBackend, useMutation, useQuery } from '../api/hooks';
 import {
-  Alert,
   Button,
   Card,
   Chip,
@@ -156,7 +155,7 @@ export function DailyClosePage() {
         </div>
       )}
       {d.history.length > 1 && (
-        <Card className="mt-24" title="Lịch sử ca" subtitle="Chọn một ca để xem chi tiết">
+        <Card className="mt-24" title="Lịch sử ca">
           <DataTable
             rows={d.history}
             rowKey={(r) => r.id}
@@ -376,7 +375,58 @@ export function InventoryPage() {
       />
       <ModuleTabs tabs={G1_TABS} current="/inventory" />
       <KpiRow items={d.kpis} />
-      <Card title="Kho nguyên liệu · Định mức và hao hụt">
+      <Card
+        title="Kho nguyên liệu · Định mức và hao hụt"
+        actions={
+          <div className="row wrap card-actions">
+            {d.recipes.length > 1 && (
+              <label className="row">
+                <span className="small muted">Công thức</span>
+                <select
+                  className="select"
+                  style={{ height: 40, width: 200 }}
+                  value={d.recipe?.id ?? ''}
+                  onChange={(e) => setRecipeId(e.target.value)}
+                  aria-label="Chọn công thức"
+                >
+                  {d.recipes.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {d.canWrite && (
+              <Button
+                size="sm"
+                icon={<Plus size={16} />}
+                disabled={d.itemOptions.length === 0}
+                onClick={() => {
+                  saveRecipe.reset();
+                  setBuilder({
+                    name: '',
+                    price: '',
+                    waste: '0',
+                    lines: [{ itemId: d.itemOptions[0]?.id ?? '', quantity: '' }],
+                  });
+                }}
+              >
+                Tạo công thức
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="primary"
+              icon={<BookOpen size={16} />}
+              onClick={() => setRecipeOpen(true)}
+              disabled={!d.recipe}
+            >
+              Xem công thức
+            </Button>
+          </div>
+        }
+      >
         <DataTable
           rows={d.items}
           rowKey={(r) => r.id}
@@ -400,55 +450,7 @@ export function InventoryPage() {
           ]}
           empty="Chưa có nguyên liệu. Thêm nguyên liệu với tồn đầu kỳ và đơn giá vốn."
         />
-        {d.canWrite && d.items.length > 0 && (
-          <p className="table-foot">Chọn một dòng để cập nhật số kiểm kê.</p>
-        )}
       </Card>
-      <div className="row wrap mt-24" style={{ justifyContent: 'flex-end' }}>
-        {d.recipes.length > 1 && (
-          <label className="row">
-            <span className="small muted">Công thức</span>
-            <select
-              className="select"
-              style={{ height: 44, width: 220 }}
-              value={d.recipe?.id ?? ''}
-              onChange={(e) => setRecipeId(e.target.value)}
-              aria-label="Chọn công thức"
-            >
-              {d.recipes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {d.canWrite && (
-          <Button
-            icon={<Plus size={18} />}
-            disabled={d.itemOptions.length === 0}
-            onClick={() => {
-              saveRecipe.reset();
-              setBuilder({
-                name: '',
-                price: '',
-                waste: '0',
-                lines: [{ itemId: d.itemOptions[0]?.id ?? '', quantity: '' }],
-              });
-            }}
-          >
-            Tạo công thức
-          </Button>
-        )}
-        <Button
-          variant="primary"
-          icon={<BookOpen size={18} />}
-          onClick={() => setRecipeOpen(true)}
-          disabled={!d.recipe}
-        >
-          Xem công thức
-        </Button>
-      </div>
       <Modal
         open={recipeOpen}
         onClose={() => setRecipeOpen(false)}
@@ -480,9 +482,6 @@ export function InventoryPage() {
                 <span className="v">{d.recipe.margin}</span>
               </div>
             </div>
-            <p className="small muted mt-16">
-              Tính bởi Finance Engine (Decimal, định mức × đơn giá bình quân di động, cộng tỷ lệ hao hụt).
-            </p>
           </>
         )}
       </Modal>
@@ -868,11 +867,9 @@ export function BooksPage() {
       </Card>
       <div className="row-between wrap mt-24">
         <span className="small muted">
-          {d.regime === 'HKD'
-            ? d.hkdMethod
-              ? 'Sổ theo mẫu Thông tư 152/2025/TT-BTC, lập từ chứng từ đã xác nhận.'
-              : 'Chọn phương pháp nộp thuế trong Cài đặt để xuất đúng bộ sổ theo Thông tư 152/2025/TT-BTC.'
-            : 'Doanh nghiệp: bảng kê chứng từ đã xác nhận để kế toán định khoản và ghi Sổ Nhật ký chung.'}
+          {d.regime === 'HKD' && !d.hkdMethod
+            ? 'Chọn phương pháp nộp thuế trong Cài đặt để xuất đúng bộ sổ.'
+            : ''}
         </span>
         <Button
           variant="primary"
@@ -893,11 +890,6 @@ export function BooksPage() {
         >
           {d.regime === 'HKD' ? 'Xuất sổ kế toán (Excel)' : 'Xuất bảng kê chứng từ (Excel)'}
         </Button>
-      </div>
-      <div className="mt-16">
-        <Alert tone="info">
-          Bản kê khai thuế chỉ được lập sau khi kỳ đã rà soát và có người có chuyên môn xác nhận phương pháp.
-        </Alert>
       </div>
       <PageFoot />
     </div>

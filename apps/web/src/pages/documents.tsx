@@ -59,7 +59,7 @@ const toneOf = (status: string) =>
 // ───────── 11 · Chứng từ ─────────
 export function DocumentsPage() {
   const navigate = useNavigate();
-  const list = useListState(20);
+  const list = useListState(10);
   const [q, setQ] = useSearchText(list);
   const status = list.get('status') as '' | 'review' | 'done';
   const data = useQuery(
@@ -548,7 +548,7 @@ export function ReviewPage() {
           <OriginalPreview doc={d} artifact={doc.data.artifact} />
           {doc.data.authenticity && <AuthenticityPanel result={doc.data.authenticity} />}
         </Card>
-        <Card title="Nội dung trích xuất" subtitle="Đối chiếu từng trường trước khi xác nhận">
+        <Card title="Nội dung trích xuất">
           <TextInput
             label="Nhà cung cấp"
             value={fields.supplier}
@@ -768,7 +768,7 @@ function OriginalPreview({
         </span>
       </div>
       <p className="small muted" style={{ marginTop: 20 }}>
-        {artifact ? `${artifact.filename} · SHA-256 ${artifact.rawSha256.slice(0, 12)}…` : 'Không có tệp gốc'}
+        {artifact ? artifact.filename : 'Không có tệp gốc'}
       </p>
     </div>
   );
@@ -936,10 +936,6 @@ export function IngestionPage() {
         }
       >
         <p className="muted">{sel?.description}</p>
-        <p className="mt-16 small">
-          Kết nối được cấp theo tổ chức, pháp nhân và phạm vi dữ liệu. ARGOLET chỉ đọc nguồn đã được cấp quyền
-          và lưu bản gốc cùng SHA-256.
-        </p>
       </Modal>
       <PageFoot />
     </div>

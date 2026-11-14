@@ -68,7 +68,7 @@ describe('finance report', () => {
     expect(report.appraisalHint).toEqual({
       annualCashflow: '1015200000',
       annualCashflowMillions: '1015',
-      note: 'Kết quả bình quân 84.600.000 đ/tháng của 1 tháng có doanh thu × 12 tháng.',
+      note: 'Kết quả bình quân 84.600.000 đ/tháng của 1 tháng có doanh thu, quy ra cả năm.',
     });
   });
 
@@ -105,8 +105,8 @@ describe('finance report', () => {
       'Tháng 8/2026 – Tháng 10/2026',
       'Kết quả kinh doanh',
       'Chứng từ nguồn',
-      '3. Doanh thu thuần (3 = 1 − 2)',
-      '5. Kết quả thu − chi (5 = 3 − 4)',
+      '3. Doanh thu thuần',
+      '5. Kết quả thu − chi',
       'CT-1027',
     ])
       expect(text).toContain(s);

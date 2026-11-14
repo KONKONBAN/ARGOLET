@@ -25,7 +25,7 @@ import {
   Zap,
 } from 'lucide-react';
 import type { Role } from '@argolet/core';
-import { useBackend, useMutation, useQuery } from '../api/hooks';
+import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
 import {
   Alert,
@@ -96,10 +96,7 @@ export function MembersPage() {
           ) : undefined
         }
       />
-      <Card
-        title="Vai trò theo tổ chức và đơn vị"
-        subtitle="Quyền lập hồ sơ, phê duyệt và chốt kỳ được cấp riêng"
-      >
+      <Card title="Vai trò theo tổ chức và đơn vị">
         <DataTable
           rows={data.data.members}
           rowKey={(r) => r.id}
@@ -146,12 +143,6 @@ export function MembersPage() {
           ]}
         />
       </Card>
-      <div className="mt-16">
-        <Alert tone="info">
-          Quản trị tổ chức được tách khỏi quyền phê duyệt tài chính; người lập hồ sơ không thể tự phê duyệt.
-          Mọi thay đổi được ghi nhật ký.
-        </Alert>
-      </div>
       <Modal
         open={open}
         onClose={() => {
@@ -670,7 +661,6 @@ export function SettingsPage() {
           value={periodEdit || d.tenant.settings.currentPeriod}
           onChange={(e) => setPeriodEdit(e.target.value)}
           disabled={!d.canManage}
-          hint="Tự chuyển sang tháng kế tiếp khi mọi đơn vị đã chốt kỳ."
         />
         <h3 className="card-title mt-24" id="co-cau">
           Cơ cấu tổ chức
@@ -758,9 +748,6 @@ export function SettingsPage() {
             { label: 'Quyền khôi phục', value: 'Quản trị tổ chức + phê duyệt' },
           ]}
         />
-        <p className="small muted mt-16">
-          Lịch sao lưu và điểm khôi phục do quản trị hạ tầng cấu hình khi triển khai (pg_dump / PITR).
-        </p>
       </Modal>
       <AiSettings open={panel === 'ai'} onClose={() => setPanel(null)} ai={d.ai} canManage={d.canManage} />
       <Modal open={panel === 'privacy'} onClose={() => setPanel(null)} title="Bảo vệ dữ liệu cá nhân">
@@ -803,7 +790,7 @@ export function SecurityPage() {
         period={period}
       />
       <div className="grid split-even">
-        <Card title="Đổi mật khẩu" subtitle="Cần mật khẩu hiện tại · các phiên khác sẽ bị đăng xuất">
+        <Card title="Đổi mật khẩu" subtitle="Các phiên đăng nhập khác sẽ bị đăng xuất">
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -935,11 +922,7 @@ export function SecurityPage() {
           )}
         </Card>
       </div>
-      <Card
-        className="mt-24"
-        title="Phiên đăng nhập"
-        subtitle="Thu hồi phiên trên thiết bị không còn sử dụng"
-      >
+      <Card className="mt-24" title="Phiên đăng nhập">
         {sessions.data && (
           <DataTable
             rows={sessions.data}
@@ -1003,7 +986,6 @@ export function SecurityPage() {
 // ───────── Tất cả phân hệ ─────────
 export function ModulesPage() {
   const navigate = useNavigate();
-  const { backend } = useBackend();
   const { ctx } = useSession();
   const period = usePeriodLabel();
   const groups = [
@@ -1103,31 +1085,35 @@ export function ModulesPage() {
         subtitle={`Gói nghiệp vụ đang dùng: ${ctx?.tenant.settings.packages.join(', ') ?? ''}`}
         period={period}
       />
-      {groups.map((g) => (
-        <section key={g.code} className="mb-16">
-          <h2 className="eyebrow" style={{ margin: '18px 0 12px' }}>
-            {g.code}
-          </h2>
-          <div className="grid grid-2">
-            {g.items.map((it) => (
-              <button
-                key={it.to}
-                className="choice"
-                style={{ marginBottom: 0 }}
-                onClick={() => navigate(it.to)}
-              >
-                <it.icon size={22} color="#087452" />
-                <span>
-                  <div className="choice-title">{it.t}</div>
-                  <div className="choice-sub">{it.s}</div>
-                </span>
-                <ChevronRight size={16} color="#536978" />
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-      <p className="small muted mt-24">Chế độ chạy: {backend.info.label}</p>
+      <div className="module-board">
+        {groups.map((g) => (
+          <section
+            key={g.code}
+            className="module-group"
+            style={{ ['--span' as string]: Math.min(g.items.length, 4) }}
+          >
+            <h2 className="eyebrow">{g.code}</h2>
+            <div className="grid module-grid">
+              {g.items.map((it) => (
+                <button
+                  key={it.to}
+                  className="choice module-choice"
+                  style={{ marginBottom: 0 }}
+                  onClick={() => navigate(it.to)}
+                >
+                  <it.icon size={22} color="#087452" />
+                  <span>
+                    <div className="choice-title">{it.t}</div>
+                    <div className="choice-sub">{it.s}</div>
+                  </span>
+                  <ChevronRight size={16} color="#536978" />
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+
       <PageFoot />
     </div>
   );

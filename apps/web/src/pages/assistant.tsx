@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Files, Plus, SendHorizontal, Sparkles } from 'lucide-react';
-import { useBackend, useMutation, useQuery } from '../api/hooks';
+import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
 import { Button, Card, Chip, ErrorNote, PageHeader, PageLoading, useToast } from '../ui/components';
 import { PageFoot, usePeriodLabel } from './overview';
@@ -12,7 +12,6 @@ export function AssistantPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { can } = useSession();
-  const { backend } = useBackend();
   const list = useQuery('assistant.conversations');
   const [active, setActive] = useState<string | null>(null);
   const [draftNew, setDraftNew] = useState(false);
@@ -92,10 +91,6 @@ export function AssistantPage() {
               </button>
             ))}
           </div>
-          <p className="small muted mt-16">
-            Bộ máy trả lời:{' '}
-            {list.data.engine === 'rules' ? 'quy tắc tất định + công cụ nghiệp vụ' : list.data.engine}
-          </p>
         </Card>
         <Card className="chat">
           <Chip>{list.data.scopeLabel}</Chip>
@@ -218,12 +213,6 @@ export function AssistantPage() {
               <SendHorizontal size={18} />
             </button>
           </form>
-          {backend.info.mode === 'device' && (
-            <p className="small muted mt-8">
-              Bản trên trình duyệt dùng bộ trả lời quy tắc; khi chạy cùng máy chủ có khóa Claude, trợ lý dùng
-              mô hình ngôn ngữ qua cổng công cụ.
-            </p>
-          )}
         </Card>
       </div>
       <PageFoot />

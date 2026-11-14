@@ -18,7 +18,7 @@ test('partner API connections: SePay connected, synced into a document, then up 
 
   if (info.project.name === 'static') {
     // The in-browser app keeps no partner keys.
-    await expect(page.getByText('Kết nối đối tác chạy trên máy chủ ARGOLET')).toBeVisible();
+    await expect(page.getByText('Kết nối đối tác hoạt động khi dùng ARGOLET trên máy chủ.')).toBeVisible();
     await expect(sepay.getByRole('button', { name: 'Kết nối' })).toBeDisabled();
     await expectClean(w, info);
     return;

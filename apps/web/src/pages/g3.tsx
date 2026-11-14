@@ -5,7 +5,6 @@ import { formatShortDateTime } from '@argolet/core';
 import { useMutation, useQuery } from '../api/hooks';
 import { CashflowColumns } from '../ui/charts';
 import {
-  Alert,
   Button,
   Card,
   Chip,
@@ -201,9 +200,6 @@ export function ProjectsPage() {
               ]}
               empty="Chưa có công việc. Thêm công việc để lập WBS."
             />
-            {d.canWrite && d.project.tasks.length > 0 && (
-              <p className="table-foot">Chọn một công việc để cập nhật tiến độ.</p>
-            )}
           </Card>
         </>
       ) : (
@@ -438,7 +434,7 @@ const toAssumptions = (f: AssumptionForm) => ({
 
 function AssumptionFields({ form, setForm }: { form: AssumptionForm; setForm: (f: AssumptionForm) => void }) {
   return (
-    <>
+    <div className="field-grid">
       <TextInput
         label="Đầu tư ban đầu · triệu đ"
         inputMode="decimal"
@@ -475,7 +471,7 @@ function AssumptionFields({ form, setForm }: { form: AssumptionForm; setForm: (f
         value={fmtThousands(form.salvageValue ?? '')}
         onChange={(e) => setForm({ ...form, salvageValue: digits(e.target.value) })}
       />
-    </>
+    </div>
   );
 }
 
@@ -568,15 +564,6 @@ export function FinancePage() {
         placeholder="Lắp điện mặt trời áp mái"
       />
       <AssumptionFields form={newForm} setForm={setNewForm} />
-      {fromReport !== null && (
-        <p className="small muted">
-          Dòng tiền thuần / năm điền sẵn từ báo cáo tài chính (kết quả bình quân các tháng có chứng từ × 12,
-          làm tròn triệu đồng). Kiểm tra lại trước khi tính.
-        </p>
-      )}
-      <p className="small muted">
-        Kịch bản thận trọng và tích cực được lập tự động với dòng tiền ±1/6 so với kịch bản cơ sở.
-      </p>
       {create.error && <ErrorNote error={create.error} />}
     </Modal>
   );
@@ -586,7 +573,7 @@ export function FinancePage() {
         <PageHeader
           eyebrow="G3 · Dự án"
           title="Phân tích tài chính"
-          subtitle="Finance Engine · Tính hiệu quả từ giả định minh bạch."
+          subtitle="Hiệu quả đầu tư của dự án."
           period={period}
         />
         <ModuleTabs tabs={G3_TABS} current="/finance" />
@@ -624,7 +611,7 @@ export function FinancePage() {
       <PageHeader
         eyebrow="G3 · Dự án"
         title="Phân tích tài chính"
-        subtitle="Finance Engine · Tính hiệu quả từ giả định minh bạch."
+        subtitle="Hiệu quả đầu tư của dự án."
         period={period}
         actions={
           <div className="row wrap">
@@ -689,44 +676,24 @@ export function FinancePage() {
           </form>
         </Card>
         <div className="stack">
-          <div className="grid grid-2">
-            <Kpi label="NPV" value={r.npvLabel} note={r.npvNote} highlight />
-            <Kpi label="IRR" value={r.irrLabel} note={r.irrNote} />
+          <div className="grid grid-3">
+            <Kpi label="NPV" value={r.npvLabel} highlight />
+            <Kpi label="IRR" value={r.irrLabel} />
+            <Kpi label="MIRR" value={r.mirrLabel} />
           </div>
-          <Card title="Dòng tiền dự án" subtitle="Đơn vị: triệu đồng · Dòng tiền cuối mỗi năm">
+          <Card title="Dòng tiền dự án" subtitle="Đơn vị: triệu đồng">
             <CashflowColumns flows={r.cashflows.map(Number)} />
           </Card>
-          <div className="grid grid-2">
-            <Kpi label="Thời gian hoàn vốn" value={r.paybackLabel} note="Chưa chiết khấu" />
-            <Kpi label="DSCR" value={r.dscrLabel} note={r.dscrNote} />
+          <div className="grid grid-5 appraisal-kpis">
+            <Kpi label="Chỉ số sinh lời (PI)" value={r.piLabel} />
+            <Kpi label="Thời gian hoàn vốn" value={r.paybackLabel} />
+            <Kpi label="Hoàn vốn có chiết khấu" value={r.discountedPaybackLabel} />
+            <Kpi label="Dòng tiền đều tương đương (EAA)" value={r.eaaLabel} />
+            <Kpi label="Khả năng trả nợ (DSCR)" value={r.dscrLabel} />
           </div>
-          <Card
-            title="Các chỉ tiêu bổ sung"
-            subtitle="Theo chuẩn thẩm định dự án (NPV, IRR, MIRR, PI, hoàn vốn)"
-          >
-            <div className="kv">
-              <div className="kv-row">
-                <span className="k">MIRR (tái đầu tư theo suất chiết khấu)</span>
-                <span className="v strong num">{r.mirrLabel}</span>
-              </div>
-              <div className="kv-row">
-                <span className="k">Chỉ số sinh lời PI</span>
-                <span className="v strong num">{r.piLabel}</span>
-              </div>
-              <div className="kv-row">
-                <span className="k">Thời gian hoàn vốn có chiết khấu</span>
-                <span className="v strong num">{r.discountedPaybackLabel}</span>
-              </div>
-              <div className="kv-row">
-                <span className="k">Dòng tiền đều tương đương / năm (EAA)</span>
-                <span className="v strong num">{r.eaaLabel}</span>
-              </div>
-            </div>
-            <p className="small muted mt-8">{r.piNote}</p>
-          </Card>
-          <p className="small muted">{r.footnote}</p>
         </div>
       </div>
+
       <CalcRunHistory />
       {createModal}
       <PageFoot />
@@ -739,21 +706,17 @@ function CalcRunHistory() {
   const runs = useQuery('finance.calcRuns');
   if (!runs.data?.length) return null;
   return (
-    <Card
-      className="mt-24"
-      title="Lịch sử tính toán"
-      subtitle="20 lần tính gần nhất · có thể tái lập từ dữ liệu đầu vào"
-    >
+    <Card className="mt-24" title="Lịch sử tính toán">
       <DataTable
-        rows={runs.data}
+        rows={runs.data.slice(0, 5)}
         rowKey={(r) => r.id}
         columns={[
           { key: 't', header: 'Thời điểm', render: (r) => formatShortDateTime(r.createdAt), strong: true },
           { key: 'k', header: 'Phép tính', render: (r) => CALC_TASK[r.task] ?? r.task },
-          { key: 'e', header: 'Phiên bản động cơ', render: (r) => r.engineVersion },
+          { key: 'e', header: 'Phiên bản', render: (r) => r.engineVersion },
           {
             key: 'd',
-            header: 'Dấu vân tay đầu vào',
+            header: 'Mã kiểm tra',
             render: (r) => <code className="mono-wrap">{r.inputSnapshotDigest.slice(0, 16)}…</code>,
           },
         ]}
@@ -948,9 +911,6 @@ export function AssetsPage() {
           ]}
           empty="Chưa có tài sản hoặc chỉ số đo lường."
         />
-        {d.canWrite && d.items.some((i) => !i.isMetric && i.canComplete) && (
-          <p className="table-foot">Chọn tài sản đến hạn để ghi nhận đã bảo trì.</p>
-        )}
       </Card>
       <div className="row mt-24" style={{ justifyContent: 'flex-end' }}>
         <Button variant="primary" icon={<FileText size={18} />} onClick={() => setOpen(true)}>
@@ -962,14 +922,10 @@ export function AssetsPage() {
           items={[
             { title: 'Đường cơ sở đã điều chỉnh', sub: 'Theo thời tiết và sản lượng', done: true },
             { title: `Kỳ đo ${period.toLowerCase()}`, sub: 'Dữ liệu công tơ đã xác nhận', done: true },
-            { title: 'Tính tiết kiệm', sub: 'Finance Engine · energy_savings', done: true },
+            { title: 'Tính tiết kiệm', sub: 'Theo quy tắc đã duyệt', done: true },
             { title: 'Phê duyệt kết quả', sub: 'Chờ người có quyền', done: false },
           ]}
         />
-        <Alert tone="info">
-          Tiết kiệm = đường cơ sở đã điều chỉnh − năng lượng kỳ báo cáo. Kết quả gắn phiên bản quy tắc và
-          nguồn dữ liệu đo.
-        </Alert>
       </Modal>
       <Modal
         open={addOpen}
@@ -1667,7 +1623,7 @@ export function LogisticsFinancePage() {
               value={cost.amount}
               onChange={(v) => setCost({ ...cost, amount: v })}
             />
-            <p className="small muted">Phí lưu bãi được tính tự động theo số ngày vượt thời gian miễn phí.</p>
+
             {addCost.error && <ErrorNote error={addCost.error} />}
           </>
         )}

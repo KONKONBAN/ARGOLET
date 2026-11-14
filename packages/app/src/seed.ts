@@ -1779,7 +1779,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       costs: [
         { name: 'Cước vận chuyển', basis: '1 container', amount: '12000000' },
         { name: 'Phí nội địa', basis: 'Hồ sơ + vận chuyển', amount: '5000000' },
-        { name: 'Lưu bãi', basis: '2 ngày × 600.000', amount: '1200000' },
+        { name: 'Lưu bãi', basis: '2 ngày tính phí · 600.000 đ/ngày', amount: '1200000' },
       ],
       allocation: [
         { item: 'Hàng A', weightShare: '60' },

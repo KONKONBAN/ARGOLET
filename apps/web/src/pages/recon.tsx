@@ -26,7 +26,7 @@ import { PageFoot, usePeriodLabel } from './overview';
 export function ReconPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const list = useListState(20);
+  const list = useListState(10);
   const [q, setQ] = useSearchText(list);
   const filter = list.get('filter') as '' | 'review' | 'done';
   const data = useQuery(
@@ -206,7 +206,6 @@ export function ReconDetailPage() {
           {
             label: `Tổng ${orders.length} đơn hàng`,
             value: formatVnd(g.gross),
-            note: 'Giá trị đơn trước khi trừ phí',
           },
           { label: 'Phí nền tảng', value: formatVnd(deductions), note: g.feeRule },
           {
@@ -230,7 +229,7 @@ export function ReconDetailPage() {
             </div>
           ))}
         </Card>
-        <Card title="Phí & phân bổ" subtitle="Quy tắc phí đã chọn">
+        <Card title="Phí & phân bổ">
           <div className="kv">
             <div className="kv-row">
               <span className="k">Phí dịch vụ</span>
@@ -283,12 +282,9 @@ export function ReconDetailPage() {
         <div className="row-between wrap" style={{ alignItems: 'flex-end' }}>
           <div style={{ maxWidth: 640 }}>
             <p className="muted" style={{ lineHeight: 1.7 }}>
-              {g.basis.join('. ')}. Người có quyền cần xác nhận trước khi ghi nhận kết quả đối soát.
+              {g.basis.join('. ')}.
             </p>
-            <p className="small muted mt-8">
-              Điểm tương đồng {Math.round(g.score * 100)}% · {g.rulesVersion} · snapshot đầu vào{' '}
-              {g.inputSnapshotVersion}
-            </p>
+            <p className="small muted mt-8">Điểm tương đồng {Math.round(g.score * 100)}%</p>
           </div>
           <div className="row">
             {g.status === 'PROPOSED' && (
@@ -394,12 +390,12 @@ export function MatchWorkspacePage() {
           {
             label: `Tổng ${orders.length} đơn hàng`,
             value: formatVnd(g.gross),
-            note: `Nhóm ${g.code} · trước phí`,
+            note: `Nhóm ${g.code}`,
           },
           {
             label: `${receipts.length} khoản tiền đã nhận`,
             value: formatVnd(g.received),
-            note: receipts.map((r) => formatVnd(r.amount)).join(' + '),
+            note: `${receipts.length} khoản nhận`,
           },
           {
             label: 'Chênh lệch sau phí',
@@ -410,7 +406,7 @@ export function MatchWorkspacePage() {
         ]}
       />
       <div className="grid split-even">
-        <Card title="Đơn hàng & phí" subtitle="Nhiều bản ghi nguồn trong cùng nhóm ghép">
+        <Card title="Đơn hàng & phí">
           {orders.map((o) => (
             <div className="list-item" key={o.id} style={{ gridTemplateColumns: '22px 1fr auto' }}>
               <Receipt size={16} color="#087452" />
@@ -424,10 +420,7 @@ export function MatchWorkspacePage() {
             <span className="strong num">{formatSignedVnd(deductions.neg())}</span>
           </div>
         </Card>
-        <Card
-          title="Khoản nhận ngân hàng"
-          subtitle={receipts.length > 1 ? 'Hai giao dịch cùng lô thanh toán' : 'Giao dịch theo lô thanh toán'}
-        >
+        <Card title="Khoản nhận ngân hàng">
           {receipts.map((r) => (
             <div className="list-item" key={r.id} style={{ gridTemplateColumns: '22px 1fr auto' }}>
               <Landmark size={16} color="#087452" />
@@ -448,16 +441,7 @@ export function MatchWorkspacePage() {
         </Card>
       </div>
       <Card className="mt-24" title="Căn cứ ghép & xác nhận">
-        <p className="muted" style={{ maxWidth: 640, lineHeight: 1.7 }}>
-          Bộ tính đối chiếu {formatVnd(g.gross).replace(' đ', '')} − {formatVnd(deductions).replace(' đ', '')}{' '}
-          = {receipts.map((r) => formatVnd(r.amount).replace(' đ', '')).join(' + ')}. Đơn, phí và{' '}
-          {receipts.length === 1 ? 'khoản nhận' : `${receipts.length} khoản nhận`} giữ liên kết với bản gốc và
-          phiên bản.
-        </p>
         <div className="row-between wrap mt-16">
-          <span className="small muted">
-            AI đề xuất · Bộ tính xác định tính toán · Người có quyền xác nhận
-          </span>
           <div className="row">
             {can('recon.confirm') && g.status !== 'CONFIRMED' && (
               <Button icon={<CircleCheck size={18} />} loading={a.confirm.loading} onClick={a.doConfirm}>

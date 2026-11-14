@@ -379,7 +379,7 @@ test('a new company runs the whole product from an empty server', async ({ brows
 
   await test.step('evidence: the closed November is verified against its anchored proof', async () => {
     await go(page, 'evidence', /Bằng chứng/);
-    await page.locator('table tbody tr').filter({ hasText: '2026-11' }).first().click();
+    await page.locator('.snap-item').filter({ hasText: '2026-11' }).first().click();
     const d = page.getByRole('dialog', { name: /Bộ chốt kỳ 2026-11/ });
     await expect(d.getByText(/Biên nhận sổ cái/)).toBeVisible();
     await d.getByRole('button', { name: 'Kiểm chứng toàn vẹn' }).click();

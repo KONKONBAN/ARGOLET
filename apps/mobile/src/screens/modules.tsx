@@ -1328,10 +1328,10 @@ export function FinanceScreen({ navigation }: ScreenProps<'Finance'>) {
       />
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
         <View style={{ flex: 1 }}>
-          <Kpi label="NPV" value={r.npvLabel} note={r.npvNote} highlight />
+          <Kpi label="NPV" value={r.npvLabel} highlight />
         </View>
         <View style={{ flex: 1 }}>
-          <Kpi label="IRR" value={r.irrLabel} note="Suất chiết khấu" />
+          <Kpi label="IRR" value={r.irrLabel} />
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
@@ -1351,13 +1351,12 @@ export function FinanceScreen({ navigation }: ScreenProps<'Finance'>) {
             { label: 'Dòng tiền đều tương đương (EAA)', value: r.eaaLabel },
           ]}
         />
-        <Text style={[T.small, { marginTop: 6 }]}>{r.piNote}</Text>
       </Card>
       <Card title="Giả định đầu vào" subtitle={d.project.name}>
         <AssumptionInputs f={f} setF={(nf2) => setEdits({ id: d.project.id, f: nf2 })} />
         {recalc.error && <Notice tone="danger">{recalc.error.message}</Notice>}
       </Card>
-      <Text style={T.small}>{r.footnote}</Text>
+
       <Gap />
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1 }}>
@@ -2194,7 +2193,7 @@ export function MembersScreen() {
     >
       <ListCard
         title="Vai trò theo tổ chức và đơn vị"
-        subtitle="Quyền lập hồ sơ, phê duyệt và chốt kỳ được cấp riêng"
+
         rows={data.data.members}
         render={(m) => (
           <Row

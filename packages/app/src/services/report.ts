@@ -247,7 +247,7 @@ async function buildReport(tx: Tx, ws: WorkspaceState, tenant: TenantRow, p: Rep
           annualCashflow: avg.times(12).toFixed(),
           /** The appraisal works in millions of đồng (whole millions in its form). */
           annualCashflowMillions: avg.times(12).div(1_000_000).toDecimalPlaces(0).toFixed(),
-          note: `Kết quả bình quân ${formatVnd(avg)}/tháng của ${withSales.length} tháng có doanh thu × 12 tháng.`,
+          note: `Kết quả bình quân ${formatVnd(avg)}/tháng của ${withSales.length} tháng có doanh thu, quy ra cả năm.`,
         }
       : null,
     note: 'Chỉ gồm chứng từ đã xác nhận. Chi phí chưa có chứng từ (lương, khấu hao…) chưa được tính: kết quả là chênh lệch thu − chi theo chứng từ, không phải lợi nhuận kế toán.',
@@ -311,7 +311,7 @@ export async function financeReportXlsx(
   };
   const gross = add('1. Doanh thu bán hàng', (m) => m.grossSales);
   const returns = add('2. Hoàn tiền, chiết khấu cho khách', (m) => m.returns);
-  const net = add('3. Doanh thu thuần (3 = 1 − 2)', (m) => m.netRevenue, {
+  const net = add('3. Doanh thu thuần', (m) => m.netRevenue, {
     strong: true,
     formula: (c) => `${c}${gross}-${c}${returns}`,
   });
@@ -324,7 +324,7 @@ export async function financeReportXlsx(
   });
   for (const k of CATS) add(`   ${COST_SHORT[k]}`, (m) => m.costs[k]);
   add('   Phí nền tảng bán hàng', (m) => m.platformFees);
-  add('5. Kết quả thu − chi (5 = 3 − 4)', (m) => m.result, {
+  add('5. Kết quả thu − chi', (m) => m.result, {
     strong: true,
     formula: (c) => `${c}${net}-${c}${costRow}`,
   });

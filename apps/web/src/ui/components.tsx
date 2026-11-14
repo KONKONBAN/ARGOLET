@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -158,31 +159,72 @@ export function SelectInput({
 }
 
 /** Amount in VND: digits only while typing, the formatted value as a hint underneath. */
+/** "40000000" → "40.000.000" (Vietnamese grouping, no precision loss for very large amounts). */
+export const groupDigits = (digits: string) =>
+  digits.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+/**
+ * Amount in đồng. The field shows the grouped figure as it is typed ("40.000.000 đ"), so no extra
+ * line is needed to read it back; the value handed to the page is digits only. The caret stays after
+ * the same digit while dots are inserted or removed.
+ */
 export function MoneyInput({
   label,
   value,
   onChange,
   error,
   id,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   error?: string | undefined;
   id?: string;
+  hint?: ReactNode;
 }) {
-  const digits = value.replace(/[^\d]/g, '');
-  const hint = digits ? `${Number(digits).toLocaleString('vi-VN')} đ` : undefined;
+  const auto = useId();
+  const fid = id ?? auto;
+  const ref = useRef<HTMLInputElement>(null);
+  const caret = useRef<number | null>(null);
+  const shown = groupDigits(value.replace(/[^\d]/g, ''));
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const want = caret.current;
+    caret.current = null;
+    if (!el || want === null || document.activeElement !== el) return;
+    let pos = 0;
+    for (let seen = 0; pos < el.value.length && seen < want; pos++) {
+      if (/\d/.test(el.value[pos]!)) seen++;
+    }
+    el.setSelectionRange(pos, pos);
+  });
   return (
-    <TextInput
-      id={id}
-      label={label}
-      inputMode="numeric"
-      value={digits}
-      onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ''))}
-      hint={hint}
-      error={error}
-    />
+    <Field label={label} hint={hint} error={error} htmlFor={fid}>
+      <div className="input-money">
+        <input
+          ref={ref}
+          id={fid}
+          className={`input num${error ? ' invalid' : ''}`}
+          inputMode="numeric"
+          autoComplete="off"
+          aria-invalid={!!error || undefined}
+          value={shown}
+          onChange={(e) => {
+            const raw = e.target.value;
+            const at = e.target.selectionStart ?? raw.length;
+            caret.current = raw
+              .slice(0, at)
+              .replace(/[^\d]/g, '')
+              .replace(/^0+(?=\d)/, '').length;
+            onChange(raw.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, ''));
+          }}
+        />
+        <span className="input-unit" aria-hidden>
+          đ
+        </span>
+      </div>
+    </Field>
   );
 }
 

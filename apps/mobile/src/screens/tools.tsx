@@ -220,7 +220,7 @@ function LeverageTool() {
       </Card>
       {lev && 'error' in lev && <Notice tone="danger">{lev.error}</Notice>}
       {lev && 'value' in lev && (
-        <Card title="Đòn bẩy" subtitle="DOL = SDĐP / EBIT · DFL = EBIT / (EBIT − lãi vay) · DTL = DOL × DFL">
+        <Card title="Đòn bẩy">
           <KV
             rows={[
               { label: 'EBIT', value: vnd(lev.value.ebit) },
@@ -229,11 +229,6 @@ function LeverageTool() {
               { label: 'Đòn bẩy tổng hợp (DTL)', value: times(lev.value.dtl) },
             ]}
           />
-          {lev.value.dtl && (
-            <Text style={[T.small, { marginTop: 6 }]}>
-              Doanh thu thay đổi 1% → lợi nhuận cho chủ sở hữu thay đổi {formatNumber(D(lev.value.dtl), 2)}%.
-            </Text>
-          )}
         </Card>
       )}
       {bal && 'error' in bal && <Notice tone="danger">{bal.error}</Notice>}
@@ -242,17 +237,17 @@ function LeverageTool() {
           <KV
             rows={[
               { label: 'Hệ số nợ', value: percent(bal.value.s.debtRatio) },
-              { label: 'Nợ / Vốn chủ (LEV)', value: times(bal.value.s.debtToEquity) },
+              { label: 'Hệ số nợ trên vốn chủ (LEV)', value: times(bal.value.s.debtToEquity) },
               { label: 'Khả năng trả lãi vay', value: times(bal.value.tie) },
-              { label: 'ROA (LNST / Tổng tài sản)', value: percent(bal.value.d.roa) },
+              { label: 'ROA', value: percent(bal.value.d.roa) },
               { label: 'ROE', value: percent(bal.value.d.roe) },
               { label: 'Chi phí nợ sau thuế', value: percent(bal.value.mm.afterTaxCostOfDebt) },
             ]}
           />
           <Text style={[T.small, { marginTop: 6 }]}>
             {bal.value.mm.favourable
-              ? `Đòn bẩy có lợi: nợ làm ROE tăng thêm ${formatPercent(bal.value.mm.leverageContribution)}.`
-              : `Đòn bẩy bất lợi: nợ làm ROE giảm ${formatPercent(D(bal.value.mm.leverageContribution).abs())}.`}
+              ? `Vay nợ làm ROE tăng thêm ${formatPercent(bal.value.mm.leverageContribution)}`
+              : `Vay nợ làm ROE giảm ${formatPercent(D(bal.value.mm.leverageContribution).abs())}`}
           </Text>
         </Card>
       )}

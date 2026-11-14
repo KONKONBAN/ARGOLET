@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, FileCheck, ShieldCheck, ShieldAlert, Upload } from 'lucide-react';
+import { Download, FileCheck, Lock, ShieldCheck, ShieldAlert, Upload } from 'lucide-react';
 import { formatShortDateTime, formatTimeDate } from '@argolet/core';
 import { useMutation, useQuery } from '../api/hooks';
 import {
@@ -26,7 +26,7 @@ import { PageFoot, usePeriodLabel } from './overview';
 // Danh mục bằng chứng: phiên bản chứng từ đã xác nhận + bộ chốt kỳ.
 export function EvidenceIndexPage() {
   const navigate = useNavigate();
-  const list = useListState(20);
+  const list = useListState(10);
   const docs = useQuery(
     'documents.list',
     { status: 'done', page: list.page, pageSize: list.pageSize },
@@ -43,67 +43,67 @@ export function EvidenceIndexPage() {
         subtitle="Truy vết nguồn, phiên bản và người xác nhận."
         period={period}
       />
-      <Card title="Bộ chốt kỳ" subtitle="CloseSnapshot đã duyệt và biên nhận trên mạng có cấp quyền">
-        {snaps.data && (
-          <DataTable
-            rows={snaps.data}
-            rowKey={(r) => r.closeId}
-            onRowClick={(r) => setOpenClose(r.closeId)}
-            columns={[
-              { key: 'c', header: 'Bộ chốt', render: (r) => r.closeId, strong: true },
-              { key: 'p', header: 'Kỳ', render: (r) => r.periodId },
-              { key: 'v', header: 'Phiên bản', render: (r) => r.version },
-              { key: 't', header: 'Thời điểm chốt', render: (r) => formatShortDateTime(r.closedAt) },
-              {
-                key: 's',
-                header: 'Bằng chứng',
-                render: (r) => (
-                  <Chip tone={r.evidenceStatus === 'ANCHORED' ? 'success' : 'warning'}>
-                    {r.evidenceStatus === 'ANCHORED'
-                      ? 'Đã neo'
-                      : r.evidenceStatus === 'FAILED'
-                        ? 'Thất bại'
-                        : 'Đang tạo'}
-                  </Chip>
-                ),
-              },
-            ]}
-            empty="Chưa có kỳ nào được chốt"
-          />
-        )}
-        {openClose && <CloseSnapshotDialog closeId={openClose} onClose={() => setOpenClose(null)} />}
-      </Card>
-      <Card
-        className="mt-24"
-        title="Chứng từ đã xác nhận"
-        subtitle="Mỗi phiên bản có dấu vân tay SHA-256 có muối và Merkle proof"
-      >
-        {docs.data && (
-          <DataTable
-            rows={docs.data.items}
-            rowKey={(r) => r.id}
-            onRowClick={(r) => navigate(`/evidence/${r.id}`)}
-            columns={[
-              { key: 'l', header: 'Chứng từ', render: (r) => r.label, strong: true },
-              { key: 's', header: 'Nguồn', render: (r) => r.source },
-              { key: 'd', header: 'Ngày', render: (r) => r.dateLabel },
-              { key: 'a', header: 'Giá trị', render: (r) => r.amountLabel, align: 'right' },
-            ]}
-          />
-        )}
-        {docs.data && (
-          <Pagination
-            page={docs.data.page}
-            pageCount={docs.data.pageCount}
-            total={docs.data.total}
-            pageSize={docs.data.pageSize}
-            onPage={list.setPage}
-            onPageSize={list.setPageSize}
-            unit="chứng từ"
-            busy={docs.fetching}
-          />
-        )}
-      </Card>
+      <div className="grid split-main">
+        <Card title="Chứng từ đã xác nhận">
+          {docs.data && (
+            <DataTable
+              rows={docs.data.items}
+              rowKey={(r) => r.id}
+              onRowClick={(r) => navigate(`/evidence/${r.id}`)}
+              columns={[
+                { key: 'l', header: 'Chứng từ', render: (r) => r.label, strong: true },
+                { key: 's', header: 'Nguồn', render: (r) => r.source },
+                { key: 'd', header: 'Ngày', render: (r) => r.dateLabel },
+                { key: 'a', header: 'Giá trị', render: (r) => r.amountLabel, align: 'right' },
+              ]}
+            />
+          )}
+          {docs.data && (
+            <Pagination
+              page={docs.data.page}
+              pageCount={docs.data.pageCount}
+              total={docs.data.total}
+              pageSize={docs.data.pageSize}
+              onPage={list.setPage}
+              onPageSize={list.setPageSize}
+              unit="chứng từ"
+              busy={docs.fetching}
+            />
+          )}
+        </Card>
+        <Card title="Bộ chốt kỳ">
+          {snaps.data &&
+            (snaps.data.length === 0 ? (
+              <div className="snap-empty">
+                <Lock size={20} aria-hidden />
+                <span>Chưa có kỳ nào được chốt.</span>
+              </div>
+            ) : (
+              <ul className="snap-list">
+                {snaps.data.map((r) => (
+                  <li key={r.closeId}>
+                    <button type="button" className="snap-item" onClick={() => setOpenClose(r.closeId)}>
+                      <span className="snap-main">
+                        <strong>Kỳ {r.periodId}</strong>
+                        <span className="small muted">
+                          Phiên bản {r.version} · {formatShortDateTime(r.closedAt)}
+                        </span>
+                      </span>
+                      <Chip tone={r.evidenceStatus === 'ANCHORED' ? 'success' : 'warning'}>
+                        {r.evidenceStatus === 'ANCHORED'
+                          ? 'Đã neo'
+                          : r.evidenceStatus === 'FAILED'
+                            ? 'Thất bại'
+                            : 'Đang tạo'}
+                      </Chip>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          {openClose && <CloseSnapshotDialog closeId={openClose} onClose={() => setOpenClose(null)} />}
+        </Card>
+      </div>
       <PageFoot />
     </div>
   );
@@ -231,12 +231,6 @@ export function EvidencePage() {
               <div className="mt-24">
                 <KeyValues rows={e.rows} />
               </div>
-              {e.receipt && (
-                <p className="small muted mt-16">
-                  Merkle root {e.receipt.merkleRoot.slice(0, 16)}… · tx {e.receipt.transactionId.slice(0, 12)}
-                  … · khối #{e.receipt.blockNumber} · kênh {e.receipt.channel} · {e.receipt.validationCode}
-                </p>
-              )}
             </>
           ) : (
             <div className="mt-24">
@@ -405,8 +399,7 @@ export function VerificationPage() {
           />
           {result && (
             <p className="small muted mt-8">
-              Chuỗi khối sổ cái: {result.chainValid ? 'hợp lệ' : 'BỊ SỬA ĐỔI'} · root tính lại{' '}
-              {result.computedRoot.slice(0, 16)}…
+              Chuỗi khối sổ cái: {result.chainValid ? 'hợp lệ' : 'BỊ SỬA ĐỔI'}
             </p>
           )}
         </Card>
@@ -416,30 +409,27 @@ export function VerificationPage() {
               items={[
                 {
                   title: 'Bản gốc ngoài chuỗi',
-                  sub: 'Nguồn · quyền truy cập',
+
                   done: !!result?.steps.find((s) => s.code === 'B1')?.ok,
                 },
                 {
                   title: 'Băm có muối',
-                  sub: 'Dấu vân tay theo phiên bản',
+
                   done: !!result?.steps.find((s) => s.code === 'B5')?.ok,
                 },
                 {
                   title: 'Gom lô Merkle',
-                  sub: 'Lá · đường dẫn · gốc lô',
+
                   done: !!result?.steps.find((s) => s.code === 'B6')?.ok,
                 },
                 {
                   title: 'Mạng có cấp quyền',
-                  sub: 'Đối chiếu root đã ghi nhận',
+
                   done: !!result?.steps.find((s) => s.code === 'B4')?.ok,
                 },
               ]}
             />
           </div>
-          <p className="small muted" style={{ lineHeight: 1.7 }}>
-            Xác minh toàn vẹn dữ liệu không thay thế việc kiểm tra tính đúng đắn của đầu vào.
-          </p>
           {d.status !== 'PENDING' && !result && (
             <p className="small muted mt-8">
               Lần kiểm chứng gần nhất: {d.statusLabel.toLowerCase()} ·{' '}

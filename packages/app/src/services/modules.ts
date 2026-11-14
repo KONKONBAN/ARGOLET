@@ -775,7 +775,7 @@ export class ModuleService {
           ? {
               ...c,
               amount: storage.amount,
-              basis: `${storage.chargeableDays} ngày × ${formatNumber(D(sh.storageRatePerDay))}`,
+              basis: `${storage.chargeableDays} ngày tính phí · ${formatNumber(D(sh.storageRatePerDay))} đ/ngày`,
             }
           : c,
       );

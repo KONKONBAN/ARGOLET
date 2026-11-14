@@ -255,15 +255,12 @@ export function ConnectionsPage() {
       <PageHeader
         eyebrow="Quản trị"
         title="Kết nối API"
-        subtitle="ARGOLET tự lấy giao dịch ngân hàng và hóa đơn bán hàng từ đối tác để đối soát với chứng từ."
+        subtitle="Tự lấy giao dịch ngân hàng và hóa đơn bán hàng từ đối tác."
         period={period}
       />
       {!d.serverReady && (
         <div className="mb-16">
-          <Alert tone="info" title="Kết nối đối tác chạy trên máy chủ ARGOLET">
-            Bản đang mở chạy hoàn toàn trong trình duyệt nên không lưu khóa của đối tác. Trên máy chủ ARGOLET
-            (có ARGOLET_SECRET_KEY), các kết nối dưới đây hoạt động đầy đủ.
-          </Alert>
+          <Alert tone="info">Kết nối đối tác hoạt động khi dùng ARGOLET trên máy chủ.</Alert>
         </div>
       )}
       {live.map((c) => (
@@ -271,10 +268,7 @@ export function ConnectionsPage() {
           <ConnectionCard c={c} provider={d.providers.find((p) => p.provider === c.provider)} />
         </div>
       ))}
-      <Card
-        title="Thêm kết nối"
-        subtitle="Chọn đối tác; ARGOLET chỉ đọc dữ liệu, không thay đổi gì bên đối tác."
-      >
+      <Card title="Thêm kết nối">
         <div className="conn-grid">
           {d.providers.map((p) => {
             const Icon = p.kind === 'BANK' ? Landmark : Store;

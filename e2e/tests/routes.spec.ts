@@ -66,7 +66,9 @@ for (const [route, title] of ROUTES) {
 test('drill-down screens open from their lists', async ({}, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await go(page, 'documents', 'Chứng từ');
-  // CT-1019 is never modified by other tests (API mode shares one database across tests).
+  // CT-1019 is never modified by other tests (API mode shares one database across tests); other
+  // tests add documents, so it is found through the search box rather than on the first page.
+  await page.locator('main .search input').first().fill('CT-1019');
   await page
     .getByText(/^CT-1019/)
     .first()
@@ -111,15 +113,15 @@ test('documents are paginated with page numbers; the page survives opening a rec
   const range = (from: number, to: number | null) =>
     exact ? `${from}–${to ?? 128} trên 128` : new RegExp(`${from}–${to ?? '\\d+'} trên \\d+`);
   const pager = page.locator('.pager-info');
-  await expect(pager).toContainText(range(1, 20));
-  await expect(page.locator('table tbody tr')).toHaveCount(20);
+  await expect(pager).toContainText(range(1, 10));
+  await expect(page.locator('table tbody tr')).toHaveCount(10);
   const firstOnPage1 = await page.locator('table tbody tr').first().innerText();
   await page.getByRole('button', { name: 'Trang 2' }).click();
-  await expect(pager).toContainText(range(21, 40));
+  await expect(pager).toContainText(range(11, 20));
   await expect(page).toHaveURL(/page=2/);
   expect(await page.locator('table tbody tr').first().innerText()).not.toBe(firstOnPage1);
   await page.getByRole('button', { name: 'Trang sau' }).click();
-  await expect(pager).toContainText(range(41, 60));
+  await expect(pager).toContainText(range(21, 30));
   // API mode runs beside other tests on one server: retry the choice if a reload raced it.
   await expect(async () => {
     await page.locator('.pager-size select').selectOption('50');

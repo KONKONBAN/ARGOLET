@@ -102,10 +102,6 @@ export function ApprovalPage() {
           <div className="mt-24">
             <KeyValues rows={a.details.map((d) => ({ label: d.label, value: d.value }))} />
           </div>
-          <p className="small muted mt-16">
-            Dấu nội dung trình duyệt: <code>{a.digest.slice(0, 16)}…</code> · phiên bản {a.targetVersion} ·{' '}
-            {a.policyVersion}
-          </p>
           {blockedReason && (
             <div className="mt-16">
               <Alert tone="info">{blockedReason}</Alert>
@@ -337,10 +333,7 @@ export function ClosePage() {
       >
         <p>
           Chốt <b>{s.periodLabel.toLowerCase()}</b> cho <b>{s.scopeLabel}</b>. Sau khi chốt, số liệu được khóa
-          theo phiên bản, ghi phê duyệt, tạo manifest và neo Merkle root lên mạng có cấp quyền.
-        </p>
-        <p className="small muted mt-16">
-          Dấu số liệu đang rà soát: {s.draftDigest.slice(0, 24)}… · Chính sách yêu cầu xác thực bổ sung.
+          và không thể sửa.
         </p>
       </Modal>
       <PageFoot />
@@ -374,7 +367,7 @@ export function DecisionPackPage() {
       <KpiRow
         items={[
           { label: 'Doanh thu trong kỳ', value: d.kpis.revenueLabel, note: d.scopeLabel },
-          { label: 'Chi phí đã ghi nhận', value: d.kpis.expenseLabel, note: 'Có nguồn và phiên bản' },
+          { label: 'Chi phí đã ghi nhận', value: d.kpis.expenseLabel },
           { label: 'Dòng tiền thuần', value: d.kpis.netLabel, note: d.kpis.netNote, highlight: true },
         ]}
       />

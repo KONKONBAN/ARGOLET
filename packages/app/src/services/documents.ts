@@ -315,7 +315,7 @@ export class DocumentService {
               issues.push({
                 field: 'total',
                 severity: 'warning',
-                message: `Hóa đơn bằng ${inv.currency}: đã quy đổi ${inv.total} × tỷ giá ${inv.exchangeRate} = ${formatVnd(inv.totalVnd)} — kiểm tra tỷ giá ghi sổ`,
+                message: `Hóa đơn bằng ${inv.currency}, tỷ giá ${inv.exchangeRate}: quy đổi ${formatVnd(inv.totalVnd)} — kiểm tra tỷ giá ghi sổ`,
               });
             doc = {
               ...common,

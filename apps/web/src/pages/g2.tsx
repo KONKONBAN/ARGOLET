@@ -32,6 +32,8 @@ export function ClientsPage() {
   const toast = useToast();
   const [q, setQ] = useState('');
   const [onlyMissing, setOnlyMissing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
   const data = useQuery('modules.clients', { q });
   const add = useMutation('modules.addClient', { silent: true });
   const [open, setOpen] = useState(false);
@@ -47,6 +49,9 @@ export function ClientsPage() {
     );
   const d = data.data;
   const rows = d.items.filter((r) => !onlyMissing || r.tone === 'warning');
+  const pageCount = Math.max(1, Math.ceil(rows.length / size));
+  const current = Math.min(page, pageCount);
+  const shown = rows.slice((current - 1) * size, current * size);
   return (
     <div className="page">
       <PageHeader
@@ -68,17 +73,26 @@ export function ClientsPage() {
       />
       <Card>
         <div className="toolbar">
-          <SearchBox value={q} onChange={setQ} />
+          <SearchBox
+            value={q}
+            onChange={(v) => {
+              setQ(v);
+              setPage(1);
+            }}
+          />
           <Button
             icon={<ListFilter size={18} />}
-            onClick={() => setOnlyMissing((s) => !s)}
+            onClick={() => {
+              setOnlyMissing((s) => !s);
+              setPage(1);
+            }}
             aria-pressed={onlyMissing}
           >
             {onlyMissing ? 'Đang thiếu hồ sơ' : 'Bộ lọc'}
           </Button>
         </div>
         <DataTable
-          rows={rows}
+          rows={shown}
           rowKey={(r) => r.id}
           columns={[
             { key: 'n', header: 'Khách hàng', render: (r) => r.name, strong: true },
@@ -88,9 +102,18 @@ export function ClientsPage() {
             { key: 't', header: 'Trạng thái', render: (r) => <Chip tone={r.tone}>{r.status}</Chip> },
           ]}
         />
-        <p className="table-foot">
-          Hiển thị {rows.length} bản ghi · Kỳ {period.toLowerCase()}
-        </p>
+        <Pagination
+          page={current}
+          pageCount={pageCount}
+          total={rows.length}
+          pageSize={size}
+          onPage={setPage}
+          onPageSize={(n) => {
+            setSize(n);
+            setPage(1);
+          }}
+          unit="khách hàng"
+        />
       </Card>
       <Modal
         open={open}
@@ -141,7 +164,7 @@ export function ClientsPage() {
 // ───────── 25 · Bán hàng & thu nợ ─────────
 export function SalesPage() {
   const toast = useToast();
-  const list = useListState(20);
+  const list = useListState(10);
   const data = useQuery(
     'modules.sales',
     { page: list.page, pageSize: list.pageSize },
@@ -173,7 +196,16 @@ export function SalesPage() {
         period={period}
       />
       <ModuleTabs tabs={G2_TABS} current="/sales" />
-      <KpiRow items={d.kpis} />
+      <KpiRow
+        items={d.kpis}
+        action={
+          d.canWrite ? (
+            <Button variant="primary" icon={<Plus size={18} />} onClick={() => setOpen(true)}>
+              Tạo cơ hội
+            </Button>
+          ) : undefined
+        }
+      />
       <Card title="Chuỗi bán hàng & thu nợ">
         <DataTable
           rows={d.items}
@@ -204,17 +236,7 @@ export function SalesPage() {
           unit="cơ hội"
           busy={data.fetching}
         />
-        {d.canWrite && d.items.length > 0 && (
-          <p className="table-foot">Chọn một dòng để chuyển bước hoặc đánh dấu hoàn tất.</p>
-        )}
       </Card>
-      {d.canWrite && (
-        <div className="row mt-24" style={{ justifyContent: 'flex-end' }}>
-          <Button variant="primary" icon={<Plus size={18} />} onClick={() => setOpen(true)}>
-            Tạo cơ hội
-          </Button>
-        </div>
-      )}
       <Modal
         open={open}
         onClose={() => setOpen(false)}

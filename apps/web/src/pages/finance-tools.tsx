@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FileSpreadsheet } from 'lucide-react';
 import {
   agio,
@@ -88,6 +89,13 @@ function attempt<T>(f: () => T): { value: T; error: null } | { value: null; erro
   }
 }
 
+/** Thuế suất thuế TNDN (Luật Thuế TNDN số 67/2025/QH15). */
+const CIT_RATES = [
+  { value: '20', label: '20% · phổ thông' },
+  { value: '17', label: '17% · doanh thu năm trên 3 đến 50 tỷ' },
+  { value: '15', label: '15% · doanh thu năm đến 3 tỷ' },
+];
+
 // ───────── 1 · Vay vốn: lịch trả nợ ─────────
 const METHODS: { value: RepaymentMethod; label: string }[] = [
   { value: 'ANNUITY', label: 'Trả góp đều (gốc + lãi bằng nhau mỗi kỳ)' },
@@ -154,6 +162,61 @@ function scheduleXlsx(s: LoanSchedule, title: string) {
   downloadBase64('lich-tra-no-vay.xlsx', btoa(bin), XLSX_MIME);
 }
 
+/** Headline results, read at a glance above the detail. */
+function Figures({
+  items,
+}: {
+  items: { label: string; value: ReactNode; note?: ReactNode | undefined; lead?: boolean }[];
+}) {
+  return (
+    <div className="calc-kpis" style={{ ['--n' as string]: items.length }}>
+      {items.map((k) => (
+        <div key={k.label} className={`calc-kpi${k.lead ? ' lead' : ''}`}>
+          <div className="calc-kpi-label">{k.label}</div>
+          <div className="calc-kpi-value num">{k.value}</div>
+          {k.note && <div className="calc-kpi-note">{k.note}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** One calculator: what the person enters on the left, what it means on the right. */
+function Calc({
+  title,
+  subtitle,
+  inputs,
+  children,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  inputs: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="calc">
+      <Card title={title} subtitle={subtitle} className="calc-in">
+        <div className="calc-fields">{inputs}</div>
+      </Card>
+      <div className="calc-out">{children}</div>
+    </div>
+  );
+}
+
+function Waiting({ children }: { children: ReactNode }) {
+  return (
+    <Card className="calc-wait">
+      <p className="muted">{children}</p>
+    </Card>
+  );
+}
+
+const round = (v: string | { toFixed: () => string }) =>
+  D(typeof v === 'string' ? v : v.toFixed())
+    .toDecimalPlaces(0)
+    .toFixed();
+const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
 function LoanTool() {
   const [f, setF] = useState({
     principal: '',
@@ -198,18 +261,22 @@ function LoanTool() {
     [f, rate, ready],
   );
   const s = r?.value?.s;
+  const cost = r?.value?.cost;
+  const first = s?.rows[0];
   return (
-    <div className="tool-grid">
-      <Card title="Khoản vay">
-        <MoneyInput label="Số tiền vay" value={f.principal} onChange={(v) => set({ principal: v })} />
-        <TextInput
-          label="Lãi suất · %/năm"
-          inputMode="decimal"
-          value={f.rate}
-          onChange={(e) => set({ rate: e.target.value })}
-          placeholder="10"
-        />
-        <div className="grid grid-2" style={{ gap: 12 }}>
+    <Calc
+      title="Khoản vay"
+
+      inputs={
+        <>
+          <MoneyInput label="Số tiền vay" value={f.principal} onChange={(v) => set({ principal: v })} />
+          <TextInput
+            label="Lãi suất · %/năm"
+            inputMode="decimal"
+            value={f.rate}
+            onChange={(e) => set({ rate: e.target.value })}
+            placeholder="10"
+          />
           <TextInput
             label="Số kỳ trả nợ"
             inputMode="numeric"
@@ -227,157 +294,166 @@ function LoanTool() {
               { value: '12', label: '12 tháng (năm)' },
             ]}
           />
-        </div>
-        <SelectInput
-          label="Phương thức trả nợ"
-          value={f.method}
-          onChange={(v) => set({ method: v as RepaymentMethod })}
-          options={METHODS}
-        />
-        <div className="grid grid-2" style={{ gap: 12 }}>
+          <div className="wide">
+            <SelectInput
+              label="Phương thức trả nợ"
+              value={f.method}
+              onChange={(v) => set({ method: v as RepaymentMethod })}
+              options={METHODS}
+            />
+          </div>
           <TextInput
             label="Ân hạn gốc · tháng"
             inputMode="numeric"
             value={f.grace}
             onChange={(e) => set({ grace: e.target.value.replace(/[^\d]/g, '') })}
-            hint="Chỉ trả lãi trong thời gian này"
           />
-          <MoneyInput
-            label="Phí vay (để tính lãi suất thực)"
-            value={f.fees}
-            onChange={(v) => set({ fees: v })}
-          />
-        </div>
-        <SelectInput
-          label="Cách tính lãi"
-          value={f.dayCount}
-          onChange={(v) => set({ dayCount: v as 'PERIOD' | 'ACTUAL_365' })}
-          options={[
-            { value: 'PERIOD', label: 'Theo kỳ: lãi suất năm × số tháng / 12' },
-            { value: 'ACTUAL_365', label: 'Theo ngày thực tế: dư nợ × số ngày × lãi suất / 365' },
-          ]}
-        />
-        <TextInput
-          label="Ngày giải ngân"
-          type="date"
-          value={f.startDate}
-          onChange={(e) => set({ startDate: e.target.value })}
-          hint={
-            f.dayCount === 'ACTUAL_365'
-              ? 'Bắt buộc khi tính lãi theo ngày thực tế'
-              : 'Để hiện ngày trả từng kỳ'
-          }
-        />
-        <details className="tool-more">
-          <summary>Thuê tài chính</summary>
-          <label className="row" style={{ gap: 8, margin: '10px 0' }}>
-            <input
-              type="checkbox"
-              checked={f.inAdvance}
-              onChange={(e) => set({ inAdvance: e.target.checked })}
+          <MoneyInput label="Phí vay" value={f.fees} onChange={(v) => set({ fees: v })} />
+          <div className="wide">
+            <SelectInput
+              label="Cách tính lãi"
+              value={f.dayCount}
+              onChange={(v) => set({ dayCount: v as 'PERIOD' | 'ACTUAL_365' })}
+              options={[
+                { value: 'PERIOD', label: 'Theo kỳ hạn trả nợ' },
+                { value: 'ACTUAL_365', label: 'Theo số ngày thực tế (365 ngày/năm)' },
+              ]}
             />
-            <span>Trả tiền thuê đầu mỗi kỳ</span>
-          </label>
-          <MoneyInput
-            label="Giá trị còn lại (mua lại cuối hợp đồng)"
-            value={f.residual}
-            onChange={(v) => set({ residual: v })}
+          </div>
+          <TextInput
+            label="Ngày giải ngân"
+            type="date"
+            value={f.startDate}
+            onChange={(e) => set({ startDate: e.target.value })}
+            hint={
+              f.dayCount === 'ACTUAL_365' && !f.startDate ? 'Bắt buộc khi tính theo ngày thực tế' : undefined
+            }
           />
-        </details>
-      </Card>
-      <div className="stack">
-        {!ready ? (
-          <Card>
-            <p className="muted">Nhập số tiền vay, lãi suất và số kỳ để lập lịch trả nợ.</p>
-          </Card>
-        ) : r?.error ? (
-          <Card>
-            <Problem>{r.error}</Problem>
-          </Card>
-        ) : (
-          s && (
-            <>
-              <Card
-                title="Kết quả"
-                actions={
-                  <Button
-                    size="sm"
-                    icon={<FileSpreadsheet size={16} />}
-                    onClick={() =>
-                      scheduleXlsx(
-                        s,
-                        `${vnd(money(f.principal))} · ${f.rate}%/năm · ${f.periods} kỳ × ${f.periodMonths} tháng · ${METHODS.find((m) => m.value === f.method)!.label}`,
-                      )
+          <details className="tool-more">
+            <summary>Thuê tài chính</summary>
+            <label className="row" style={{ gap: 8, margin: '4px 0 10px' }}>
+              <input
+                type="checkbox"
+                checked={f.inAdvance}
+                onChange={(e) => set({ inAdvance: e.target.checked })}
+              />
+              <span>Trả tiền thuê đầu mỗi kỳ</span>
+            </label>
+            <MoneyInput
+              label="Giá trị còn lại (mua lại)"
+              value={f.residual}
+              onChange={(v) => set({ residual: v })}
+            />
+          </details>
+        </>
+      }
+    >
+      {!ready ? (
+        <Waiting>Nhập số tiền vay, lãi suất và số kỳ để lập lịch trả nợ.</Waiting>
+      ) : r?.error ? (
+        <Card>
+          <Problem>{r.error}</Problem>
+        </Card>
+      ) : (
+        s &&
+        first && (
+          <>
+            <Figures
+              items={[
+                s.instalment
+                  ? {
+                      label: 'Trả đều mỗi kỳ',
+                      value: vnd(s.instalment),
+                      note: `Lãi suất ${formatPercent(s.ratePerPeriod, 4)}/kỳ`,
+                      lead: true,
                     }
-                  >
-                    Xuất Excel
-                  </Button>
-                }
-              >
-                <div className="kv">
-                  {s.instalment && <Result label="Số tiền trả đều mỗi kỳ" value={vnd(s.instalment)} />}
-                  <Result label="Lãi suất mỗi kỳ" value={formatPercent(s.ratePerPeriod, 4)} />
-                  <Result label="Tổng tiền lãi" value={vnd(s.totalInterest)} />
-                  <Result label="Tổng số tiền phải trả" value={vnd(s.totalPayment)} />
-                  {r?.value?.cost && (
-                    <Result
-                      label="Lãi suất thực / năm"
-                      note="Gồm phí vay; tính trên số tiền thực nhận"
-                      value={`${formatPercent(r.value.cost.annual)} (hiệu dụng ${formatPercent(r.value.cost.effectiveAnnual)})`}
-                    />
-                  )}
-                </div>
-              </Card>
-              <Card
-                title="Lịch trả nợ"
-                subtitle="Đơn vị: đồng · lãi làm tròn đến đồng, kỳ cuối điều chỉnh để tất toán đúng"
-              >
-                <div className="table-wrap">
-                  <table className="table report-table tool-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Kỳ</th>
-                        {s.rows[0]?.date && <th scope="col">Ngày trả</th>}
-                        <th scope="col" className="right">
-                          Dư nợ đầu kỳ
-                        </th>
-                        <th scope="col" className="right">
-                          Tiền lãi
-                        </th>
-                        <th scope="col" className="right">
-                          Tiền gốc
-                        </th>
-                        <th scope="col" className="right">
-                          Phải trả
-                        </th>
-                        <th scope="col" className="right">
-                          Dư nợ cuối kỳ
-                        </th>
+                  : {
+                      label: s.rows.length === 1 ? 'Trả khi đáo hạn' : 'Kỳ trả đầu tiên',
+                      value: vnd(first.payment),
+                      note: `Lãi suất ${formatPercent(s.ratePerPeriod, 4)}/kỳ`,
+                      lead: true,
+                    },
+                { label: 'Tổng tiền lãi', value: vnd(s.totalInterest) },
+                { label: 'Tổng phải trả', value: vnd(s.totalPayment) },
+                {
+                  label: 'Lãi suất thực / năm',
+                  value: cost ? formatPercent(cost.annual) : '—',
+                  note: cost ? `Hiệu dụng ${formatPercent(cost.effectiveAnnual)}` : undefined,
+                },
+              ]}
+            />
+            <Card
+              title="Lịch trả nợ"
+              subtitle="Đơn vị: đồng"
+              actions={
+                <Button
+                  size="sm"
+                  icon={<FileSpreadsheet size={16} />}
+                  onClick={() =>
+                    scheduleXlsx(
+                      s,
+                      `${vnd(money(f.principal))} · ${f.rate}%/năm · ${f.periods} kỳ × ${f.periodMonths} tháng · ${METHODS.find((m) => m.value === f.method)!.label}`,
+                    )
+                  }
+                >
+                  Xuất Excel
+                </Button>
+              }
+            >
+              <div className="table-wrap calc-scroll">
+                <table className="table report-table tool-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Kỳ</th>
+                      {first.date && <th scope="col">Ngày trả</th>}
+                      <th scope="col" className="right">
+                        Dư nợ đầu kỳ
+                      </th>
+                      <th scope="col" className="right">
+                        Tiền lãi
+                      </th>
+                      <th scope="col" className="right">
+                        Tiền gốc
+                      </th>
+                      <th scope="col" className="right">
+                        Phải trả
+                      </th>
+                      <th scope="col" className="right">
+                        Dư nợ cuối kỳ
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.rows.map((x) => (
+                      <tr key={x.period}>
+                        <th scope="row">{x.period}</th>
+                        {x.date && <td>{dmy(x.date)}</td>}
+                        <td className="right num">{formatNumber(D(x.opening))}</td>
+                        <td className="right num">{formatNumber(D(x.interest))}</td>
+                        <td className="right num">{formatNumber(D(x.principal))}</td>
+                        <td className="right num">{formatNumber(D(x.payment))}</td>
+                        <td className="right num">{formatNumber(D(x.closing))}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {s.rows.map((x) => (
-                        <tr key={x.period}>
-                          <th scope="row">{x.period}</th>
-                          {x.date && (
-                            <td>{`${x.date.slice(8, 10)}/${x.date.slice(5, 7)}/${x.date.slice(0, 4)}`}</td>
-                          )}
-                          <td className="right num">{formatNumber(D(x.opening))}</td>
-                          <td className="right num">{formatNumber(D(x.interest))}</td>
-                          <td className="right num">{formatNumber(D(x.principal))}</td>
-                          <td className="right num">{formatNumber(D(x.payment))}</td>
-                          <td className="right num">{formatNumber(D(x.closing))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </>
-          )
-        )}
-      </div>
-    </div>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th scope="row">Cộng</th>
+                      {first.date && <td />}
+                      <td />
+                      <td className="right num">{formatNumber(D(s.totalInterest))}</td>
+                      <td className="right num">{formatNumber(D(s.totalPayment).minus(s.totalInterest))}</td>
+                      <td className="right num">{formatNumber(D(s.totalPayment))}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+          </>
+        )
+      )}
+    </Calc>
   );
 }
 
@@ -388,6 +464,7 @@ function LeverageTool() {
     variable: '',
     fixed: '',
     interest: '',
+    preferred: '',
     tax: '20',
     assets: '',
     equity: '',
@@ -405,6 +482,7 @@ function LeverageTool() {
             variableCosts: money(f.variable),
             fixedCosts: money(f.fixed),
             interest: money(f.interest) || '0',
+            preferredDividends: money(f.preferred) || '0',
             taxRate: String(t ?? 0),
           }),
         )
@@ -448,164 +526,261 @@ function LeverageTool() {
           }),
         )
       : null;
-  const cmRatio = lev?.value?.contributionMarginRatio;
+  const L = lev?.value;
+  const B = balance?.value;
+  const cmRatio = L?.contributionMarginRatio;
   return (
-    <div className="tool-grid">
-      <Card
-        title="Số liệu kỳ phân tích"
-        subtitle="Lấy từ báo cáo kết quả kinh doanh và báo cáo tình hình tài chính"
-      >
-        <MoneyInput label="Doanh thu thuần" value={f.revenue} onChange={(v) => set({ revenue: v })} />
-        <MoneyInput
-          label="Biến phí (chi phí thay đổi theo doanh thu)"
-          value={f.variable}
-          onChange={(v) => set({ variable: v })}
-        />
-        <MoneyInput
-          label="Định phí (không gồm lãi vay)"
-          value={f.fixed}
-          onChange={(v) => set({ fixed: v })}
-        />
-        <MoneyInput label="Chi phí lãi vay" value={f.interest} onChange={(v) => set({ interest: v })} />
-        <TextInput
-          label="Thuế suất thuế TNDN · %"
-          inputMode="decimal"
-          value={f.tax}
-          onChange={(e) => set({ tax: e.target.value })}
-          hint="Phổ thông 20%; doanh nghiệp doanh thu năm ≤ 3 tỷ: 15%, trên 3 đến 50 tỷ: 17%"
-        />
-        <MoneyInput label="Tổng tài sản" value={f.assets} onChange={(v) => set({ assets: v })} />
-        <MoneyInput label="Vốn chủ sở hữu" value={f.equity} onChange={(v) => set({ equity: v })} />
-        <details className="tool-more">
-          <summary>Hòa vốn theo sản lượng</summary>
-          <MoneyInput label="Giá bán đơn vị" value={f.price} onChange={(v) => set({ price: v })} />
-          <MoneyInput
-            label="Biến phí đơn vị"
-            value={f.unitVariable}
-            onChange={(v) => set({ unitVariable: v })}
+    <Calc
+      title="Số liệu kỳ phân tích"
+
+      inputs={
+        <>
+          <MoneyInput label="Doanh thu thuần" value={f.revenue} onChange={(v) => set({ revenue: v })} />
+          <MoneyInput label="Biến phí" value={f.variable} onChange={(v) => set({ variable: v })} />
+          <MoneyInput label="Định phí" value={f.fixed} onChange={(v) => set({ fixed: v })} />
+          <MoneyInput label="Chi phí lãi vay" value={f.interest} onChange={(v) => set({ interest: v })} />
+          <MoneyInput label="Tổng tài sản" value={f.assets} onChange={(v) => set({ assets: v })} />
+          <MoneyInput label="Vốn chủ sở hữu" value={f.equity} onChange={(v) => set({ equity: v })} />
+          <SelectInput
+            label="Thuế suất TNDN"
+            value={f.tax}
+            onChange={(v) => set({ tax: v })}
+            options={CIT_RATES}
           />
-        </details>
-      </Card>
-      <div className="stack">
-        <Card
-          title="Đòn bẩy"
-          subtitle="DOL = Số dư đảm phí / EBIT · DFL = EBIT / (EBIT − Lãi vay) · DTL = DOL × DFL"
-        >
-          {!lev ? (
-            <p className="muted">Nhập doanh thu, biến phí và định phí.</p>
-          ) : lev.value === null ? (
-            <Problem>{lev.error}</Problem>
-          ) : (
-            <div className="kv">
-              <Result
-                label="Số dư đảm phí"
-                value={vnd(lev.value.contributionMargin)}
-                note={cmRatio ? `Tỷ lệ ${formatPercent(cmRatio)}` : undefined}
-              />
-              <Result label="EBIT (lợi nhuận trước lãi vay và thuế)" value={vnd(lev.value.ebit)} />
-              <Result
-                label="Đòn bẩy kinh doanh (DOL)"
-                value={ratio(lev.value.dol)}
-                note={
-                  lev.value.dol
-                    ? `Doanh thu thay đổi 1% → EBIT thay đổi ${formatNumber(D(lev.value.dol), 2)}%`
-                    : 'EBIT bằng 0: không xác định'
-                }
-              />
-              <Result
-                label="Đòn bẩy tài chính (DFL)"
-                value={ratio(lev.value.dfl)}
-                note={
-                  lev.value.dfl
-                    ? `EBIT thay đổi 1% → lợi nhuận cho chủ sở hữu thay đổi ${formatNumber(D(lev.value.dfl), 2)}%`
-                    : 'Lợi nhuận trước thuế bằng 0: không xác định'
-                }
-              />
-              <Result
-                label="Đòn bẩy tổng hợp (DTL)"
-                value={ratio(lev.value.dtl)}
-                note={
-                  lev.value.dtl
-                    ? `Doanh thu thay đổi 1% → lợi nhuận cho chủ sở hữu thay đổi ${formatNumber(D(lev.value.dtl), 2)}%`
-                    : undefined
-                }
-              />
-              {cmRatio && D(cmRatio).gt(0) && (
-                <Result
-                  label="Doanh thu hòa vốn"
-                  value={vnd(D(money(f.fixed)).div(cmRatio).toDecimalPlaces(0).toFixed())}
-                  note="Định phí / tỷ lệ số dư đảm phí"
-                />
-              )}
-              {be?.value && (
-                <Result
-                  label="Sản lượng hòa vốn"
-                  value={`${formatNumber(D(be.value.units), 2)} sản phẩm`}
-                  note={`Doanh thu hòa vốn ${vnd(D(be.value.revenue).toDecimalPlaces(0).toFixed())}`}
-                />
-              )}
-              {be?.error && <Problem>{be.error}</Problem>}
-            </div>
-          )}
-        </Card>
-        <Card
-          title="Cơ cấu vốn và hiệu quả"
-          subtitle="DuPont và hiệu ứng đòn bẩy tài chính (Modigliani–Miller mở rộng)"
-        >
-          {!balance ? (
-            <p className="muted">Nhập thêm tổng tài sản và vốn chủ sở hữu.</p>
-          ) : balance.value === null ? (
-            <Problem>{balance.error}</Problem>
-          ) : (
-            <div className="kv">
-              <Result
-                label="Hệ số nợ (Nợ phải trả / Tổng tài sản)"
-                value={percent(balance.value.structure.debtRatio)}
-              />
-              <Result label="Nợ / Vốn chủ sở hữu (LEV)" value={ratio(balance.value.structure.debtToEquity)} />
-              <Result
-                label="Hệ số nhân vốn chủ (Tổng tài sản / Vốn chủ)"
-                value={ratio(balance.value.structure.equityMultiplier)}
-              />
-              <Result label="Khả năng thanh toán lãi vay (EBIT / Lãi vay)" value={ratio(balance.value.tie)} />
-              <Result
-                label="Lợi nhuận sau thuế"
-                value={vnd(D(balance.value.netIncome).toDecimalPlaces(0).toFixed())}
-                note="(EBIT − Lãi vay) × (1 − thuế suất)"
-              />
-              <Result label="ROS (LNST / Doanh thu)" value={percent(balance.value.dupont.ros)} />
-              <Result label="Vòng quay tổng tài sản" value={ratio(balance.value.dupont.assetTurnover)} />
-              <Result label="ROA (LNST / Tổng tài sản)" value={percent(balance.value.dupont.roa)} />
-              <Result label="ROE = ROS × Vòng quay × Hệ số nhân" value={percent(balance.value.dupont.roe)} />
-              <Result
-                label="ROA trước lãi vay, sau thuế: EBIT(1 − T) / Tổng tài sản"
-                value={percent(balance.value.mm.roa)}
-              />
-              <Result
-                label="Chi phí nợ sau thuế: Rd(1 − T)"
-                value={percent(balance.value.mm.afterTaxCostOfDebt)}
-                note={`Rd = Lãi vay / Nợ = ${formatPercent(balance.value.mm.costOfDebt)}`}
-              />
-              <Result
-                label="ROE = (1 + LEV) × ROA − LEV × Rd(1 − T)"
-                value={percent(balance.value.mm.roe)}
-                note={
-                  balance.value.mm.favourable
-                    ? `Đòn bẩy có lợi: ROA lớn hơn chi phí nợ sau thuế, nợ làm ROE tăng thêm ${formatPercent(balance.value.mm.leverageContribution)}`
-                    : `Đòn bẩy bất lợi: chi phí nợ sau thuế lớn hơn ROA, nợ làm ROE giảm ${formatPercent(D(balance.value.mm.leverageContribution).abs())}`
-                }
+          <MoneyInput label="Cổ tức ưu đãi" value={f.preferred} onChange={(v) => set({ preferred: v })} />
+          <details className="tool-more wide">
+            <summary>Hòa vốn theo sản lượng</summary>
+            <div className="calc-fields">
+              <MoneyInput label="Giá bán đơn vị" value={f.price} onChange={(v) => set({ price: v })} />
+              <MoneyInput
+                label="Biến phí đơn vị"
+                value={f.unitVariable}
+                onChange={(v) => set({ unitVariable: v })}
               />
             </div>
-          )}
+          </details>
+        </>
+      }
+    >
+      {!lev ? (
+        <Waiting>
+          Nhập doanh thu thuần, biến phí và định phí để tính đòn bẩy; thêm tổng tài sản và vốn chủ để phân
+          tích cơ cấu vốn.
+        </Waiting>
+      ) : lev.error !== null ? (
+        <Card>
+          <Problem>{lev.error}</Problem>
         </Card>
-      </div>
-    </div>
+      ) : (
+        L && (
+          <>
+            <Figures
+              items={[
+                {
+                  label: 'Đòn bẩy kinh doanh (DOL)',
+                  value: ratio(L.dol),
+                },
+                {
+                  label: 'Đòn bẩy tài chính (DFL)',
+                  value: ratio(L.dfl),
+                },
+                {
+                  label: 'Đòn bẩy tổng hợp (DTL)',
+                  value: ratio(L.dtl),
+
+                  lead: true,
+                },
+                {
+                  label: 'ROE',
+                  value: B ? percent(B.dupont.roe) : '—',
+                },
+              ]}
+            />
+            <Card title="Phân tích chi tiết">
+              <div className="calc-cols">
+                <div className="kv">
+                  <div className="calc-col-title">Kết quả kinh doanh</div>
+                  <Result label="Số dư đảm phí" value={vnd(L.contributionMargin)} />
+                  {cmRatio && <Result label="Tỷ lệ số dư đảm phí" value={formatPercent(cmRatio)} />}
+                  <Result label="Lợi nhuận trước lãi vay và thuế (EBIT)" value={vnd(L.ebit)} />
+                  <Result label="Lợi nhuận trước thuế" value={vnd(L.ebt)} />
+                  {B && <Result label="Lợi nhuận sau thuế" value={vnd(round(B.netIncome))} />}
+                  {cmRatio && D(cmRatio).gt(0) && (
+                    <Result label="Doanh thu hòa vốn" value={vnd(round(D(money(f.fixed)).div(cmRatio)))} />
+                  )}
+                  {be?.value && (
+                    <Result
+                      label="Sản lượng hòa vốn"
+                      value={`${formatNumber(D(be.value.units), 2)} sản phẩm`}
+                    />
+                  )}
+                  {be?.error && <Problem>{be.error}</Problem>}
+                </div>
+                <div className="kv">
+                  <div className="calc-col-title">Cơ cấu vốn và hiệu quả</div>
+                  {!balance ? (
+                    <p className="small muted">Nhập tổng tài sản và vốn chủ sở hữu.</p>
+                  ) : balance.error !== null ? (
+                    <Problem>{balance.error}</Problem>
+                  ) : (
+                    B && (
+                      <>
+                        <Result label="Hệ số nợ" value={percent(B.structure.debtRatio)} />
+                        <Result label="Hệ số nợ trên vốn chủ (LEV)" value={ratio(B.structure.debtToEquity)} />
+                        <Result label="Hệ số nhân vốn chủ" value={ratio(B.structure.equityMultiplier)} />
+                        <Result label="Khả năng thanh toán lãi vay" value={ratio(B.tie)} />
+                        <Result
+                          label="Tỷ suất lợi nhuận trên doanh thu (ROS)"
+                          value={percent(B.dupont.ros)}
+                        />
+                        <Result label="Vòng quay tổng tài sản" value={ratio(B.dupont.assetTurnover)} />
+                        <Result label="Tỷ suất lợi nhuận trên tài sản (ROA)" value={percent(B.dupont.roa)} />
+                        <Result label="ROA trước lãi vay, sau thuế" value={percent(B.mm.roa)} />
+                        <Result label="Lãi suất vay bình quân" value={percent(B.mm.costOfDebt)} />
+                        <Result label="Chi phí nợ sau thuế" value={percent(B.mm.afterTaxCostOfDebt)} />
+                      </>
+                    )
+                  )}
+                </div>
+              </div>
+              {B && (
+                <p className={`calc-callout${B.mm.favourable ? '' : ' warn'}`}>
+                  <strong>
+                    {B.mm.favourable
+                      ? `Vay nợ làm ROE tăng thêm ${formatPercent(B.mm.leverageContribution)}`
+                      : `Vay nợ làm ROE giảm ${formatPercent(D(B.mm.leverageContribution).abs())}`}
+                  </strong>
+                </p>
+              )}
+            </Card>
+          </>
+        )
+      )}
+    </Calc>
   );
 }
 
-// ───────── 3 · Lãi suất và chiết khấu thương phiếu ─────────
+// ───────── 3 · Lãi đơn và lãi kép ─────────
 function InterestTool() {
   const [f, setF] = useState({ principal: '', rate: '', years: '', perYear: '1' });
+  const r = pct(f.rate);
+  const years = Number(f.years.replace(',', '.'));
+  const m = Number(f.perYear);
+  const ok = money(f.principal) !== '' && r !== null && years > 0;
+  const V0 = money(f.principal);
+  const simple = (n: number) => simpleFutureValue(V0, String(r), n);
+  const compound = (n: number) => compoundFutureValue(V0, D(String(r)).div(m), D(n).times(m));
+  const marks = ok
+    ? [
+        ...Array.from({ length: Math.min(Math.floor(years), 50) }, (_, i) => i + 1),
+        ...(years % 1 ? [years] : []),
+      ]
+    : [];
+  return (
+    <Calc
+      title="Lãi đơn và lãi kép"
+
+      inputs={
+        <>
+          <div className="wide">
+            <MoneyInput
+              label="Số tiền gốc"
+              value={f.principal}
+              onChange={(v) => setF({ ...f, principal: v })}
+            />
+          </div>
+          <TextInput
+            label="Lãi suất · %/năm"
+            inputMode="decimal"
+            value={f.rate}
+            onChange={(e) => setF({ ...f, rate: e.target.value })}
+          />
+          <TextInput
+            label="Thời gian · năm"
+            inputMode="decimal"
+            value={f.years}
+            onChange={(e) => setF({ ...f, years: e.target.value })}
+            placeholder="2,5"
+          />
+          <div className="wide">
+            <SelectInput
+              label="Ghép lãi (lãi kép)"
+              value={f.perYear}
+              onChange={(v) => setF({ ...f, perYear: v })}
+              options={[
+                { value: '1', label: 'Mỗi năm' },
+                { value: '2', label: 'Mỗi 6 tháng' },
+                { value: '4', label: 'Mỗi quý' },
+                { value: '12', label: 'Mỗi tháng' },
+              ]}
+            />
+          </div>
+        </>
+      }
+    >
+      {!ok ? (
+        <Waiting>Nhập số tiền gốc, lãi suất và thời gian.</Waiting>
+      ) : (
+        <>
+          <Figures
+            items={[
+              {
+                label: 'Giá trị cuối kỳ · lãi đơn',
+                value: vnd(round(simple(years))),
+                note: `Tiền lãi ${vnd(round(simple(years).minus(V0)))}`,
+              },
+              {
+                label: 'Giá trị cuối kỳ · lãi kép',
+                value: vnd(round(compound(years))),
+                note: `Tiền lãi ${vnd(round(compound(years).minus(V0)))}`,
+                lead: true,
+              },
+              {
+                label: 'Lãi suất hiệu dụng / năm',
+                value: formatPercent(effectiveAnnualRate(String(r), m).toFixed(), 3),
+              },
+            ]}
+          />
+          <Card title="Giá trị theo thời gian" subtitle="Đơn vị: đồng">
+            <div className="table-wrap calc-scroll">
+              <table className="table report-table tool-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Năm</th>
+                    <th scope="col" className="right">
+                      Lãi đơn
+                    </th>
+                    <th scope="col" className="right">
+                      Lãi kép
+                    </th>
+                    <th scope="col" className="right">
+                      Chênh lệch
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {marks.map((n) => (
+                    <tr key={n}>
+                      <th scope="row">{formatNumber(D(n), n % 1 ? 2 : 0)}</th>
+                      <td className="right num">{formatNumber(D(round(simple(n))))}</td>
+                      <td className="right num">{formatNumber(D(round(compound(n))))}</td>
+                      <td className="right num">
+                        {formatNumber(D(round(compound(n))).minus(round(simple(n))))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
+    </Calc>
+  );
+}
+
+// ───────── 4 · Chiết khấu thương phiếu ─────────
+function BillTool() {
   const [b, setB] = useState({
     face: '',
     rate: '',
@@ -616,10 +791,6 @@ function InterestTool() {
     other: '',
     basis: '365',
   });
-  const r = pct(f.rate);
-  const ok = money(f.principal) !== '' && r !== null && Number(f.years.replace(',', '.')) > 0;
-  const years = Number(f.years.replace(',', '.'));
-  const m = Number(f.perYear);
   const br = pct(b.rate);
   const bill =
     money(b.face) !== '' && br !== null && b.from && b.to
@@ -640,77 +811,24 @@ function InterestTool() {
           };
         })
       : null;
+  const v = bill?.value;
   return (
-    <div className="tool-grid">
-      <div className="stack">
-        <Card title="Lãi đơn và lãi kép">
+    <Calc
+      title="Thương phiếu đem chiết khấu"
+
+      inputs={
+        <>
           <MoneyInput
-            label="Số tiền gốc"
-            value={f.principal}
-            onChange={(v) => setF({ ...f, principal: v })}
+            label="Mệnh giá thương phiếu"
+            value={b.face}
+            onChange={(x) => setB({ ...b, face: x })}
           />
-          <div className="grid grid-2" style={{ gap: 12 }}>
-            <TextInput
-              label="Lãi suất · %/năm"
-              inputMode="decimal"
-              value={f.rate}
-              onChange={(e) => setF({ ...f, rate: e.target.value })}
-            />
-            <TextInput
-              label="Thời gian · năm"
-              inputMode="decimal"
-              value={f.years}
-              onChange={(e) => setF({ ...f, years: e.target.value })}
-              hint="Ví dụ 2,5 = 2 năm 6 tháng"
-            />
-          </div>
-          <SelectInput
-            label="Ghép lãi (lãi kép)"
-            value={f.perYear}
-            onChange={(v) => setF({ ...f, perYear: v })}
-            options={[
-              { value: '1', label: 'Mỗi năm' },
-              { value: '2', label: 'Mỗi 6 tháng' },
-              { value: '4', label: 'Mỗi quý' },
-              { value: '12', label: 'Mỗi tháng' },
-            ]}
+          <TextInput
+            label="Lãi suất chiết khấu · %/năm"
+            inputMode="decimal"
+            value={b.rate}
+            onChange={(e) => setB({ ...b, rate: e.target.value })}
           />
-          {ok && (
-            <div className="kv mt-8">
-              <Result
-                label="Lãi đơn: V₀ × (1 + n × i)"
-                value={vnd(
-                  simpleFutureValue(money(f.principal), String(r), years).toDecimalPlaces(0).toFixed(),
-                )}
-              />
-              <Result
-                label={`Lãi kép: V₀ × (1 + i/m)^(n × m)`}
-                value={vnd(
-                  compoundFutureValue(money(f.principal), D(String(r)).div(m), D(years).times(m))
-                    .toDecimalPlaces(0)
-                    .toFixed(),
-                )}
-              />
-              <Result
-                label="Lãi suất thực (hiệu dụng) / năm"
-                value={formatPercent(effectiveAnnualRate(String(r), m).toFixed(), 3)}
-              />
-            </div>
-          )}
-        </Card>
-      </div>
-      <Card
-        title="Chiết khấu thương phiếu"
-        subtitle="Phí chiết khấu = Mệnh giá × số ngày × lãi suất / số ngày quy ước"
-      >
-        <MoneyInput label="Mệnh giá thương phiếu" value={b.face} onChange={(v) => setB({ ...b, face: v })} />
-        <TextInput
-          label="Lãi suất chiết khấu · %/năm"
-          inputMode="decimal"
-          value={b.rate}
-          onChange={(e) => setB({ ...b, rate: e.target.value })}
-        />
-        <div className="grid grid-2" style={{ gap: 12 }}>
           <TextInput
             label="Ngày chiết khấu"
             type="date"
@@ -723,8 +841,6 @@ function InterestTool() {
             value={b.to}
             onChange={(e) => setB({ ...b, to: e.target.value })}
           />
-        </div>
-        <div className="grid grid-2" style={{ gap: 12 }}>
           <TextInput
             label="Hoa hồng ký hậu · %/năm"
             inputMode="decimal"
@@ -732,72 +848,216 @@ function InterestTool() {
             onChange={(e) => setB({ ...b, endorsement: e.target.value })}
           />
           <TextInput
-            label="Hoa hồng chung · % mệnh giá"
+            label="Hoa hồng chung · %"
             inputMode="decimal"
             value={b.commission}
             onChange={(e) => setB({ ...b, commission: e.target.value })}
           />
-        </div>
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          <MoneyInput label="Phí khác" value={b.other} onChange={(v) => setB({ ...b, other: v })} />
+          <MoneyInput label="Phí khác" value={b.other} onChange={(x) => setB({ ...b, other: x })} />
           <SelectInput
             label="Số ngày quy ước / năm"
             value={b.basis}
-            onChange={(v) => setB({ ...b, basis: v })}
+            onChange={(x) => setB({ ...b, basis: x })}
             options={[
-              { value: '365', label: '365 ngày (Việt Nam)' },
-              { value: '360', label: '360 ngày (quốc tế)' },
+              { value: '365', label: '365 ngày' },
+              { value: '360', label: '360 ngày' },
             ]}
           />
-        </div>
-        {bill?.error && <Problem>{bill.error}</Problem>}
-        {bill?.value && (
-          <div className="kv mt-8">
-            <Result label="Số ngày chiết khấu" value={`${bill.value.days} ngày`} />
-            <Result
-              label="Phí chiết khấu thương mại (e)"
-              value={vnd(D(bill.value.commercial.fee).toDecimalPlaces(0).toFixed())}
+        </>
+      }
+    >
+      {!bill ? (
+        <Waiting>Nhập mệnh giá, lãi suất chiết khấu, ngày chiết khấu và ngày đáo hạn.</Waiting>
+      ) : bill.error !== null ? (
+        <Card>
+          <Problem>{bill.error}</Problem>
+        </Card>
+      ) : (
+        v && (
+          <>
+            <Figures
+              items={[
+                {
+                  label: 'Số tiền thực nhận',
+                  value: vnd(round(v.agio.proceeds)),
+                  note: `${v.days} ngày`,
+                  lead: true,
+                },
+                {
+                  label: 'Tổng chi phí chiết khấu (AGIO)',
+                  value: vnd(round(v.agio.agio)),
+                },
+                {
+                  label: 'Lãi suất chiết khấu thực tế',
+                  value: formatPercent(v.agio.actualRate, 3),
+                },
+              ]}
             />
-            <Result
-              label="Hiện giá theo chiết khấu thương mại"
-              value={vnd(D(bill.value.commercial.proceeds).toDecimalPlaces(0).toFixed())}
-              note={`Lãi suất chiết khấu hiệu dụng ${formatPercent(bill.value.commercial.effectiveRate, 3)}/năm`}
-            />
-            <Result
-              label="Hiện giá theo chiết khấu hợp lý"
-              value={vnd(D(bill.value.rational.proceeds).toDecimalPlaces(0).toFixed())}
-              note={`Phí ${vnd(D(bill.value.rational.fee).toDecimalPlaces(0).toFixed())}`}
-            />
-            <Result
-              label="AGIO (phí + hoa hồng + phí khác)"
-              value={vnd(D(bill.value.agio.agio).toDecimalPlaces(0).toFixed())}
-            />
-            <Result
-              label="Số tiền thực nhận"
-              value={vnd(D(bill.value.agio.proceeds).toDecimalPlaces(0).toFixed())}
-            />
-            <Result
-              label="Lãi suất chi phí chiết khấu (AGIO / mệnh giá)"
-              value={formatPercent(bill.value.agio.costRate, 3)}
-            />
-            <Result
-              label="Lãi suất chiết khấu thực tế (AGIO / số tiền thực nhận)"
-              value={formatPercent(bill.value.agio.actualRate, 3)}
-            />
-          </div>
-        )}
-      </Card>
-    </div>
+            <Card title="Chi tiết">
+              <div className="calc-cols">
+                <div className="kv">
+                  <div className="calc-col-title">Cấu thành AGIO</div>
+                  <Result label="Phí chiết khấu" value={vnd(round(v.agio.discount))} />
+                  <Result label="Hoa hồng ký hậu" value={vnd(round(v.agio.endorsement))} />
+                  <Result label="Hoa hồng chung" value={vnd(round(v.agio.commission))} />
+                  <Result label="Phí khác" value={vnd(round(v.agio.otherFees))} />
+                  <Result label="Cộng AGIO" value={vnd(round(v.agio.agio))} />
+                </div>
+                <div className="kv">
+                  <div className="calc-col-title">Hiện giá và lãi suất</div>
+                  <Result
+                    label="Hiện giá theo chiết khấu thương mại"
+                    value={vnd(round(v.commercial.proceeds))}
+                  />
+                  <Result label="Hiện giá theo chiết khấu hợp lý" value={vnd(round(v.rational.proceeds))} />
+                  <Result label="Phí chiết khấu hợp lý" value={vnd(round(v.rational.fee))} />
+                  <Result label="Lãi suất hiệu dụng" value={formatPercent(v.commercial.effectiveRate, 3)} />
+                  <Result label="Lãi suất chi phí chiết khấu" value={formatPercent(v.agio.costRate, 3)} />
+                </div>
+              </div>
+            </Card>
+          </>
+        )
+      )}
+    </Calc>
   );
 }
 
-// ───────── 4 · Chuỗi tiền tệ và chi phí vốn ─────────
+// ───────── 5 · Chuỗi tiền tệ đều ─────────
 function AnnuityTool() {
   const [a, setA] = useState({ payment: '', rate: '', periods: '', due: false, pv: '' });
-  const [w, setW] = useState({ equity: '', debt: '', re: '', rf: '', beta: '', rm: '', rd: '', tax: '20' });
   const ar = pct(a.rate);
   const n = Number(a.periods);
-  const okA = ar !== null && n > 0;
+  const ok = ar !== null && n > 0 && (money(a.payment) !== '' || money(a.pv) !== '');
+  const pay = money(a.payment);
+  const pmt =
+    ok && money(a.pv) !== ''
+      ? PMT(String(ar), n, money(a.pv), 0, a.due ? 1 : 0)
+          .neg()
+          .toDecimalPlaces(0)
+          .toFixed()
+      : null;
+  const flow = pay || pmt;
+  const rows =
+    ok && flow
+      ? Array.from({ length: Math.min(n, 360) }, (_, k) => {
+          const t = a.due ? k : k + 1;
+          const factor = D(1).plus(String(ar)).pow(-t);
+          return { k: k + 1, t, factor, pv: D(flow).times(factor) };
+        })
+      : [];
+  return (
+    <Calc
+      title="Chuỗi tiền tệ đều"
+
+      inputs={
+        <>
+          <div className="wide">
+            <MoneyInput
+              label="Số tiền mỗi kỳ (kỳ khoản)"
+              value={a.payment}
+              onChange={(v) => setA({ ...a, payment: v })}
+            />
+          </div>
+          <TextInput
+            label="Lãi suất mỗi kỳ · %"
+            inputMode="decimal"
+            value={a.rate}
+            onChange={(e) => setA({ ...a, rate: e.target.value })}
+          />
+          <TextInput
+            label="Số kỳ"
+            inputMode="numeric"
+            value={a.periods}
+            onChange={(e) => setA({ ...a, periods: e.target.value.replace(/[^\d]/g, '') })}
+          />
+          <label className="row wide calc-check">
+            <input type="checkbox" checked={a.due} onChange={(e) => setA({ ...a, due: e.target.checked })} />
+            <span>Thanh toán đầu mỗi kỳ</span>
+          </label>
+          <div className="wide">
+            <MoneyInput
+              label="Hoặc: số tiền hiện tại cần trả dần"
+              value={a.pv}
+              onChange={(v) => setA({ ...a, pv: v })}
+            />
+          </div>
+        </>
+      }
+    >
+      {!ok ? (
+        <Waiting>Nhập lãi suất, số kỳ và số tiền mỗi kỳ (hoặc số tiền hiện tại cần trả dần).</Waiting>
+      ) : (
+        <>
+          <Figures
+            items={[
+              {
+                label: 'Hiện giá của chuỗi',
+                value: pay ? vnd(round(annuityPresentValue(pay, String(ar), n, a.due))) : '—',
+              },
+              {
+                label: 'Giá trị tương lai',
+                value: pay ? vnd(round(annuityFutureValue(pay, String(ar), n, a.due))) : '—',
+              },
+              {
+                label: 'Kỳ khoản trả đều (PMT)',
+                value: pmt ? vnd(pmt) : '—',
+
+                lead: true,
+              },
+            ]}
+          />
+          <Card title="Hiện giá từng kỳ khoản" subtitle="Đơn vị: đồng">
+            <div className="table-wrap calc-scroll">
+              <table className="table report-table tool-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Kỳ</th>
+                    <th scope="col" className="right">
+                      Thời điểm t
+                    </th>
+                    <th scope="col" className="right">
+                      Hệ số chiết khấu
+                    </th>
+                    <th scope="col" className="right">
+                      Hiện giá kỳ khoản
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((x) => (
+                    <tr key={x.k}>
+                      <th scope="row">{x.k}</th>
+                      <td className="right num">{x.t}</td>
+                      <td className="right num">{formatNumber(x.factor, 6)}</td>
+                      <td className="right num">{formatNumber(x.pv.toDecimalPlaces(0))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {rows.length === n && (
+                  <tfoot>
+                    <tr>
+                      <th scope="row">Cộng</th>
+                      <td />
+                      <td />
+                      <td className="right num">
+                        {formatNumber(rows.reduce((t, x) => t.plus(x.pv), D(0)).toDecimalPlaces(0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
+    </Calc>
+  );
+}
+
+// ───────── 6 · Chi phí sử dụng vốn bình quân ─────────
+function WaccTool() {
+  const [w, setW] = useState({ equity: '', debt: '', re: '', rf: '', beta: '', rm: '', rd: '', tax: '20' });
   const capm =
     pct(w.rf) !== null && w.beta && pct(w.rm) !== null
       ? capmCostOfEquity(String(pct(w.rf)), w.beta.replace(',', '.'), String(pct(w.rm)))
@@ -815,82 +1075,36 @@ function AnnuityTool() {
           }),
         )
       : null;
+  const v = ww?.value;
   return (
-    <div className="tool-grid">
-      <Card title="Chuỗi tiền tệ đều" subtitle="Hiện giá, giá trị tương lai và kỳ khoản">
-        <MoneyInput
-          label="Số tiền mỗi kỳ (kỳ khoản)"
-          value={a.payment}
-          onChange={(v) => setA({ ...a, payment: v })}
-        />
-        <div className="grid grid-2" style={{ gap: 12 }}>
+    <Calc
+      title="Cơ cấu và chi phí vốn"
+
+      inputs={
+        <>
+          <MoneyInput label="Vốn chủ sở hữu" value={w.equity} onChange={(x) => setW({ ...w, equity: x })} />
+          <MoneyInput label="Nợ vay" value={w.debt} onChange={(x) => setW({ ...w, debt: x })} />
           <TextInput
-            label="Lãi suất mỗi kỳ · %"
+            label="Lãi suất vay · %"
             inputMode="decimal"
-            value={a.rate}
-            onChange={(e) => setA({ ...a, rate: e.target.value })}
+            value={w.rd}
+            onChange={(e) => setW({ ...w, rd: e.target.value })}
           />
           <TextInput
-            label="Số kỳ"
-            inputMode="numeric"
-            value={a.periods}
-            onChange={(e) => setA({ ...a, periods: e.target.value.replace(/[^\d]/g, '') })}
+            label="Thuế suất TNDN · %"
+            inputMode="decimal"
+            value={w.tax}
+            onChange={(e) => setW({ ...w, tax: e.target.value })}
           />
-        </div>
-        <label className="row" style={{ gap: 8, margin: '4px 0 12px' }}>
-          <input type="checkbox" checked={a.due} onChange={(e) => setA({ ...a, due: e.target.checked })} />
-          <span>Phát sinh đầu kỳ</span>
-        </label>
-        <MoneyInput
-          label="Hoặc: số tiền hiện tại cần trả dần (tìm kỳ khoản)"
-          value={a.pv}
-          onChange={(v) => setA({ ...a, pv: v })}
-        />
-        {okA && (
-          <div className="kv mt-8">
-            {money(a.payment) !== '' && (
-              <>
-                <Result
-                  label="Hiện giá của chuỗi"
-                  value={vnd(
-                    annuityPresentValue(money(a.payment), String(ar), n, a.due).toDecimalPlaces(0).toFixed(),
-                  )}
-                />
-                <Result
-                  label="Giá trị tương lai của chuỗi"
-                  value={vnd(
-                    annuityFutureValue(money(a.payment), String(ar), n, a.due).toDecimalPlaces(0).toFixed(),
-                  )}
-                />
-              </>
-            )}
-            {money(a.pv) !== '' && (
-              <Result
-                label="Kỳ khoản trả đều (PMT)"
-                value={vnd(
-                  PMT(String(ar), n, money(a.pv), 0, a.due ? 1 : 0)
-                    .neg()
-                    .toDecimalPlaces(0)
-                    .toFixed(),
-                )}
-              />
-            )}
+          <div className="wide">
+            <TextInput
+              label="Chi phí vốn chủ sở hữu · %"
+              inputMode="decimal"
+              value={w.re}
+              onChange={(e) => setW({ ...w, re: e.target.value })}
+              hint="Bỏ trống để tính theo CAPM"
+            />
           </div>
-        )}
-      </Card>
-      <Card title="Chi phí sử dụng vốn bình quân (WACC)" subtitle="WACC = wₑ × rₑ + w_d × r_d × (1 − t)">
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          <MoneyInput label="Vốn chủ sở hữu" value={w.equity} onChange={(v) => setW({ ...w, equity: v })} />
-          <MoneyInput label="Nợ vay" value={w.debt} onChange={(v) => setW({ ...w, debt: v })} />
-        </div>
-        <TextInput
-          label="Chi phí vốn chủ rₑ · %"
-          inputMode="decimal"
-          value={w.re}
-          onChange={(e) => setW({ ...w, re: e.target.value })}
-          hint="Bỏ trống để tính theo CAPM bên dưới"
-        />
-        <div className="grid grid-3" style={{ gap: 12 }}>
           <TextInput
             label="Lãi suất phi rủi ro · %"
             inputMode="decimal"
@@ -909,47 +1123,99 @@ function AnnuityTool() {
             value={w.rm}
             onChange={(e) => setW({ ...w, rm: e.target.value })}
           />
-        </div>
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          <TextInput
-            label="Lãi suất vay r_d · %"
-            inputMode="decimal"
-            value={w.rd}
-            onChange={(e) => setW({ ...w, rd: e.target.value })}
-          />
-          <TextInput
-            label="Thuế suất TNDN · %"
-            inputMode="decimal"
-            value={w.tax}
-            onChange={(e) => setW({ ...w, tax: e.target.value })}
-          />
-        </div>
-        <div className="kv mt-8">
-          {capm && pct(w.re) === null && (
-            <Result label="rₑ theo CAPM = r_f + β(r_m − r_f)" value={formatPercent(capm.toFixed(), 2)} />
-          )}
-          {ww?.error && <Problem>{ww.error}</Problem>}
-          {ww?.value && (
-            <>
-              <Result
-                label="Tỷ trọng vốn chủ / nợ"
-                value={`${formatPercent(ww.value.weightEquity, 1)} / ${formatPercent(ww.value.weightDebt, 1)}`}
-              />
-              <Result label="Chi phí nợ sau thuế" value={formatPercent(ww.value.afterTaxCostOfDebt, 2)} />
-              <Result
-                label="WACC"
-                value={formatPercent(ww.value.wacc, 2)}
-                note="Dùng làm suất chiết khấu khi thẩm định dự án có cùng mức rủi ro"
-              />
-            </>
-          )}
-        </div>
-      </Card>
-    </div>
+        </>
+      }
+    >
+      {!ww ? (
+        <Waiting>
+          Nhập vốn chủ, nợ vay, lãi suất vay, thuế suất và chi phí vốn chủ (hoặc các thông số CAPM).
+          {capm && ` Chi phí vốn chủ theo CAPM: ${formatPercent(capm.toFixed(), 2)}.`}
+        </Waiting>
+      ) : ww.error !== null ? (
+        <Card>
+          <Problem>{ww.error}</Problem>
+        </Card>
+      ) : (
+        v && (
+          <>
+            <Figures
+              items={[
+                {
+                  label: 'WACC',
+                  value: formatPercent(v.wacc, 2),
+
+                  lead: true,
+                },
+                {
+                  label: 'Chi phí vốn chủ sở hữu',
+                  value: formatPercent(String(re), 2),
+                },
+                {
+                  label: 'Chi phí nợ sau thuế',
+                  value: formatPercent(v.afterTaxCostOfDebt, 2),
+                },
+              ]}
+            />
+            <Card title="Cấu thành WACC">
+              <div className="table-wrap">
+                <table className="table report-table tool-table calc-wacc">
+                  <thead>
+                    <tr>
+                      <th scope="col">Nguồn vốn</th>
+                      <th scope="col" className="right">
+                        Giá trị
+                      </th>
+                      <th scope="col" className="right">
+                        Tỷ trọng
+                      </th>
+                      <th scope="col" className="right">
+                        Chi phí
+                      </th>
+                      <th scope="col" className="right">
+                        Đóng góp
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th scope="row">Vốn chủ sở hữu</th>
+                      <td className="right num">{formatNumber(D(money(w.equity)))}</td>
+                      <td className="right num">{formatPercent(v.weightEquity, 2)}</td>
+                      <td className="right num">{formatPercent(String(re), 2)}</td>
+                      <td className="right num">
+                        {formatPercent(D(v.weightEquity).times(String(re)).toFixed(), 2)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Nợ vay (sau thuế)</th>
+                      <td className="right num">{formatNumber(D(money(w.debt)))}</td>
+                      <td className="right num">{formatPercent(v.weightDebt, 2)}</td>
+                      <td className="right num">{formatPercent(v.afterTaxCostOfDebt, 2)}</td>
+                      <td className="right num">
+                        {formatPercent(D(v.weightDebt).times(v.afterTaxCostOfDebt).toFixed(), 2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th scope="row">Cộng</th>
+                      <td className="right num">{formatNumber(D(money(w.equity)).plus(money(w.debt)))}</td>
+                      <td className="right num">{formatPercent('1', 2)}</td>
+                      <td />
+                      <td className="right num">{formatPercent(v.wacc, 2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+          </>
+        )
+      )}
+    </Calc>
   );
 }
 
-// ───────── 5 · Khấu hao tài sản cố định ─────────
+// ───────── 7 · Khấu hao tài sản cố định ─────────
 function DepreciationTool() {
   const [f, setF] = useState({
     cost: '',
@@ -973,108 +1239,142 @@ function DepreciationTool() {
         }),
       )
     : null;
+  const rows = r?.value;
+  const fastRate =
+    f.method === 'DECLINING' && years > 0
+      ? D(1).div(years).times(decliningCoefficient(years)).toFixed()
+      : null;
   return (
-    <div className="tool-grid">
-      <Card title="Tài sản cố định" subtitle="Theo Thông tư 45/2013/TT-BTC về trích khấu hao tài sản cố định">
-        <MoneyInput label="Nguyên giá" value={f.cost} onChange={(v) => setF({ ...f, cost: v })} />
-        <SelectInput
-          label="Phương pháp khấu hao"
-          value={f.method}
-          onChange={(v) => setF({ ...f, method: v as DepreciationMethod })}
-          options={[
-            { value: 'STRAIGHT_LINE', label: 'Đường thẳng' },
-            { value: 'DECLINING', label: 'Số dư giảm dần có điều chỉnh' },
-            { value: 'UNITS', label: 'Theo số lượng, khối lượng sản phẩm' },
-          ]}
-        />
-        {f.method === 'UNITS' ? (
-          <TextInput
-            label="Sản lượng dự kiến từng năm"
-            value={f.units}
-            onChange={(e) => setF({ ...f, units: e.target.value })}
-            placeholder="1000; 2000; 3000"
-            hint="Ngăn cách các năm bằng dấu chấm phẩy"
-          />
-        ) : (
-          <TextInput
-            label="Thời gian trích khấu hao · năm"
-            inputMode="numeric"
-            value={f.years}
-            onChange={(e) => setF({ ...f, years: e.target.value.replace(/[^\d]/g, '') })}
-            hint={
-              f.method === 'DECLINING' && years > 0
-                ? `Hệ số điều chỉnh ${formatNumber(decliningCoefficient(years), 1)} · tỷ lệ khấu hao nhanh ${formatPercent(D(1).div(years).times(decliningCoefficient(years)).toFixed(), 2)}/năm`
-                : undefined
-            }
-          />
-        )}
-        <p className="small muted" style={{ lineHeight: 1.6 }}>
-          Số dư giảm dần: khấu hao năm = giá trị còn lại × tỷ lệ khấu hao nhanh; khi mức này thấp hơn giá trị
-          còn lại chia số năm còn lại thì chuyển sang chia đều cho các năm còn lại.
-        </p>
-      </Card>
-      <Card title="Lịch khấu hao" subtitle="Đơn vị: đồng · năm cuối trích nốt phần còn lại">
-        {!r ? (
-          <p className="muted">Nhập nguyên giá và thời gian trích khấu hao.</p>
-        ) : r.value === null ? (
-          <Problem>{r.error}</Problem>
-        ) : (
-          <div className="table-wrap">
-            <table className="table report-table tool-table">
-              <thead>
-                <tr>
-                  <th scope="col">Năm</th>
-                  <th scope="col" className="right">
-                    Giá trị còn lại đầu năm
-                  </th>
-                  <th scope="col" className="right">
-                    Mức khấu hao
-                  </th>
-                  <th scope="col" className="right">
-                    Khấu hao lũy kế
-                  </th>
-                  <th scope="col" className="right">
-                    Giá trị còn lại cuối năm
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.value.map((x) => (
-                  <tr key={x.year}>
-                    <th scope="row">{x.year}</th>
-                    <td className="right num">{formatNumber(D(x.opening))}</td>
-                    <td className="right num">{formatNumber(D(x.depreciation))}</td>
-                    <td className="right num">{formatNumber(D(x.accumulated))}</td>
-                    <td className="right num">{formatNumber(D(x.closing))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <Calc
+      title="Tài sản cố định"
+
+      inputs={
+        <>
+          <MoneyInput label="Nguyên giá" value={f.cost} onChange={(v) => setF({ ...f, cost: v })} />
+          {f.method === 'UNITS' ? (
+            <TextInput
+              label="Sản lượng từng năm"
+              value={f.units}
+              onChange={(e) => setF({ ...f, units: e.target.value })}
+              placeholder="1000; 2000; 3000"
+            />
+          ) : (
+            <TextInput
+              label="Thời gian trích · năm"
+              inputMode="numeric"
+              value={f.years}
+              onChange={(e) => setF({ ...f, years: e.target.value.replace(/[^\d]/g, '') })}
+            />
+          )}
+          <div className="wide">
+            <SelectInput
+              label="Phương pháp khấu hao"
+              value={f.method}
+              onChange={(v) => setF({ ...f, method: v as DepreciationMethod })}
+              options={[
+                { value: 'STRAIGHT_LINE', label: 'Đường thẳng' },
+                { value: 'DECLINING', label: 'Số dư giảm dần có điều chỉnh' },
+                { value: 'UNITS', label: 'Theo số lượng, khối lượng sản phẩm' },
+              ]}
+            />
           </div>
-        )}
-      </Card>
-    </div>
+        </>
+      }
+    >
+      {!r ? (
+        <Waiting>Nhập nguyên giá và thời gian trích khấu hao.</Waiting>
+      ) : r.error !== null ? (
+        <Card>
+          <Problem>{r.error}</Problem>
+        </Card>
+      ) : (
+        rows &&
+        rows[0] && (
+          <>
+            <Figures
+              items={[
+                { label: 'Khấu hao năm đầu', value: vnd(rows[0].depreciation), lead: true },
+                {
+                  label: 'Tỷ lệ khấu hao',
+                  value:
+                    f.method === 'UNITS'
+                      ? 'Theo sản lượng'
+                      : formatPercent(fastRate ?? D(1).div(years).toFixed(), 2),
+                  note:
+                    fastRate !== null
+                      ? `Hệ số điều chỉnh ${formatNumber(decliningCoefficient(years), 1)}`
+                      : undefined,
+                },
+                {
+                  label: 'Tổng khấu hao',
+                  value: vnd(rows[rows.length - 1]!.accumulated),
+                },
+              ]}
+            />
+            <Card title="Lịch khấu hao" subtitle="Đơn vị: đồng">
+              <div className="table-wrap calc-scroll">
+                <table className="table report-table tool-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Năm</th>
+                      <th scope="col" className="right">
+                        Còn lại đầu năm
+                      </th>
+                      <th scope="col" className="right">
+                        Mức khấu hao
+                      </th>
+                      <th scope="col" className="right">
+                        Lũy kế
+                      </th>
+                      <th scope="col" className="right">
+                        Còn lại cuối năm
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((x) => (
+                      <tr key={x.year}>
+                        <th scope="row">{x.year}</th>
+                        <td className="right num">{formatNumber(D(x.opening))}</td>
+                        <td className="right num">{formatNumber(D(x.depreciation))}</td>
+                        <td className="right num">{formatNumber(D(x.accumulated))}</td>
+                        <td className="right num">{formatNumber(D(x.closing))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </>
+        )
+      )}
+    </Calc>
   );
 }
 
 const TOOLS = [
   { key: 'loan', label: 'Vay vốn' },
   { key: 'leverage', label: 'Đòn bẩy & chỉ số' },
-  { key: 'interest', label: 'Lãi suất & chiết khấu' },
-  { key: 'annuity', label: 'Chuỗi tiền tệ & WACC' },
+  { key: 'interest', label: 'Lãi đơn & lãi kép' },
+  { key: 'bill', label: 'Chiết khấu thương phiếu' },
+  { key: 'annuity', label: 'Chuỗi tiền tệ' },
+  { key: 'wacc', label: 'Chi phí vốn WACC' },
   { key: 'depreciation', label: 'Khấu hao TSCĐ' },
 ] as const;
+type ToolKey = (typeof TOOLS)[number]['key'];
 
-/** Công cụ tính toán tài chính: vay vốn, đòn bẩy, lãi suất, chiết khấu, chuỗi tiền tệ, WACC. */
+/** Công cụ tính toán tài chính: vay vốn, đòn bẩy, lãi suất, chiết khấu, chuỗi tiền tệ, WACC, khấu hao. */
 export function FinanceToolsPage() {
-  const [tool, setTool] = useState<(typeof TOOLS)[number]['key']>('loan');
+  const [sp, setSp] = useSearchParams();
+  const asked = sp.get('tool');
+  const tool: ToolKey = TOOLS.some((t) => t.key === asked) ? (asked as ToolKey) : 'loan';
   const period = usePeriodLabel();
   return (
-    <div className="page">
+    <div className="page tool-page">
       <PageHeader
         eyebrow="Tài chính"
         title="Công cụ tính toán"
-        subtitle="Vay vốn, đòn bẩy, lãi suất, chiết khấu, chuỗi tiền tệ, chi phí vốn và khấu hao theo chuẩn tài chính – kế toán."
+        subtitle="Vay vốn, đòn bẩy, lãi suất, chiết khấu, chi phí vốn và khấu hao."
         period={period}
       />
       <ModuleTabs tabs={FINANCE_TABS} current="/finance-tools" />
@@ -1086,7 +1386,7 @@ export function FinanceToolsPage() {
             role="tab"
             aria-selected={tool === t.key}
             className={tool === t.key ? 'on' : undefined}
-            onClick={() => setTool(t.key)}
+            onClick={() => setSp(t.key === 'loan' ? {} : { tool: t.key }, { replace: true })}
           >
             {t.label}
           </button>
@@ -1095,12 +1395,10 @@ export function FinanceToolsPage() {
       {tool === 'loan' && <LoanTool />}
       {tool === 'leverage' && <LeverageTool />}
       {tool === 'interest' && <InterestTool />}
+      {tool === 'bill' && <BillTool />}
       {tool === 'annuity' && <AnnuityTool />}
+      {tool === 'wacc' && <WaccTool />}
       {tool === 'depreciation' && <DepreciationTool />}
-      <p className="small muted mt-16" style={{ lineHeight: 1.6 }}>
-        Kết quả tính chính xác theo số thập phân; tiền làm tròn đến đồng. Lãi theo ngày thực tế tính trên 365
-        ngày theo Thông tư 14/2017/TT-NHNN; lãi suất quá hạn không vượt 150% lãi suất trong hạn.
-      </p>
       <PageFoot />
     </div>
   );

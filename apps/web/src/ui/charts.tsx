@@ -124,25 +124,27 @@ export function CashflowLineChart({ data, unit = 'triệu đồng' }: { data: Li
           ))}
         </div>
       )}
-      <table className="sr-only">
-        <caption>Dòng tiền theo ngày ({unit})</caption>
-        <thead>
-          <tr>
-            <th>Ngày</th>
-            <th>Thu</th>
-            <th>Chi</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((d) => (
-            <tr key={d.label}>
-              <td>{d.label}</td>
-              <td>{fmt(d.inflow)}</td>
-              <td>{fmt(d.outflow)}</td>
+      <div className="sr-only">
+        <table>
+          <caption>Dòng tiền theo ngày ({unit})</caption>
+          <thead>
+            <tr>
+              <th>Ngày</th>
+              <th>Thu</th>
+              <th>Chi</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.label}>
+                <td>{d.label}</td>
+                <td>{fmt(d.inflow)}</td>
+                <td>{fmt(d.outflow)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -214,17 +216,19 @@ export function CashflowColumns({ flows }: { flows: number[] }) {
           );
         })}
       </svg>
-      <table className="sr-only">
-        <caption>Dòng tiền dự án (triệu đồng)</caption>
-        <tbody>
-          {flows.map((f, i) => (
-            <tr key={i}>
-              <td>Năm {i}</td>
-              <td>{f}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="sr-only">
+        <table>
+          <caption>Dòng tiền dự án (triệu đồng)</caption>
+          <tbody>
+            {flows.map((f, i) => (
+              <tr key={i}>
+                <td>Năm {i}</td>
+                <td>{f}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

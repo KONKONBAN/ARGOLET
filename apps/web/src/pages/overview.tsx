@@ -98,7 +98,7 @@ export function OverviewPage() {
           {
             label: 'Dòng tiền thuần',
             value: o.netLabel,
-            note: `Doanh thu − chi phí · ${o.periodLabel}`,
+            note: o.periodLabel,
             net: true,
           },
           { label: 'Doanh thu', value: o.revenueLabel, note: o.revenueNote },
@@ -190,7 +190,7 @@ export function OverviewPage() {
 export function InboxPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const list = useListState(20);
+  const list = useListState(10);
   const [q, setQ] = useSearchText(list);
   const filter = (list.get('kind') || 'ALL') as 'ALL' | 'APPROVAL' | 'MATCH' | 'DOCUMENT' | 'PERIOD';
   const [filterOpen, setFilterOpen] = useState(false);
@@ -352,7 +352,7 @@ function DecidedApprovals() {
 export function NotificationsPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const list = useListState(20);
+  const list = useListState(10);
   const [q, setQ] = useSearchText(list);
   const onlyUnread = list.get('unread') === '1';
   const data = useQuery(
