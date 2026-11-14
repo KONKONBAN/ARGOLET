@@ -124,3 +124,45 @@ Chỉ số có mẫu số bằng 0 được báo "không xác định", không t
   - "Kết quả thu − chi" không phải lợi nhuận kế toán khi chưa có chứng từ lương, khấu hao…
 - **Sổ hộ kinh doanh:** mẫu S1a, S2a–S2e-HKD theo TT152/2025/TT-BTC.
 - **Thuế suất thuế TNDN** (gợi ý mặc định trong công cụ): phổ thông 20%; doanh nghiệp có doanh thu năm ≤ 3 tỷ đồng 15%, trên 3 đến 50 tỷ đồng 17%. Người dùng luôn nhập lại theo trường hợp của mình.
+
+## 7. Kế toán kép tự động (`accounting.ts`, trang Sổ sách & chỉ số)
+
+Doanh nghiệp (TT99 / TT133): mỗi chứng từ đã xác nhận thành một bút toán cân (Nợ = Có, bút toán không cân bị từ chối).
+
+| Nghiệp vụ                        | Nợ                                                            | Có                                         |
+| -------------------------------- | ------------------------------------------------------------- | ------------------------------------------ |
+| Bán hàng có hóa đơn / tại quầy   | 131 (tại quầy: 111)                                           | 511; 33311                                 |
+| Đơn bán qua nền tảng             | 131 (doanh thu gộp)                                           | 511                                        |
+| Hoàn tiền, chiết khấu cho khách  | 521 (TT99) · 511 (TT133)                                      | 131                                        |
+| Phí nền tảng                     | 641 (TT99) · 6421 (TT133)                                     | 131                                        |
+| Tiền về tài khoản / thu tiền mặt | 112 / 111                                                     | 131 (giải ngân 341, góp vốn 4111, lãi 515) |
+| Mua nguyên liệu, hàng hóa        | 152 / 156; 1331                                               | 331 (hóa đơn có MST) · 111 (phiếu chi)     |
+| Chi phí dịch vụ, quản lý         | 642 / 6422 (vận chuyển, nhiên liệu: 641 / 6421); 1331         | 331 · 111                                  |
+| Lãi vay · tiền phạt              | 635 · 811                                                     | 111 / 331                                  |
+| Lương · khấu hao                 | 642 / 6422                                                    | 334 · 214                                  |
+| Chi tiền từ tài khoản (sao kê)   | 331 (trả nợ vay 341, lương 334, thuế 333x, phí ngân hàng 642) | 112                                        |
+
+Cuối mỗi tháng: (1) giá vốn = tồn đầu kỳ + mua trong kỳ − tồn kiểm kê (chưa kiểm kê: hàng mua trong kỳ coi như đã dùng/bán), Nợ 632 / Có 152, 156; (2) khấu trừ thuế GTGT, Nợ 33311 / Có 1331 theo số nhỏ hơn; (3) tạm tính thuế TNDN trên lợi nhuận lũy kế từ đầu năm (lỗ thì giảm số đã tạm tính), Nợ 8211 (TT133: 821) / Có 3334; (4) kết chuyển 521 → 511, doanh thu và chi phí → 911, lãi/lỗ → 4212. Sang năm mới: 4212 → 4211.
+
+Thuế suất TNDN tự động theo doanh thu năm (doanh thu thuần bình quân tháng × 12): ≤ 3 tỷ 15%, ≤ 50 tỷ 17%, còn lại 20% (Luật Thuế TNDN số 67/2025/QH15); kế toán có thể chọn lại.
+
+**Báo cáo:** B02-DN (TT99: chỉ tiêu 25, 26) / B02-DNN (TT133: chỉ tiêu 24 chi phí quản lý kinh doanh); tình hình tài chính theo nhóm chỉ tiêu (tài sản = nợ phải trả + vốn chủ, kiểm tra tự động); bảng cân đối tài khoản; Sổ Nhật ký chung S03a.
+
+**Chỉ số** (bình quân đầu kỳ – cuối kỳ cho vòng quay và tỷ suất; số ngày = số ngày của kỳ):
+
+| Nhóm                | Chỉ số                                                                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Khả năng thanh toán | Hiện hành = TS ngắn hạn / Nợ phải trả; nhanh = (TS ngắn hạn − hàng tồn kho) / Nợ; bằng tiền = Tiền / Nợ; lãi vay = EBIT / Lãi vay                                                                              |
+| Cơ cấu vốn, đòn bẩy | Hệ số nợ = Nợ / Tổng TS; Nợ / Vốn chủ; Hệ số nhân = TS bq / VCSH bq; DOL = SDĐP / EBIT; DFL = EBIT / (EBIT − Lãi vay); DTL = SDĐP / (EBIT − Lãi vay)                                                           |
+| Hiệu quả hoạt động  | Vòng quay TS = DTT / TS bq; vòng quay phải thu = DTT / Phải thu bq; kỳ thu tiền = số ngày / vòng quay; vòng quay HTK = Giá vốn / HTK bq; số ngày tồn kho; số ngày trả tiền = số ngày / (Giá vốn / Phải trả bq) |
+| Khả năng sinh lời   | Lợi nhuận gộp / DTT; LN thuần HĐKD / DTT; ROS = LNST / DTT; ROA = LNST / TS bq; ROE = LNST / VCSH bq; BEP = EBIT / TS bq (ROE = ROS × vòng quay TS × hệ số nhân)                                               |
+
+EBIT = lợi nhuận trước thuế + chi phí lãi vay. Biến phí = giá vốn + phí nền tảng, vận chuyển, nhiên liệu, hoa hồng; định phí = SDĐP − EBIT. Kiểm chứng (`accounting.test.ts`): tháng mẫu doanh thu thuần 169, giá vốn 80, LNTT 81, thuế 16,2, LNST 64,8; tài sản 531 = nợ 126,2 + vốn chủ 404,8 (triệu đồng).
+
+**Thẩm định dự án và kịch bản lấy số liệu từ sổ:** dòng tiền thuần/năm = (LNST + khấu hao) bình quân tháng × 12; suất chiết khấu = WACC với chi phí vốn chủ = ROE năm hóa và chi phí nợ = lãi vay năm hóa / nợ vay bình quân × (1 − t); trả nợ/năm = lãi vay + gốc đã trả, năm hóa; kịch bản thận trọng / tích cực = bình quân ∓ một độ lệch chuẩn của kết quả tháng.
+
+**Lưu vết tính toán (CalcRun):** mỗi lần thẩm định dự án, xuất sổ kế toán & báo cáo tài chính (`books_statements`) hay xuất báo cáo tài chính theo tháng (`finance_report`) đều ghi một CalcRun: dấu vân tay dữ liệu nguồn (SHA-256 của các bút toán nguồn / bản ghi đã xác nhận), thiết lập (chế độ kế toán, kỳ, số dư đầu kỳ, kiểm kê, thuế suất), phiên bản quy tắc (`ledger-rules-2026.11`, `report-rules-2026.11`), phiên bản Finance Engine và kết quả chính. Cùng dữ liệu và thiết lập cho cùng mã kiểm tra; khách hàng thấy danh sách ở "Lịch sử tính toán" (thời điểm, phép tính, phiên bản, mã kiểm tra), không thấy công thức.
+
+## 8. Đọc chứng từ: OCR + VLM
+
+Ảnh và bản quét được đọc hai lần, độc lập: OCR (Tesseract, mô hình tiếng Việt, trả về chữ in và vị trí) và VLM (mô hình thị giác – ngôn ngữ, hiểu bố cục). Trường hai bên đọc giống nhau, hoặc giá trị VLM có in trên ảnh theo OCR → độ tin cậy ≥ 0,95. Giá trị VLM không có trong chữ OCR đọc được, hoặc hai bên đọc khác → độ tin cậy ≤ 0,5 và màn Kiểm tra chứng từ hiện cả hai cách đọc để người kiểm tra đối chiếu với ảnh gốc. Chỉ có OCR → tối đa 0,7 (luôn cần người kiểm tra). QR hóa đơn điện tử (QĐ 1450) đúng CRC được dùng cho trường còn thiếu. Kiểm chứng: `ocrfields.test.ts`, `apps/api/test/ocr.test.ts` (ảnh thật, VLM đọc nhầm 1.480.000 thay vì 1.840.000 bị chặn lại).

@@ -87,4 +87,28 @@ describe('automatic books', () => {
     const staff = await loginAs(app, 'minhanh.nguyen@minhan.example');
     await expectAppError(app.ledger.exportBooks(staff, {}), 'FORBIDDEN');
   });
+
+  it('records every books export as a reproducible calculation', async () => {
+    const { app } = await seededApp();
+    const admin = await loginAs(app);
+    const before = await app.finance.calcRuns(admin);
+    await app.ledger.exportBooks(admin, { months: 3 });
+    const runs = await app.finance.calcRuns(admin);
+    expect(runs).toHaveLength(before.length + 1);
+    const run = runs[0]!;
+    expect(run.task).toBe('books_statements');
+    expect(run.taskLabel).toBe('Sổ kế toán và báo cáo tài chính');
+    expect(run.inputSnapshotDigest).toMatch(/^[0-9a-f]{64}$/);
+    // Same books, same settings → same input fingerprint; a new opening balance changes it.
+    await app.ledger.exportBooks(admin, { months: 3 });
+    expect((await app.finance.calcRuns(admin))[0]!.inputSnapshotDigest).toBe(run.inputSnapshotDigest);
+    const accountant = await loginAs(app, 'thanhha@minhan.example');
+    await app.ledger.saveSettings(accountant, { citRate: '0.2' });
+    await app.ledger.exportBooks(admin, { months: 3 });
+    expect((await app.finance.calcRuns(admin))[0]!.inputSnapshotDigest).not.toBe(run.inputSnapshotDigest);
+    await app.finance.exportReport(admin, { months: '3' });
+    const report = (await app.finance.calcRuns(admin))[0]!;
+    expect(report.task).toBe('finance_report');
+    expect(report.taskLabel).toBe('Báo cáo tài chính theo tháng');
+  });
 });

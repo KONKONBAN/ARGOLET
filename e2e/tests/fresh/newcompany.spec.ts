@@ -390,7 +390,7 @@ test('a new company runs the whole product from an empty server', async ({ brows
   await test.step('the finance page keeps a reproducible history of calculations', async () => {
     await go(page, 'finance', /Phân tích tài chính|Thẩm định/);
     await expect(page.getByRole('heading', { name: 'Lịch sử tính toán' })).toBeVisible();
-    await expect(page.getByText('Thẩm định dự án (NPV, IRR, hoàn vốn, DSCR)').first()).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Thẩm định dự án', exact: true }).first()).toBeVisible();
   });
 
   await expectClean(w, info);

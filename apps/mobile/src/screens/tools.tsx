@@ -3,6 +3,7 @@
  * definitions as the web app (Toán tài chính, TCDN, Thông tư 14/2017/TT-NHNN).
  */
 import { useState } from 'react';
+import { useQuery } from '@argolet/client';
 import { View } from 'react-native';
 import {
   capitalStructure,
@@ -20,7 +21,7 @@ import {
 } from '@argolet/core';
 import { Text } from '../textScale';
 import { C } from '../theme';
-import { Card, Input, KV, Notice, Screen, T, Title } from '../ui';
+import { Button, Card, Gap, Input, KV, Notice, Screen, T, Title } from '../ui';
 import { Choice, Money } from './modules';
 
 const pct = (s: string): number | null => {
@@ -28,6 +29,7 @@ const pct = (s: string): number | null => {
   return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) / 100 : null;
 };
 const vnd = (v: string) => formatVnd(D(v));
+const whole = (v: string) => D(v).toDecimalPlaces(0).abs().toFixed();
 const times = (v: string | null) => (v === null ? '—' : `${formatNumber(D(v), 2)} lần`);
 const percent = (v: string | null) => (v === null ? '—' : formatPercent(v));
 function attempt<T>(f: () => T): { value: T } | { error: string } {
@@ -162,6 +164,8 @@ function LeverageTool() {
     assets: '',
     equity: '',
   });
+  const booksQuery = useQuery('ledger.overview', { months: '12' });
+  const books = booksQuery.data?.applicable ? booksQuery.data.calculators : null;
   const t = pct(f.tax);
   const lev =
     f.revenue && f.variable && f.fixed
@@ -200,6 +204,23 @@ function LeverageTool() {
       : null;
   return (
     <>
+      {books && (
+        <Button
+          title="Lấy từ sổ sách"
+          onPress={() =>
+            setF({
+              revenue: whole(books.revenue),
+              variable: whole(books.variableCosts),
+              fixed: D(books.fixedCosts).isNegative() ? '0' : whole(books.fixedCosts),
+              interest: whole(books.interest),
+              tax: D(books.taxRate).times(100).toFixed(),
+              assets: whole(books.totalAssets),
+              equity: whole(books.equity),
+            })
+          }
+        />
+      )}
+      <Gap />
       <Card title="Số liệu kỳ phân tích">
         <Money label="Doanh thu thuần" value={f.revenue} onChange={(v) => setF({ ...f, revenue: v })} />
         <Money label="Biến phí" value={f.variable} onChange={(v) => setF({ ...f, variable: v })} />

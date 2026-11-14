@@ -16,7 +16,7 @@ import { AppError, type CallContext, type Emitter, type WorkspaceState } from '.
 import type { Tx } from '../store';
 import type { FinanceProjectRow } from '../types';
 import { booksAnalysis } from './ledger';
-import { financeReport, financeReportXlsx, type ReportQuery } from './report';
+import { financeReport, financeReportSnapshot, financeReportXlsx, type ReportQuery } from './report';
 
 const years = (v: string | null) => (v === null ? 'Không hoàn vốn' : `${formatNumber(D(v), 2)} năm`);
 
@@ -43,6 +43,13 @@ function validateAssumptions(a: ProjectAssumptions): ProjectAssumptions {
       : {}),
   };
 }
+
+/** What each recorded computation was, as the customer reads it. */
+const CALC_TASK_LABEL: Record<string, string> = {
+  project_appraisal: 'Thẩm định dự án',
+  books_statements: 'Sổ kế toán và báo cáo tài chính',
+  finance_report: 'Báo cáo tài chính theo tháng',
+};
 
 export class FinanceService {
   constructor(private readonly core: AppCore) {}
@@ -101,10 +108,46 @@ export class FinanceService {
 
   /** The same report as an Excel workbook, with every source line (who may export reports). */
   async exportReport(call: CallContext, p: ReportQuery = {}) {
-    return this.core.query(async (tx) => {
+    return this.core.command(call, async (tx, em, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'report.export');
       const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
-      return financeReportXlsx(tx, ws, tenant, p, this.core.deps.clock());
+      const file = await financeReportXlsx(tx, ws, tenant, p, this.core.deps.clock());
+      // Each export is a Finance Engine computation: recorded so the same figures can be rebuilt.
+      const { report, sourceDigest } = await financeReportSnapshot(tx, ws, tenant, p);
+      const run = makeCalcRun({
+        calcRunId: newId('calc'),
+        task: 'finance_report',
+        packageCode: 'G2',
+        rulesVersion: 'report-rules-2026.11',
+        assumptions: {
+          scope: ws.entityId,
+          regime: tenant.settings.accountingRegime,
+          periods: report.periods,
+          sourceRecords: report.sourceCount,
+          sourceDigest,
+        },
+        method: 'Doanh thu, chi phí và thuế GTGT theo tháng từ chứng từ đã xác nhận',
+        result: {
+          netRevenue: report.totals.netRevenue,
+          totalCosts: report.totals.totalCosts,
+          result: report.totals.result,
+          documents: report.totals.documents,
+        },
+        createdAt: now,
+      });
+      await tx.put('calcRuns', { ...run, id: run.calcRunId, tenantId: ws.tenantId, createdBy: ws.user.id });
+      await em.emit({
+        type: 'CalcRunCompleted',
+        tenantId: ws.tenantId,
+        entityId: ws.entityId === '*' ? null : ws.entityId,
+        aggregateType: 'FinanceReport',
+        aggregateId: ws.tenantId,
+        actorId: ws.user.id,
+        dataRef: `calc/${run.calcRunId}`,
+        dataVersion: 1,
+        data: { calcRunId: run.calcRunId, engineVersion: run.engineVersion },
+      });
+      return file;
     });
   }
 
@@ -279,6 +322,7 @@ export class FinanceService {
         .map((r) => ({
           id: r.id,
           task: r.task,
+          taskLabel: CALC_TASK_LABEL[r.task] ?? r.task,
           engineVersion: r.engineVersion,
           inputSnapshotDigest: r.inputSnapshotDigest,
           createdAt: r.createdAt,

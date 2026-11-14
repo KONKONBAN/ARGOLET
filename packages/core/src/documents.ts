@@ -384,6 +384,8 @@ export interface ExtractionResult {
   modelVersion: string;
   fields: ExtractionField[];
   lines: { description: string; amount: string }[];
+  /** Fields the OCR and the VLM read differently (both values shown to the reviewer). */
+  disagreements?: { field: keyof DocumentFields; ocr: string; vlm: string }[];
 }
 
 export interface ExtractionProvider {

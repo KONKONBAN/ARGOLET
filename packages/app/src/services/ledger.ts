@@ -8,13 +8,17 @@ import {
   balanceSheet,
   buildLedger,
   buildXlsx,
+  canonicalize,
   D,
   daysInPeriod,
   dec,
   financialRatios,
   formatPeriod,
   incomeStatement,
+  makeCalcRun,
+  newId,
   OPENING_ACCOUNTS,
+  sha256Hex,
   trialBalance,
   XLSX_MIME,
   type Decimal,
@@ -25,7 +29,7 @@ import {
   type XSheet,
 } from '@argolet/core';
 import { type AppCore, actor, requireFound } from '../core';
-import { AppError, type CallContext, type WorkspaceState } from '../runtime';
+import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { BusinessRecordRow, DocumentRow, LedgerSettings, TenantRow } from '../types';
 import { scoped } from './documents';
@@ -33,6 +37,8 @@ import { scopeLabel } from './org';
 import { isConfirmed, periodsEndingAt, validPeriod } from './report';
 
 const MAX_MONTHS = 60;
+/** Posting, closing and statement rules applied by the automatic books. */
+export const LEDGER_RULES_VERSION = 'ledger-rules-2026.11';
 
 export function ledgerRegime(t: TenantRow): Regime | null {
   const r = t.settings.accountingRegime;
@@ -175,6 +181,8 @@ interface Books {
   citAuto: boolean;
   documents: number;
   events: number;
+  /** Fingerprint of the source events the books were built from (for the CalcRun). */
+  sourceDigest: string;
   settings: LedgerSettings;
 }
 
@@ -235,6 +243,7 @@ async function loadBooks(
     citAuto,
     documents: new Set(events.map((e) => e.documentId).filter(Boolean)).size,
     events: events.length,
+    sourceDigest: sha256Hex(canonicalize(events)),
     settings,
   };
 }
@@ -507,9 +516,12 @@ export class LedgerService {
     });
   }
 
-  /** The books as an Excel workbook: journal, trial balance, B02, financial position and ratios. */
+  /**
+   * The books as an Excel workbook: journal, trial balance, B02, financial position and ratios. Each
+   * export is recorded as a CalcRun (inputs, rules and engine version) so it can be reproduced.
+   */
   async exportBooks(call: CallContext, q: BooksQuery = {}) {
-    return this.core.query(async (tx) => {
+    return this.core.command(call, async (tx, em, now) => {
       const ws = await this.core.requireWorkspace(tx, call, 'report.export');
       const tenant = await this.tenant(tx, ws);
       const b = await loadBooks(tx, ws, tenant, q);
@@ -518,9 +530,61 @@ export class LedgerService {
           'VALIDATION',
           'Hộ kinh doanh xuất sổ theo Thông tư 152/2025/TT-BTC trong Sổ sách & thuế',
         );
-      return booksWorkbook(b, tenant, await scopeLabel(tx, ws.tenantId, ws.entityId), this.core.deps.clock());
+      const file = booksWorkbook(
+        b,
+        tenant,
+        await scopeLabel(tx, ws.tenantId, ws.entityId),
+        this.core.deps.clock(),
+      );
+      await recordBooksRun(tx, em, ws, b, now);
+      return file;
     });
   }
+}
+
+/** Keeps a books computation reproducible: source fingerprint, settings, rules and engine version. */
+async function recordBooksRun(tx: Tx, em: Emitter, ws: WorkspaceState, b: Books, now: string) {
+  const a = analyse(b);
+  const run = makeCalcRun({
+    calcRunId: newId('calc'),
+    task: 'books_statements',
+    packageCode: 'G2',
+    rulesVersion: LEDGER_RULES_VERSION,
+    assumptions: {
+      scope: ws.entityId,
+      regime: b.regime,
+      from: b.from,
+      to: b.to,
+      citRate: b.citRate,
+      openingPeriod: b.settings.openingPeriod ?? null,
+      opening: b.settings.opening ?? {},
+      stockCounts: b.settings.stockCounts ?? {},
+      sourceEvents: b.events,
+      sourceDigest: b.sourceDigest,
+    },
+    method: 'Kế toán kép · kết chuyển cuối tháng · kết quả kinh doanh · tình hình tài chính · chỉ số',
+    result: {
+      netRevenue: a.income.figures.netRevenue,
+      profitBeforeTax: a.income.figures.profitBeforeTax,
+      profitAfterTax: a.income.figures.profitAfterTax,
+      totalAssets: a.end.figures.totalAssets,
+      entries: b.ledger.entries.length,
+    },
+    createdAt: now,
+  });
+  await tx.put('calcRuns', { ...run, id: run.calcRunId, tenantId: ws.tenantId, createdBy: ws.user.id });
+  await em.emit({
+    type: 'CalcRunCompleted',
+    tenantId: ws.tenantId,
+    entityId: ws.entityId === '*' ? null : ws.entityId,
+    aggregateType: 'Books',
+    aggregateId: ws.tenantId,
+    actorId: ws.user.id,
+    dataRef: `calc/${run.calcRunId}`,
+    dataVersion: 1,
+    data: { calcRunId: run.calcRunId, engineVersion: run.engineVersion },
+  });
+  return run;
 }
 
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;

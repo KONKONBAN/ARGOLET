@@ -10,7 +10,14 @@ await build({
   target: 'node20',
   format: 'esm',
   sourcemap: true,
-  external: ['@node-rs/argon2', '@electric-sql/pglite', 'pg-native'],
+  // Tesseract runs its own worker thread and WASM core, and reads the Vietnamese model from its package.
+  external: [
+    '@node-rs/argon2',
+    '@electric-sql/pglite',
+    'pg-native',
+    'tesseract.js',
+    '@tesseract.js-data/vie',
+  ],
   banner: {
     js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);",
   },

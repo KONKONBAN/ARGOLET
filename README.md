@@ -121,7 +121,8 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 | `SMTP_URL`                     | —                                                                               | Máy chủ gửi email, ví dụ `smtps://user:mat-khau@smtp.example.com:465` (Amazon SES, SendGrid, Mailgun, Google Workspace, Zoho…). Bật gửi mã xác minh, mã đặt lại mật khẩu, mã xác thực bổ sung và thư mời thành viên |
 | `MAIL_FROM`                    | `ARGOLET <no-reply@argolet.local>`                                              | Người gửi hiển thị trong email                                                                                                                                                                                      |
 | `EXPOSE_DEV_CODES`             | bật khi chưa cấu hình `SMTP_URL` và (không phải production hoặc có dữ liệu mẫu) | Hiển thị mã OTP trên giao diện thay vì gửi email — chỉ dùng cho thử nghiệm                                                                                                                                          |
-| `ANTHROPIC_API_KEY`            | —                                                                               | Cho phép tổ chức chọn Claude làm trợ lý AI, và bật trích xuất chứng từ bằng thị giác                                                                                                                                |
+| `ANTHROPIC_API_KEY`            | —                                                                               | Cho phép tổ chức chọn Claude làm trợ lý AI, và bật đọc chứng từ bằng mô hình thị giác (VLM) — đối chiếu từng trường với OCR                                                                                         |
+| `ARGOLET_OCR`                  | `on`                                                                            | OCR tiếng Việt (Tesseract) trên máy chủ cho ảnh chứng từ; cùng VLM, trường nào hai bên đọc khác nhau phải được người kiểm tra                                                                                       |
 | `ARGOLET_CLAUDE_MODEL`         | `claude-opus-5-5`                                                               | Model Claude cho trợ lý                                                                                                                                                                                             |
 | `OPENAI_API_KEY`               | —                                                                               | Cho phép tổ chức chọn ChatGPT làm trợ lý AI (Responses API, `store: false`)                                                                                                                                         |
 | `ARGOLET_OPENAI_MODEL`         | `gpt-6.1-sol`                                                                   | Model OpenAI cho trợ lý                                                                                                                                                                                             |
@@ -134,6 +135,13 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 **Trợ lý AI (Gen AI)** mặc định tắt cho mọi tổ chức. Quản trị viên chọn Claude hoặc ChatGPT trong _Cài đặt → Trợ lý AI_ (chỉ các nhà cung cấp có khóa trên máy chủ). Trước khi gửi, ARGOLET thay email, số điện thoại, mã số thuế, CCCD, số tài khoản và tên nhân sự bằng mã ẩn và khôi phục khi hiển thị; dữ liệu chỉ đi tới nhà cung cấp đã chọn; người hỏi được nhận diện bằng mã ẩn danh; nhật ký không lưu nội dung; mỗi người tối đa 20 câu hỏi / 10 phút. Claude dùng Messages API với _adaptive thinking_ và **server-side fallbacks** (`fallbacks: "default"`) trong cùng nhà cung cấp.
 
 ### 3. Ứng dụng Android / iOS
+
+**Tải bản dùng thử:** mỗi lần mã nguồn mobile thay đổi, GitHub Actions (`.github/workflows/mobile.yml`) tự dựng và đăng lên trang Releases, mục [ARGOLET · ứng dụng di động (bản mới nhất)](https://github.com/KONKONBAN/ARGOLET/releases/tag/mobile-latest):
+
+- **Android** — `ARGOLET-android.apk`: tải về điện thoại, mở tệp và cho phép “Cài ứng dụng không rõ nguồn” khi được hỏi;
+- **iOS** — `ARGOLET-ios-simulator.zip`: chạy trên iOS Simulator (Xcode trên máy Mac: giải nén rồi kéo `ARGOLET.app` vào cửa sổ Simulator). Apple không cho cài tệp tự dựng lên iPhone thật: cài trên iPhone cần ký bằng tài khoản Apple Developer và phát hành qua TestFlight / App Store (lệnh EAS bên dưới).
+
+Hai bản dùng thử này chạy được ngay không cần máy chủ (dữ liệu mẫu, có ghi rõ) và có đủ chức năng chụp ảnh chứng từ bằng camera.
 
 Ứng dụng React Native dựng bằng Expo / EAS Build thành bản cài đặt native (`.aab` cho Google Play, `.ipa` cho App Store). Có ba hồ sơ dựng (`apps/mobile/eas.json`):
 

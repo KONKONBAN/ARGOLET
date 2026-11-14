@@ -5,6 +5,60 @@ import { expectClean, login, settled, watch } from './helpers';
 
 const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures');
 
+test.use({ permissions: ['camera'] });
+
+test('photograph a document with the in-app camera, check the photo and receive it', async ({
+  page,
+}, info) => {
+  const w = watch(page);
+  await login(page);
+  await page.goto('/#/documents');
+  await settled(page, 'Chứng từ');
+  await page.getByRole('button', { name: 'Chụp chứng từ' }).click();
+  const camera = page.getByRole('dialog', { name: 'Chụp chứng từ' });
+  const shutter = camera.getByRole('button', { name: 'Chụp', exact: true });
+  await expect(shutter).toBeEnabled({ timeout: 15_000 });
+  await shutter.click();
+  const checks = camera.getByRole('list', { name: 'Kiểm tra ảnh' });
+  // Every check passes for a well-lit, sharp invoice (resolution as delivered by the camera).
+  await expect(checks).toContainText(/Độ phân giải \d+×\d+/);
+  await expect(checks).toContainText('Ánh sáng tốt');
+  await expect(checks).toContainText('Ảnh rõ nét');
+  await expect(checks.locator('li.warn')).toHaveCount(0);
+  await camera.getByRole('button', { name: 'Dùng ảnh & chụp trang tiếp' }).click();
+  await expect(camera.getByText('Đã thêm 1 trang')).toBeVisible();
+  await shutter.click();
+  await camera.getByRole('button', { name: 'Dùng ảnh này' }).click();
+  await expect(camera).toBeHidden();
+  await expect(page.locator('.picked-file')).toHaveCount(2);
+  await expect(page.locator('.picked-thumb')).toHaveCount(2);
+  // The QR printed on the invoice is read from the camera picture itself.
+  await expect(page.getByRole('list', { name: 'Mã QR hóa đơn' }).first()).toContainText(
+    'Mã QR hóa đơn: 1C26TSX · số 778 · 29/10/2026 · 1.320.000 đ · MST 0314222331',
+  );
+  await page.getByRole('button', { name: /Tiếp nhận 2 tệp/ }).click();
+  await expect(page.getByText(/Đã tiếp nhận lô/)).toBeVisible();
+  await page.getByRole('button', { name: 'Kiểm tra' }).first().click();
+  await settled(page, /Kiểm tra chứng từ|CT-\d+/);
+  await expectClean(w, info);
+});
+
+test('without camera access the device photo picker is offered instead', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () =>
+      Promise.reject(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+  });
+  await login(page);
+  await page.goto('/#/capture?camera=1');
+  const camera = page.getByRole('dialog', { name: 'Chụp chứng từ' });
+  await expect(camera.getByRole('alert')).toContainText('chưa cho phép dùng camera');
+  const chooser = page.waitForEvent('filechooser');
+  await camera.getByRole('button', { name: 'Chọn ảnh từ thiết bị' }).click();
+  await (await chooser).setFiles(path.join(fixtures, 'phieu-giao-hang-sua.jpg'));
+  await expect(page.locator('.picked-file')).toHaveCount(1);
+  await expect(page.getByRole('list', { name: 'Kiểm tra ảnh' })).toContainText('Độ phân giải 600×800');
+});
+
 test('the e-invoice QR on a photo fills in the invoice and exposes an altered total', async ({
   page,
 }, info) => {
@@ -23,13 +77,16 @@ test('the e-invoice QR on a photo fills in the invoice and exposes an altered to
   await expect(page.getByText(/Đã tiếp nhận lô/)).toBeVisible();
   await page.getByRole('button', { name: 'Kiểm tra' }).first().click();
   await settled(page, 'Kiểm tra chứng từ');
-  // Filled in from the QR, nothing invented: the seller's name is not in the QR.
+  // Filled in from the QR (it wins over any reading of the photo). The seller's name is not in the
+  // QR: the server's OCR reads it from the photo (still to be reviewed); the browser-only app leaves it empty.
   await expect(page.getByLabel('MST người bán')).toHaveValue('0314222331');
   await expect(page.getByLabel('Ký hiệu hóa đơn')).toHaveValue('1C26TSX');
   await expect(page.getByLabel('Số chứng từ')).toHaveValue('777');
   await expect(page.getByLabel('Ngày chứng từ')).toHaveValue('29/10/2026');
   await expect(page.getByLabel('Tổng thanh toán')).toHaveValue('1.650.000 đ');
-  await expect(page.getByLabel('Nhà cung cấp')).toHaveValue('');
+  await expect(page.getByLabel('Nhà cung cấp')).toHaveValue(
+    info.project.name === 'static' ? '' : 'CÔNG TY TNHH SỮA XANH',
+  );
   const panel = page.getByRole('region', { name: 'Kiểm tra chứng từ giả' });
   await expect(panel.locator('li.pass[data-check="QR"]')).toContainText('Đúng chuẩn của cơ quan thuế');
 

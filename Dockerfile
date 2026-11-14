@@ -30,6 +30,21 @@ WORKDIR /app
 # Only the native/WASM packages the bundle keeps external are needed at runtime.
 COPY --from=build /src/node_modules/@node-rs ./node_modules/@node-rs
 COPY --from=build /src/node_modules/@electric-sql ./node_modules/@electric-sql
+# OCR: Tesseract (worker + WASM core), its Vietnamese model and their runtime dependencies.
+COPY --from=build /src/node_modules/tesseract.js ./node_modules/tesseract.js
+COPY --from=build /src/node_modules/tesseract.js-core ./node_modules/tesseract.js-core
+COPY --from=build /src/node_modules/@tesseract.js-data ./node_modules/@tesseract.js-data
+COPY --from=build /src/node_modules/bmp-js ./node_modules/bmp-js
+COPY --from=build /src/node_modules/idb-keyval ./node_modules/idb-keyval
+COPY --from=build /src/node_modules/is-url ./node_modules/is-url
+COPY --from=build /src/node_modules/node-fetch ./node_modules/node-fetch
+COPY --from=build /src/node_modules/whatwg-url ./node_modules/whatwg-url
+COPY --from=build /src/node_modules/tr46 ./node_modules/tr46
+COPY --from=build /src/node_modules/webidl-conversions ./node_modules/webidl-conversions
+COPY --from=build /src/node_modules/opencollective-postinstall ./node_modules/opencollective-postinstall
+COPY --from=build /src/node_modules/regenerator-runtime ./node_modules/regenerator-runtime
+COPY --from=build /src/node_modules/wasm-feature-detect ./node_modules/wasm-feature-detect
+COPY --from=build /src/node_modules/zlibjs ./node_modules/zlibjs
 COPY --from=build /src/apps/api/dist ./api
 COPY --from=build /src/apps/web/dist ./web
 RUN mkdir -p /data && chown node:node /data

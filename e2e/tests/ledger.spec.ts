@@ -32,6 +32,13 @@ test('the books, statements and ratios come straight from the documents', async 
   ]);
   expect(file.suggestedFilename()).toMatch(/^so-ke-toan-\d{4}-\d{2}-den-\d{4}-\d{2}\.xlsx$/);
 
+  // Each export is kept as a reproducible calculation in the history.
+  await go(page, 'finance', /Phân tích tài chính|Thẩm định/);
+  await expect(page.getByRole('heading', { name: 'Lịch sử tính toán' })).toBeVisible();
+  await expect(
+    page.getByRole('cell', { name: 'Sổ kế toán và báo cáo tài chính', exact: true }).first(),
+  ).toBeVisible();
+
   // The leverage calculator takes revenue, costs, assets and equity from the books.
   await go(page, 'finance-tools?tool=leverage', 'Công cụ tính toán');
   await page.getByRole('button', { name: 'Lấy từ sổ sách' }).click();

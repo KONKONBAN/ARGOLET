@@ -3,6 +3,7 @@ import type { ApiConfig } from './config';
 import { serverHasher } from './hasher';
 import { ClaudeLlmClient, ClaudeVisionExtractionProvider } from './claude';
 import { OpenAiLlmClient } from './openai';
+import { CombinedExtractionProvider, TesseractOcr } from './ocr';
 import { PgStore, pgDriver, pgliteDriver } from './db';
 import { createMailNotifier } from './mailer';
 import { aesGcmBox, parseSecretKey } from './secrets';
@@ -33,9 +34,15 @@ export async function createRuntime(
       ...(config.anthropicApiKey ? { claude: new ClaudeLlmClient(config.anthropicApiKey) } : {}),
       ...(config.openaiApiKey ? { openai: new OpenAiLlmClient(config.openaiApiKey) } : {}),
     },
-    extraction: config.anthropicApiKey
-      ? new ClaudeVisionExtractionProvider(config.anthropicApiKey)
-      : undefined,
+    // Photos and scans are read twice — OCR and the vision model — and checked field by field.
+    extraction:
+      config.ocr || config.anthropicApiKey
+        ? new CombinedExtractionProvider(
+            config.ocr ? new TesseractOcr() : null,
+            config.anthropicApiKey ? new ClaudeVisionExtractionProvider(config.anthropicApiKey) : null,
+            log,
+          )
+        : undefined,
     notifier: config.smtpUrl
       ? createMailNotifier({ smtpUrl: config.smtpUrl, from: config.mailFrom, otpTtlMinutes: 10 }, log)
       : {

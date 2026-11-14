@@ -508,9 +508,10 @@ export class DocumentService {
                     : []),
                 ]
               : [];
+            // The QR is the invoice as issued (CRC checked): it wins over what OCR / VLM read.
             const exFields = [
-              ...ex.fields.filter((x) => x.value),
-              ...fromQr.filter((q) => !ex.fields.some((x) => x.name === q.name && x.value)),
+              ...fromQr,
+              ...ex.fields.filter((x) => x.value && !fromQr.some((q) => q.name === x.name)),
             ];
             const get = (n: keyof DocumentFields) => exFields.find((x) => x.name === n)?.value ?? '';
             // Nothing is invented: a date or total that was not read stays empty for a person to fill in.
@@ -527,6 +528,18 @@ export class DocumentService {
               { ...fields, lines: ex.lines.length ? ex.lines : undefined },
               { today: now.slice(0, 10), knownDocumentKeys: knownKeys, lowConfidence },
             );
+            // OCR and the vision model read this field differently: show both on the review screen.
+            for (const d of ex.disagreements ?? []) {
+              const shown = (v: string) => (d.field === 'total' && /^\d+$/.test(v) ? formatVnd(v) : v);
+              const at = issues.findIndex((x) => x.field === d.field && x.severity === 'warning');
+              const issue = {
+                field: d.field,
+                severity: 'warning' as const,
+                message: `Hai lần đọc khác nhau: OCR "${shown(d.ocr)}", VLM "${shown(d.vlm)}" — đối chiếu với ảnh gốc`,
+              };
+              if (at >= 0) issues[at] = issue;
+              else issues.push(issue);
+            }
             doc = {
               ...common,
               title: 'Hóa đơn mua hàng',

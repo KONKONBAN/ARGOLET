@@ -760,7 +760,7 @@ function CalcRunHistory() {
         rowKey={(r) => r.id}
         columns={[
           { key: 't', header: 'Thời điểm', render: (r) => formatShortDateTime(r.createdAt), strong: true },
-          { key: 'k', header: 'Phép tính', render: (r) => CALC_TASK[r.task] ?? r.task },
+          { key: 'k', header: 'Phép tính', render: (r) => r.taskLabel },
           { key: 'e', header: 'Phiên bản', render: (r) => r.engineVersion },
           {
             key: 'd',
@@ -772,10 +772,6 @@ function CalcRunHistory() {
     </Card>
   );
 }
-
-const CALC_TASK: Record<string, string> = {
-  project_appraisal: 'Thẩm định dự án (NPV, IRR, hoàn vốn, DSCR)',
-};
 
 // ───────── 28 · So sánh kịch bản ─────────
 export function ScenariosPage() {

@@ -12,6 +12,7 @@ export * from './finmath';
 export * from './ratios';
 export * from './accounting';
 export * from './documents';
+export * from './ocrfields';
 export * from './einvoice';
 export * from './imagemeta';
 export * from './invoiceqr';

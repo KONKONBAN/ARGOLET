@@ -1383,7 +1383,7 @@ function CalcRunHistory() {
       {runs.data.slice(0, 10).map((r) => (
         <Row
           key={r.id}
-          title={r.task === 'project_appraisal' ? 'Thẩm định dự án' : r.task}
+          title={r.taskLabel}
           subtitle={`${formatShortDateTime(r.createdAt)} · ${r.engineVersion} · ${r.inputSnapshotDigest.slice(0, 12)}…`}
         />
       ))}

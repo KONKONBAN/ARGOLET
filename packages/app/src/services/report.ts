@@ -7,12 +7,14 @@
  */
 import {
   buildXlsx,
+  canonicalize,
   columnName,
   D,
   dec,
   formatPercent,
   formatPeriod,
   formatVnd,
+  sha256Hex,
   sum,
   XLSX_MIME,
   type CostCategory,
@@ -186,6 +188,24 @@ export interface ReportQuery {
 
 export async function financeReport(tx: Tx, ws: WorkspaceState, tenant: TenantRow, p: ReportQuery) {
   return (await buildReport(tx, ws, tenant, p)).report;
+}
+
+/** The report with a fingerprint of the confirmed records it was built from (for the CalcRun). */
+export async function financeReportSnapshot(tx: Tx, ws: WorkspaceState, tenant: TenantRow, p: ReportQuery) {
+  const { report, sources } = await buildReport(tx, ws, tenant, p);
+  const sourceDigest = sha256Hex(
+    canonicalize(
+      sources.map((s) => ({
+        id: s.record.id,
+        version: s.record.version,
+        kind: s.record.kind,
+        date: s.record.date,
+        amount: s.record.amount,
+        category: s.category,
+      })),
+    ),
+  );
+  return { report, sourceDigest };
 }
 
 async function buildReport(tx: Tx, ws: WorkspaceState, tenant: TenantRow, p: ReportQuery) {

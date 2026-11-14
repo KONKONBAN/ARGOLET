@@ -16,6 +16,7 @@ import * as A from './screens/auth';
 import * as M from './screens/main';
 import * as X from './screens/modules';
 import { FinanceToolsScreen } from './screens/tools';
+import { FinanceBooksScreen } from './screens/books';
 
 type TabParams = { Overview: undefined; Inbox: undefined; Documents: undefined; More: undefined };
 type RootParams = {
@@ -51,6 +52,7 @@ type RootParams = {
   Projects: undefined;
   Finance: undefined;
   FinanceTools: undefined;
+  FinanceBooks: undefined;
   Scenarios: undefined;
   Assets: undefined;
   Logistics: undefined;
@@ -279,6 +281,11 @@ function Navigator() {
             name="FinanceTools"
             component={FinanceToolsScreen}
             options={{ title: 'Công cụ tính toán' }}
+          />
+          <Stack.Screen
+            name="FinanceBooks"
+            component={FinanceBooksScreen}
+            options={{ title: 'Sổ sách & chỉ số' }}
           />
           <Stack.Screen
             name="Scenarios"

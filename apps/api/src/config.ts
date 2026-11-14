@@ -14,6 +14,8 @@ export interface ApiConfig {
   exposeDevCodes: boolean;
   pepper: string;
   anthropicApiKey: string | null;
+  /** Character recognition on the server (Tesseract, Vietnamese); on unless ARGOLET_OCR=off. */
+  ocr: boolean;
   /** OpenAI (ChatGPT) key: enables ChatGPT as a choice for organisations; kept server-side. */
   openaiApiKey: string | null;
   /** SMTP connection URL (smtp:// or smtps://user:pass@host:port); enables real email delivery. */
@@ -70,6 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     exposeDevCodes: bool(env.EXPOSE_DEV_CODES, !env.SMTP_URL && (!production || demoSeed)),
     pepper: pepper || 'argolet-dev-pepper-change-me',
     anthropicApiKey: env.ANTHROPIC_API_KEY || null,
+    ocr: bool(env.ARGOLET_OCR, true),
     openaiApiKey: env.OPENAI_API_KEY || null,
     smtpUrl: env.SMTP_URL || null,
     mailFrom: env.MAIL_FROM || 'ARGOLET <no-reply@argolet.local>',
