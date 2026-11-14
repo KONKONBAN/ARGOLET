@@ -5,6 +5,8 @@ import {
   Building2,
   ChartColumn,
   ChevronDown,
+  ALargeSmall,
+  Check,
   CircleHelp,
   Files,
   FolderKanban,
@@ -31,6 +33,7 @@ import banner from '../assets/banner.jpg';
 import { useBackend, useMutation, useQuery, useRefreshing } from '../api/hooks';
 import { Avatar, useToast } from '../ui/components';
 import { useSession } from './session';
+import { useTextSize } from '../ui/textSize';
 
 // ───────── 01–08 · auth layout: illustration left, form right ─────────
 export function AuthLayout({ children }: { children: ReactNode }) {
@@ -50,10 +53,30 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className="auth-form">{children}</div>
         <footer className="auth-foot">
           <span>Tiếng Việt</span>
+          <TextSizeButton labelled />
           <a href="mailto:hotro@argolet.vn">Trợ giúp</a>
         </footer>
       </main>
     </div>
+  );
+}
+
+/** "Chữ lớn" switch for older users: in the top bar of every screen and on the sign-in pages. */
+function TextSizeButton({ labelled }: { labelled?: boolean }) {
+  const [size, setSize] = useTextSize();
+  const large = size === 'large';
+  return (
+    <button
+      type="button"
+      className={labelled ? 'text-size-link' : `icon-btn text-size-btn${large ? ' on' : ''}`}
+      aria-pressed={large}
+      title={large ? 'Trở về cỡ chữ thường' : 'Phóng to chữ cho dễ đọc'}
+      onClick={() => setSize(large ? 'normal' : 'large')}
+    >
+      <ALargeSmall size={labelled ? 16 : 20} aria-hidden />
+      <span className={labelled ? undefined : 'text-size-label'}>Chữ lớn</span>
+      {large && <Check size={labelled ? 14 : 16} aria-hidden />}
+    </button>
   );
 }
 
@@ -272,6 +295,7 @@ export function AppShell() {
             )}
           </div>
           <GlobalSearch />
+          <TextSizeButton />
           <a className="icon-btn" href="mailto:hotro@argolet.vn" aria-label="Trợ giúp">
             <CircleHelp size={20} />
           </a>

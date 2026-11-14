@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
+import { Text, useTextScale } from './textScale';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, type NavigatorScreenParams } from '@react-navigation/native';
@@ -109,16 +110,17 @@ function ContextHeader({ onBell }: { onBell: () => void }) {
 function Tabs({ navigation }: ScreenProps<'Main'>) {
   const { ctx } = useSession();
   const insets = useSafeAreaInsets();
+  const k = useTextScale();
   return (
     <Tab.Navigator
       screenOptions={{
         header: () => <ContextHeader onBell={() => navigation.navigate('Notifications')} />,
         tabBarActiveTintColor: C.action,
         tabBarInactiveTintColor: C.muted,
-        tabBarLabelStyle: { fontSize: 11, lineHeight: 15, fontFamily: font },
+        tabBarLabelStyle: { fontSize: 12 * k, lineHeight: 16 * k, fontFamily: font },
         tabBarStyle: {
           borderTopColor: C.line,
-          height: 64 + Math.max(insets.bottom, 8),
+          height: Math.round(64 + 30 * (k - 1)) + Math.max(insets.bottom, 8),
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 8),
         },
@@ -166,12 +168,13 @@ const theme = {
 
 function Navigator() {
   const { status } = useSession();
+  const k = useTextScale();
   if (status === 'loading') return <Loading />;
   const header = {
     headerShadowVisible: false,
     headerStyle: { backgroundColor: C.bg },
     headerTintColor: C.brand,
-    headerTitleStyle: { fontFamily: font, fontWeight: '700' as const },
+    headerTitleStyle: { fontFamily: font, fontWeight: '700' as const, fontSize: 17 * k },
     headerBackTitle: 'Quay lại',
   };
   return (

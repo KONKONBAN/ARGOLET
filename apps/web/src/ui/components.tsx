@@ -441,7 +441,11 @@ export function KpiRow({
   action?: ReactNode;
 }) {
   return (
-    <div className={`kpi-row${action ? ' with-action' : ''}`} style={{ ['--n' as string]: items.length }}>
+    <div
+      className={`kpi-row${action ? ' with-action' : ''}`}
+      data-n={items.length}
+      style={{ ['--n' as string]: items.length }}
+    >
       {items.map((k) => (
         <Kpi key={k.label} {...k} />
       ))}

@@ -88,6 +88,21 @@ describe('authentication', () => {
     expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeTruthy();
   });
 
+  it('older users can switch to large text from the sign-in page; the choice is remembered', async () => {
+    const backend = await newBackend();
+    renderAt(backend, '#/login');
+    await screen.findByRole('heading', { name: 'Đăng nhập' });
+    const toggle = screen.getByRole('button', { name: /Chữ lớn/ });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(toggle);
+    expect(document.documentElement.dataset.textSize).toBe('large');
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(localStorage.getItem('argolet_text_size')).toBe('large');
+    fireEvent.click(toggle);
+    expect(document.documentElement.dataset.textSize).toBe('normal');
+    expect(localStorage.getItem('argolet_text_size')).toBe('normal');
+  });
+
   it('redirects protected routes to the login page when signed out', async () => {
     const backend = await newBackend();
     renderAt(backend, '#/close');

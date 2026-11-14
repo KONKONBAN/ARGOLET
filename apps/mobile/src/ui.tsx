@@ -4,7 +4,6 @@ import {
   isValidElement,
   useRef,
   useState,
-  type ComponentRef,
   type ReactElement,
   type ReactNode,
 } from 'react';
@@ -14,13 +13,20 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
   type StyleProp,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import {
+  Text,
+  TextInput,
+  TEXT_SIZES,
+  setTextScale,
+  useLargeText,
+  useTextScale,
+  type TextInputHandle,
+} from './textScale';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRefreshing } from '@argolet/client';
@@ -37,8 +43,11 @@ import {
 } from 'lucide-react-native';
 import { C, G, R, font } from './theme';
 
+/** Money figures stay on one line: with large text they shrink to fit rather than wrap mid-number. */
+const FIT = { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.5 } as const;
+
 export const T = StyleSheet.create({
-  eyebrow: { fontSize: 11, fontWeight: '700', color: C.muted, textTransform: 'uppercase', fontFamily: font },
+  eyebrow: { fontSize: 12, fontWeight: '700', color: C.muted, textTransform: 'uppercase', fontFamily: font },
   title: { fontSize: 26, fontWeight: '700', color: C.text, fontFamily: font, letterSpacing: -0.2 },
   h2: { fontSize: 16, fontWeight: '700', color: C.text, fontFamily: font },
   body: { fontSize: 14, color: C.text, fontFamily: font },
@@ -171,7 +180,10 @@ export function Hero({
   return (
     <LinearGradient colors={G.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.hero}>
       <Text style={{ color: C.heroMuted, fontSize: 13, fontFamily: font }}>{label}</Text>
-      <Text style={{ color: C.heroStrong, fontSize: 30, fontWeight: '700', marginTop: 6, fontFamily: font }}>
+      <Text
+        {...FIT}
+        style={{ color: C.heroStrong, fontSize: 30, fontWeight: '700', marginTop: 6, fontFamily: font }}
+      >
         {value}
       </Text>
       {note && (
@@ -182,12 +194,16 @@ export function Hero({
   );
 }
 
-/** Two equal columns under a hero figure (e.g. revenue | expense), separated by hairlines. */
+/**
+ * Two equal columns under a hero figure (e.g. revenue | expense), separated by hairlines. With
+ * large text (the app's setting or the phone's), they stack so each figure keeps its full size.
+ */
 export function HeroSplit({ items }: { items: { label: string; value: string; note?: string }[] }) {
+  const stacked = useLargeText();
   return (
     <View
       style={{
-        flexDirection: 'row',
+        flexDirection: stacked ? 'column' : 'row',
         marginTop: 14,
         paddingTop: 12,
         borderTopWidth: 1,
@@ -197,20 +213,38 @@ export function HeroSplit({ items }: { items: { label: string; value: string; no
       {items.map((x, i) => (
         <View
           key={x.label}
-          style={{
-            flex: 1,
-            paddingLeft: i ? 12 : 0,
-            marginLeft: i ? 12 : 0,
-            borderLeftWidth: i ? 1 : 0,
-            borderLeftColor: 'rgba(213,232,231,0.25)',
-          }}
+          style={
+            stacked
+              ? {
+                  paddingTop: i ? 12 : 0,
+                  marginTop: i ? 12 : 0,
+                  borderTopWidth: i ? 1 : 0,
+                  borderTopColor: 'rgba(213,232,231,0.25)',
+                }
+              : {
+                  flex: 1,
+                  paddingLeft: i ? 12 : 0,
+                  marginLeft: i ? 12 : 0,
+                  borderLeftWidth: i ? 1 : 0,
+                  borderLeftColor: 'rgba(213,232,231,0.25)',
+                }
+          }
         >
           <Text style={{ color: C.heroMuted, fontSize: 12, fontFamily: font }}>{x.label}</Text>
-          <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', marginTop: 4, fontFamily: font }}>
+          <Text
+            {...FIT}
+            style={{
+              color: '#fff',
+              fontSize: stacked ? 22 : 17,
+              fontWeight: '700',
+              marginTop: 4,
+              fontFamily: font,
+            }}
+          >
             {x.value}
           </Text>
           {x.note ? (
-            <Text style={{ color: C.heroMuted, fontSize: 11, marginTop: 4, fontFamily: font }}>{x.note}</Text>
+            <Text style={{ color: C.heroMuted, fontSize: 12, marginTop: 4, fontFamily: font }}>{x.note}</Text>
           ) : null}
         </View>
       ))}
@@ -235,6 +269,7 @@ export function Kpi({
         {label}
       </Text>
       <Text
+        {...FIT}
         style={{
           fontSize: 22,
           fontWeight: '700',
@@ -248,7 +283,7 @@ export function Kpi({
       {note && (
         <Text
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: highlight ? C.heroMuted : C.muted,
             marginTop: 4,
             fontFamily: font,
@@ -391,7 +426,7 @@ export function Input({
 }
 
 export function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const ref = useRef<ComponentRef<typeof TextInput>>(null);
+  const ref = useRef<TextInputHandle>(null);
   return (
     <Pressable onPress={() => ref.current?.focus()} accessibilityLabel="Mã xác minh 6 số">
       <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -565,7 +600,7 @@ export function Steps({ items }: { items: { title: string; sub?: string; done?: 
             {it.done ? (
               <Check size={13} color="#fff" />
             ) : (
-              <Text style={{ color: C.action, fontSize: 11, fontWeight: '700' }}>{i + 1}</Text>
+              <Text style={{ color: C.action, fontSize: 12, fontWeight: '700' }}>{i + 1}</Text>
             )}
           </View>
           <View style={{ flex: 1 }}>
@@ -678,6 +713,19 @@ export function Gap({ h = 12 }: { h?: number }) {
 }
 
 const st = StyleSheet.create({
+  sizeRow: { flexDirection: 'row', gap: 8 },
+  sizeBtn: {
+    flex: 1,
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.line,
+    backgroundColor: '#fff',
+    paddingVertical: 6,
+  },
+  sizeBtnOn: { backgroundColor: C.action, borderColor: C.action },
   card: {
     backgroundColor: C.surface,
     borderWidth: 1,
@@ -781,3 +829,27 @@ const st = StyleSheet.create({
     maxHeight: '85%',
   },
 });
+
+/** "Cỡ chữ" picker: big targets, the current choice marked, text grows as soon as it is tapped. */
+export function TextSizePicker() {
+  const k = useTextScale();
+  return (
+    <View accessibilityRole="radiogroup" accessibilityLabel="Cỡ chữ" style={st.sizeRow}>
+      {TEXT_SIZES.map((s) => {
+        const on = s.value === k;
+        return (
+          <Pressable
+            key={s.value}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: on }}
+            onPress={() => setTextScale(s.value)}
+            style={[st.sizeBtn, on ? st.sizeBtnOn : null]}
+          >
+            <Text style={{ fontSize: 13 * s.value, fontWeight: '700', color: on ? '#fff' : C.text }}>Aa</Text>
+            <Text style={{ fontSize: 12, color: on ? '#fff' : C.muted, marginTop: 2 }}>{s.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

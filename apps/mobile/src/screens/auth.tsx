@@ -7,9 +7,9 @@ import {
   Pressable,
   ScrollView,
   Switch,
-  Text,
   View,
 } from 'react-native';
+import { Text } from '../textScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Building2,
@@ -25,7 +25,7 @@ import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
 import { IS_PRODUCTION, saveServer, getSavedServer } from '../backend';
 import { useSession } from '../session';
 import { C, font } from '../theme';
-import { Button, Card, Gap, Input, KV, Notice, OtpInput, Row, T } from '../ui';
+import { Button, Card, Gap, Input, KV, Notice, OtpInput, Row, T, TextSizePicker } from '../ui';
 import type { ScreenProps } from '../App';
 
 /** Mobile auth layout: shield banner + logo (Figma Android/iOS 01–08). */
@@ -187,6 +187,9 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
         </Pressable>
       )}
       <Gap h={18} />
+      <Text style={[T.small, { marginBottom: 8 }]}>Cỡ chữ</Text>
+      <TextSizePicker />
+      <Gap h={12} />
       <Row
         icon={<Server size={18} color={C.action} />}
         title="Máy chủ ARGOLET"

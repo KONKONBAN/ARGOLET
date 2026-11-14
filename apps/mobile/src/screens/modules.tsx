@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Linking, Pressable, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, View } from 'react-native';
+import { Text } from '../textScale';
 import {
   CircleCheck,
   FileText,

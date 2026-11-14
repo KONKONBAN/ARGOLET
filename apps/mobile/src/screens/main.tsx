@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, View } from 'react-native';
+import { Text, TextInput } from '../textScale';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { scanFromURLAsync } from 'expo-camera';
@@ -60,6 +61,7 @@ import {
   Steps,
   T,
   Title,
+  TextSizePicker,
 } from '../ui';
 import type { ScreenProps } from '../App';
 import { AuthenticityCard } from '../authenticity';
@@ -517,6 +519,12 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
   return (
     <Screen>
       <Title title="Thêm" subtitle={`${ctx?.member.displayName ?? ''} · ${ctx?.member.title ?? ''}`} />
+      <Card title="Cỡ chữ">
+        <TextSizePicker />
+        <Text style={[T.small, { marginTop: 8 }]}>
+          Chữ lớn giúp dễ đọc hơn. Cỡ chữ của điện thoại cũng được áp dụng.
+        </Text>
+      </Card>
       {groups.map((g) => (
         <Card key={g.title} title={g.title}>
           {g.items.map((it) => (

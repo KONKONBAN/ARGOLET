@@ -8,7 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Text } from 'react-native';
+
+import { Text } from './textScale';
 import type { SessionInfo, WorkspaceContext } from '@argolet/app';
 import { ApiError, clearCache, invalidateAll, useBackend } from '@argolet/client';
 import { Button, Gap, Notice, OtpInput, Sheet, T } from './ui';

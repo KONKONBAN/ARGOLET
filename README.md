@@ -4,6 +4,8 @@ Nền tảng tiếp nhận chứng từ, đối soát đa nguồn, phê duyệt,
 
 **Mở trực tiếp:** https://konkonban.github.io/ARGOLET/ (máy tính và điện thoại).
 
+**Người lớn tuổi:** nút **Chữ lớn** ở thanh trên cùng (web) và mục **Cỡ chữ** (Thường · Lớn · Rất lớn) ở màn Thêm / Đăng nhập (mobile); bố cục tự sắp xếp lại theo cỡ chữ, app mobile cũng theo cỡ chữ của điện thoại.
+
 **Tài khoản trải nghiệm:** `ketoan@minhan.example` · mật khẩu `Argolet@2026` (dữ liệu mẫu "Minh An Commerce", kỳ tháng 10/2026).
 
 ## Cấu trúc

@@ -364,7 +364,7 @@ img {
   border-radius: 10px;
   display: inline-grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   background: var(--success-bg);
   color: var(--action);
@@ -700,7 +700,7 @@ img {
   margin-bottom: 26px;
 }
 .eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--muted);
   letter-spacing: 0.02em;
@@ -737,7 +737,7 @@ img {
 }
 .page-foot {
   margin-top: 26px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .toolbar {
@@ -1065,7 +1065,7 @@ table.table {
   min-width: 0;
 }
 .mbars-col > span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1363,7 +1363,7 @@ main.refreshing .list-rows {
   border-radius: 50%;
   background: var(--success-bg);
   color: var(--action);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -1378,7 +1378,7 @@ main.refreshing .list-rows {
   padding-top: 4px;
 }
 .tl-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin-top: 8px;
 }
@@ -1491,7 +1491,7 @@ main.refreshing .list-rows {
 }
 .chart text {
   font-family: var(--font);
-  font-size: 11px;
+  font-size: 12px;
   fill: var(--muted);
 }
 .chart .grid-line {
@@ -1501,7 +1501,7 @@ main.refreshing .list-rows {
 .legend {
   display: flex;
   gap: 18px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   align-items: center;
 }
@@ -1559,7 +1559,7 @@ main.refreshing .list-rows {
   display: grid;
   grid-template-columns: 176px minmax(0, 1fr) 150px 170px;
   gap: 20px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .bar-axis .ticks {
@@ -1853,7 +1853,7 @@ main.refreshing .list-rows {
   margin-top: 4px;
 }
 .nav-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--nav-label);
   margin: 14px 12px 10px;
@@ -1937,7 +1937,7 @@ main.refreshing .list-rows {
   border-radius: 50%;
   background: var(--success-bg);
   color: var(--action);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -1948,7 +1948,7 @@ main.refreshing .list-rows {
   font-weight: 700;
 }
 .side-user .r {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -1978,6 +1978,7 @@ main.refreshing .list-rows {
 .crumb .org {
   font-size: 14px;
   font-weight: 700;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 22px;
@@ -2498,7 +2499,7 @@ main.refreshing .list-rows {
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--muted);
     text-decoration: none;
     background: none;
@@ -2572,8 +2573,195 @@ main.refreshing .list-rows {
     margin-top: 6px;
   }
   .demo-banner {
-    font-size: 11px;
+    font-size: 12px;
     padding: 5px 12px;
+  }
+}
+/* ───────── Chữ lớn (older users) ───────── */
+.text-size-btn {
+  width: auto;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 0 12px;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.text-size-btn.on {
+  background: var(--success-bg);
+  border-color: var(--action);
+  color: var(--action-strong);
+}
+.text-size-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.text-size-link:hover {
+  color: var(--text);
+}
+/* The whole page is drawn 20% larger: text, buttons, tables and charts keep their proportions. */
+html[data-text-size='large'] {
+  --sidebar-w: 248px;
+}
+html[data-text-size='large'] .main,
+html[data-text-size='large'] .auth-main,
+html[data-text-size='large'] .modal-back,
+html[data-text-size='large'] .toasts {
+  zoom: 1.2;
+}
+/*
+ * Larger text is not only bigger letters: the content area holds fewer CSS pixels, so the layout
+ * is rearranged for the width actually available (container queries on the content area):
+ * four-up rows become two-up, side-by-side panels stack, wide tables become readable cards.
+ */
+main#content {
+  container: content / inline-size;
+}
+@container content (max-width: 1100px) {
+  html[data-text-size='large'] .kpi-row[data-n='4'],
+  html[data-text-size='large'] .fin-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html[data-text-size='large'] .kpi-row.with-action {
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  }
+  html[data-text-size='large'] .kpi-row.with-action .kpi-action {
+    grid-column: 1 / -1;
+    justify-self: start;
+    order: -1;
+  }
+  html[data-text-size='large'] .split-main,
+  html[data-text-size='large'] .split-side,
+  html[data-text-size='large'] .split-even,
+  html[data-text-size='large'] .fin-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-text-size='large'] .page-head {
+    flex-wrap: wrap;
+  }
+  html[data-text-size='large'] .page-actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  /* Overview: net cash across the top, revenue and expense side by side below it. */
+  html[data-text-size='large'] .hero {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html[data-text-size='large'] .hero-col {
+    padding: 16px 0 0 20px;
+    margin-top: 16px;
+    border-top: 1px solid rgba(213, 232, 231, 0.25);
+  }
+  html[data-text-size='large'] .hero-col:first-child {
+    grid-column: 1 / -1;
+    padding: 0;
+    margin-top: 0;
+    border-top: 0;
+  }
+  html[data-text-size='large'] .hero-col:nth-child(2) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  html[data-text-size='large'] .hero-ring {
+    display: none;
+  }
+  html[data-text-size='large'] .barlist-row,
+  html[data-text-size='large'] .bar-axis {
+    grid-template-columns: 140px minmax(0, 1fr) 120px 130px;
+    gap: 14px;
+  }
+  html[data-text-size='large'] .pipeline {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  html[data-text-size='large'] .fin-scope {
+    flex-basis: 100%;
+    margin-left: 0;
+    padding-bottom: 8px;
+  }
+}
+@container content (max-width: 860px) {
+  html[data-text-size='large'] .grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container content (max-width: 720px) {
+  /* Lists with many columns read as cards, one record per block, label beside each value. */
+  html[data-text-size='large'] .table.responsive thead {
+    display: none;
+  }
+  html[data-text-size='large'] .table.responsive tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  html[data-text-size='large'] .table.responsive td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 4px;
+    border: 0;
+    text-align: right;
+  }
+  html[data-text-size='large'] .table.responsive td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    text-align: left;
+  }
+  html[data-text-size='large'] .table.responsive td:first-child::before {
+    content: none;
+  }
+}
+@container content (max-width: 460px) {
+  html[data-text-size='large'] .kpi-row,
+  html[data-text-size='large'] .kpi-row.with-action,
+  html[data-text-size='large'] .fin-kpis,
+  html[data-text-size='large'] .grid-2,
+  html[data-text-size='large'] .grid-3,
+  html[data-text-size='large'] .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-text-size='large'] .hero-col,
+  html[data-text-size='large'] .hero-col:nth-child(2) {
+    padding-left: 0;
+  }
+}
+/* The top bar keeps the essentials when the larger text leaves less room. */
+@media (max-width: 1440px) {
+  html[data-text-size='large'] .top-search {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  /* Phones: the site picker stays; the organisation is shown in the menu. */
+  html[data-text-size='large'] .crumb .org,
+  html[data-text-size='large'] .crumb .slash {
+    display: none;
+  }
+}
+html[data-text-size='large'] .sidebar {
+  zoom: 1.1;
+  height: calc(100vh / 1.1);
+}
+@media (max-width: 760px) {
+  .text-size-label {
+    display: none;
+  }
+  .text-size-btn {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
   }
 }
 @media print {
