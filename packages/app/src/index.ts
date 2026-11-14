@@ -11,3 +11,4 @@ export { PROVIDERS, type ProviderInfo, type ProviderField } from './connectors';
 export { toPublicUser, type PublicUser, type SessionInfo } from './services/auth';
 export type { WorkspaceContext, WorkspaceSummary } from './services/org';
 export type { IntakeFile } from './services/documents';
+export { periodsEndingAt, periodTotals, COST_SHORT } from './services/report';

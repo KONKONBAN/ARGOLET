@@ -1023,6 +1023,12 @@ export function ModulesPage() {
           s: 'Ghép M:N đơn – tiền – phí – chứng từ',
         },
         {
+          to: '/finance-report',
+          icon: ChartColumn,
+          t: 'Báo cáo tài chính',
+          s: 'Kết quả kinh doanh theo tháng từ chứng từ đã xác nhận',
+        },
+        {
           to: '/close',
           icon: Lock,
           t: 'Chốt kỳ & Decision Pack',
@@ -1069,7 +1075,7 @@ export function ModulesPage() {
         {
           to: '/finance',
           icon: ChartColumn,
-          t: 'Phân tích tài chính',
+          t: 'Thẩm định dự án',
           s: 'NPV, IRR, hoàn vốn, DSCR, kịch bản',
         },
         { to: '/assets', icon: Zap, t: 'Tài sản & đo lường', s: 'Vận hành, bảo trì, M&V năng lượng' },

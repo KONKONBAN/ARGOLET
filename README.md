@@ -136,7 +136,7 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 Ứng dụng React Native dựng bằng Expo / EAS Build thành bản cài đặt native (`.aab` cho Google Play, `.ipa` cho App Store). Có ba hồ sơ dựng (`apps/mobile/eas.json`):
 
 - `production` — bản phát hành: **bắt buộc** `EXPO_PUBLIC_API_URL` dạng `https://` (dựng sẽ dừng nếu thiếu), chỉ làm việc với máy chủ ARGOLET và không bao giờ chuyển sang dữ liệu mẫu; mất kết nối thì báo và cho _Thử lại_;
-- `preview`, `development` — bản thử nghiệm nội bộ: không có máy chủ thì chạy trên thiết bị với dữ liệu mẫu (có ghi rõ).
+- `preview`, `development` — bản thử nghiệm nội bộ: không có máy chủ thì chạy trên thiết bị với dữ liệu mẫu (có ghi rõ); **đăng xuất là dữ liệu mẫu trở về như ban đầu** để máy được chuyển cho người dùng thử tiếp theo.
 
 ```bash
 npm i -g eas-cli

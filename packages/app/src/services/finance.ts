@@ -15,6 +15,7 @@ import { type AppCore, actor, requireFound, requireText } from '../core';
 import { AppError, type CallContext, type Emitter, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { FinanceProjectRow } from '../types';
+import { financeReport, financeReportXlsx, type ReportQuery } from './report';
 
 const years = (v: string | null) => (v === null ? 'Không hoàn vốn' : `${formatNumber(D(v), 2)} năm`);
 
@@ -70,6 +71,28 @@ export class FinanceService {
 
   private async list(tx: Tx, tenantId: string) {
     return (await tx.list('financeProjects', tenantId)).sort((a, b) => a.code.localeCompare(b.code));
+  }
+
+  /** Báo cáo tài chính: kết quả kinh doanh theo tháng từ chứng từ đã xác nhận. */
+  async report(call: CallContext, p: ReportQuery = {}) {
+    return this.core.query(async (tx) => {
+      const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
+      const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      return {
+        ...(await financeReport(tx, ws, tenant, p)),
+        canExport: this.core.can(ws, 'report.export'),
+        canAppraise: this.core.can(ws, 'finance.run'),
+      };
+    });
+  }
+
+  /** The same report as an Excel workbook, with every source line (who may export reports). */
+  async exportReport(call: CallContext, p: ReportQuery = {}) {
+    return this.core.query(async (tx) => {
+      const ws = await this.core.requireWorkspace(tx, call, 'report.export');
+      const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      return financeReportXlsx(tx, ws, tenant, p, this.core.deps.clock());
+    });
   }
 
   /** Màn 27 · Phân tích tài chính. */

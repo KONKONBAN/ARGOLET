@@ -479,15 +479,31 @@ export function FinancePage() {
   const recalc = useMutation('finance.recalculate', { silent: true });
   const create = useMutation('finance.createProject', { silent: true });
   const [edits, setEdits] = useState<{ id: string; form: AssumptionForm } | null>(null);
-  const [newOpen, setNewOpen] = useState(false);
+  // Opened from the finance report with the average result of confirmed months (?new=1&cashflow=…).
+  const [sp, setSp] = useSearchParams();
+  const fromReport = sp.get('new') === '1' ? (sp.get('cashflow') ?? '').replace(/[^\d-]/g, '') : null;
+  const [newOpen, setNewOpen] = useState(fromReport !== null);
   const [newName, setNewName] = useState('');
   const [newForm, setNewForm] = useState<AssumptionForm>({
     investment: '',
-    annualCashflow: '',
+    annualCashflow: fromReport ?? '',
     years: '5',
     discountRatePct: '10',
     annualDebtService: '',
   });
+  const closeNew = () => {
+    setNewOpen(false);
+    if (fromReport !== null)
+      setSp(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('new');
+          next.delete('cashflow');
+          return next;
+        },
+        { replace: true },
+      );
+  };
   const period = usePeriodLabel();
   if (!data.data)
     return data.error ? (
@@ -513,11 +529,11 @@ export function FinancePage() {
   const createModal = (
     <Modal
       open={newOpen}
-      onClose={() => setNewOpen(false)}
+      onClose={closeNew}
       title="Tạo dự án thẩm định"
       footer={
         <>
-          <Button onClick={() => setNewOpen(false)}>Hủy</Button>
+          <Button onClick={closeNew}>Hủy</Button>
           <Button
             variant="primary"
             loading={create.loading}
@@ -525,8 +541,8 @@ export function FinancePage() {
               try {
                 const r = await create.mutate({ name: newName, assumptions: toAssumptions(newForm) });
                 toast('success', `Đã tạo dự án ${r.code}`);
+                closeNew();
                 setProjectId(r.id);
-                setNewOpen(false);
               } catch {
                 /* inline */
               }
@@ -544,6 +560,12 @@ export function FinancePage() {
         placeholder="Lắp điện mặt trời áp mái"
       />
       <AssumptionFields form={newForm} setForm={setNewForm} />
+      {fromReport !== null && (
+        <p className="small muted">
+          Dòng tiền thuần / năm điền sẵn từ báo cáo tài chính (kết quả bình quân các tháng có chứng từ × 12,
+          làm tròn triệu đồng). Kiểm tra lại trước khi tính.
+        </p>
+      )}
       <p className="small muted">
         Kịch bản thận trọng và tích cực được lập tự động với dòng tiền ±1/6 so với kịch bản cơ sở.
       </p>

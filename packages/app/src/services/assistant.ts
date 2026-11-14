@@ -14,6 +14,7 @@ import type { Tx } from '../store';
 import { GLOBAL } from '../types';
 import type { AssistantAnswer, ChatMessage, ConversationRow, TenantRow } from '../types';
 import { scoped } from './documents';
+import { periodTotals } from './report';
 import { findGroup, groupDigest } from './recon';
 import { appraiseProject, createRedactor, sha256Hex, type Redactor } from '@argolet/core';
 import { scopeLabel } from './org';
@@ -85,16 +86,14 @@ export class AssistantService {
           const recs = (await scoped(tx, ws, 'records')).filter(
             (r) => r.periodId === t.settings.currentPeriod,
           );
-          const rev = recs
-            .filter((r) => r.kind === 'ORDER' || r.kind === 'REVENUE')
-            .reduce((a, r) => a.plus(r.amount), D(0));
-          const exp = recs.filter((r) => r.kind === 'EXPENSE').reduce((a, r) => a.plus(r.amount), D(0));
+          // The overview's figures: confirmed records only, after refunds, platform fees as costs.
+          const k = periodTotals(recs, new Map((await scoped(tx, ws, 'documents')).map((d) => [d.id, d])));
           return record({
-            summary: `Kỳ ${t.settings.currentPeriod}: doanh thu ${formatVnd(rev)}, chi phí ${formatVnd(exp)}, dòng tiền thuần ${formatVnd(rev.minus(exp))}.`,
+            summary: `Kỳ ${t.settings.currentPeriod}: doanh thu ${formatVnd(k.netRevenue)}, chi phí ${formatVnd(k.totalCosts)}, dòng tiền thuần ${formatVnd(k.result)} (chỉ gồm chứng từ đã xác nhận).`,
             facts: [
-              { label: 'Doanh thu', value: formatVnd(rev) },
-              { label: 'Chi phí', value: formatVnd(exp) },
-              { label: 'Dòng tiền thuần', value: formatVnd(rev.minus(exp)) },
+              { label: 'Doanh thu', value: formatVnd(k.netRevenue) },
+              { label: 'Chi phí', value: formatVnd(k.totalCosts) },
+              { label: 'Dòng tiền thuần', value: formatVnd(k.result) },
             ],
             citations: [{ label: 'Mở bộ hồ sơ quyết định', ref: 'decision-pack', route: '/decision-pack' }],
           });

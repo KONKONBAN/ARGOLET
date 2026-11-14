@@ -108,6 +108,7 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
         <Notice tone="info">
           Bản trải nghiệm: đã điền sẵn tài khoản {demo.email} · mật khẩu {demo.password}. Chạm Đăng nhập để
           vào.
+          {demo.freshAfterSignOut && ' Khi đăng xuất, dữ liệu mẫu trở về như ban đầu để người sau dùng thử.'}
         </Notice>
       )}
       <Input

@@ -37,6 +37,7 @@ import { AppError, type CallContext, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { AssetRow, DealRow, IntercompanyRow, PurchaseOrderRow, ShipmentRow, WbsTask } from '../types';
 import { buildBooks } from './books';
+import { periodTotals } from './report';
 import { defaultSite, scoped } from './documents';
 import { localDate, addDays } from './approvals';
 import { scopeLabel } from './org';
@@ -378,7 +379,8 @@ export class ModuleService {
       const periodId = tenant.settings.currentPeriod;
       const records = (await scoped(tx, ws, 'records')).filter((r) => r.periodId === periodId);
       const docs = await scoped(tx, ws, 'documents');
-      const revenueRecs = records.filter((r) => r.kind === 'ORDER' || r.kind === 'REVENUE');
+      // The same figures as the overview and the finance report (confirmed records only).
+      const t = periodTotals(records, new Map(docs.map((d) => [d.id, d])));
       const needs = docs.filter(
         (d) => d.status === 'NEEDS_REVIEW' || d.status === 'NEEDS_RECON' || d.status === 'EXTRACTED',
       ).length;
@@ -387,12 +389,12 @@ export class ModuleService {
         kpis: [
           {
             label: 'Doanh thu đã ghi nhận',
-            value: formatVnd(sum(revenueRecs.map((r) => r.amount))),
+            value: formatVnd(t.netRevenue),
             note: scopeNote(periodId),
           },
           {
             label: 'Chi phí có chứng từ',
-            value: formatVnd(sum(records.filter((r) => r.kind === 'EXPENSE').map((r) => r.amount))),
+            value: formatVnd(t.totalCosts),
             note: scopeNote(periodId),
           },
           { label: 'Hồ sơ cần bổ sung', value: `${needs} hồ sơ`, note: scopeNote(periodId) },

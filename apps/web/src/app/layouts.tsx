@@ -77,7 +77,12 @@ const NAV_MODULES = [
     icon: FolderKanban,
     match: ['/projects', '/assets', '/logistics', '/logistics-finance'],
   },
-  { to: '/finance', label: 'Phân tích tài chính', icon: ChartColumn, match: ['/finance', '/scenarios'] },
+  {
+    to: '/finance-report',
+    label: 'Tài chính',
+    icon: ChartColumn,
+    match: ['/finance-report', '/finance', '/scenarios'],
+  },
   {
     to: '/modules',
     label: 'Tất cả phân hệ',

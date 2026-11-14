@@ -492,7 +492,10 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
   const balB = rest.pop()!; // oldest code balances total platform revenue
   rest.forEach((n, i) => otherGroups.push(generic(n, 1 + Math.floor((i / rest.length) * 19))));
   groups.push(...windowGroups.map((g) => ({ ...g, bankDoc: 'CT-1026' })), ...otherGroups);
-  const grossSoFar = sum(groups.flatMap((g) => g.orders.map((o) => o.gross))).toNumber();
+  // Platform sales on the confirmed basis (after refunds; the CT-1025 report awaiting reconciliation
+  // is not counted yet) total 180.000.000 đ, as on Figma screen 09.
+  const confirmedOrders = () => groups.filter((g) => g.orderDoc !== 'CT-1025').flatMap((g) => g.orders);
+  const grossSoFar = sum(confirmedOrders().map((o) => D(o.gross).minus(o.refund))).toNumber();
   const grossB = 180_000_000 - grossSoFar;
   if (grossB < 200_000) throw new Error(`Seed balancing failed (grossB=${grossB})`);
   const feeB = Math.round(grossB * 0.2);
@@ -837,7 +840,9 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
     'Cấp nước Sài Gòn': 'Hóa đơn tiền nước',
     'Nhà đất Quận 3': 'Tiền thuê mặt bằng',
   };
-  const expenseTarget = 344_000_000 - 3_680_000 - 1_840_000;
+  // Costs of the period are the expense documents plus the fees withheld by the platforms.
+  const platformFees = sum(confirmedOrders().map((o) => o.fee)).toNumber();
+  const expenseTarget = 344_000_000 - 3_680_000 - 1_840_000 - platformFees;
   const genericExpenses: { amount: number; d: number; supplier: string }[] = [];
   for (let i = 0; i < genericCount; i++)
     genericExpenses.push({

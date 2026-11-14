@@ -24,7 +24,13 @@ export class ApiError extends Error {
 export interface BackendInfo {
   mode: 'server' | 'device';
   label: string;
-  demo: { email: string; password: string; clock: boolean } | null;
+  demo: {
+    email: string;
+    password: string;
+    clock: boolean;
+    /** Signing out puts the sample data back to its initial state (try-out builds on a device). */
+    freshAfterSignOut?: boolean;
+  } | null;
   assistant: string;
 }
 

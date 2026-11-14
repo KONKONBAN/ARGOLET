@@ -49,6 +49,9 @@ const ClientsPage = lazy(() => import('../pages/g2').then((m) => ({ default: m.C
 const SalesPage = lazy(() => import('../pages/g2').then((m) => ({ default: m.SalesPage })));
 const ProjectsPage = lazy(() => import('../pages/g3').then((m) => ({ default: m.ProjectsPage })));
 const FinancePage = lazy(() => import('../pages/g3').then((m) => ({ default: m.FinancePage })));
+const FinanceReportPage = lazy(() =>
+  import('../pages/finance-report').then((m) => ({ default: m.FinanceReportPage })),
+);
 const ScenariosPage = lazy(() => import('../pages/g3').then((m) => ({ default: m.ScenariosPage })));
 const AssetsPage = lazy(() => import('../pages/g3').then((m) => ({ default: m.AssetsPage })));
 const LogisticsPage = lazy(() => import('../pages/g3').then((m) => ({ default: m.LogisticsPage })));
@@ -107,6 +110,7 @@ const appRoutes: [string, ReactNode][] = [
   ['clients', <ClientsPage />],
   ['sales', <SalesPage />],
   ['projects', <ProjectsPage />],
+  ['finance-report', <FinanceReportPage />],
   ['finance', <FinancePage />],
   ['scenarios', <ScenariosPage />],
   ['assets', <AssetsPage />],

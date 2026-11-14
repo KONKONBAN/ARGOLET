@@ -8,12 +8,11 @@ import {
   formatVnd,
   manifestDigest,
   newId,
-  sum,
+  type sum,
   targetDigest,
   APPROVAL_POLICY_VERSION,
   DEFAULT_RULES,
   formatSignedVnd,
-  D,
 } from '@argolet/core';
 import { type AppCore, actor, requireFound } from '../core';
 import { AppError, type CallContext, type WorkspaceState } from '../runtime';
@@ -21,6 +20,7 @@ import type { Tx } from '../store';
 import type { PeriodRow } from '../types';
 import { defaultSite } from './documents';
 import { scopeLabel } from './org';
+import { periodTotals } from './report';
 
 async function periodFor(tx: Tx, ws: WorkspaceState, entityId: string, periodId: string): Promise<PeriodRow> {
   const id = `per_${periodId}_${entityId}`;
@@ -209,6 +209,7 @@ export class CloseService {
           checklist: cl.items,
         });
       const draft = await this.draftManifest(tx, ws, p.entityId, p.periodId, g);
+      const totals = periodTotals(g.records, new Map(g.docs.map((d) => [d.id, d])));
       if (manifestDigest(draft) !== p.digest)
         throw new AppError('CONFLICT', 'Số liệu kỳ đã thay đổi sau khi bạn rà soát, vui lòng tải lại');
       const approvalId = newId('apv');
@@ -222,7 +223,7 @@ export class CloseService {
         targetId: draft.closeId,
         targetVersion: draft.closeVersion,
         digest,
-        amount: draft.totals.net ?? '0',
+        amount: totals.result.toFixed(),
         title: `Chốt ${formatPeriod(p.periodId).toLowerCase()}`,
         makerId: 'system',
         status: 'APPROVED',
@@ -230,8 +231,8 @@ export class CloseService {
         requesterName: 'Hệ thống',
         entityLabel: await scopeLabel(tx, ws.tenantId, p.entityId),
         details: [
-          { label: 'Doanh thu', value: formatVnd(draft.totals.revenue ?? '0') },
-          { label: 'Chi phí', value: formatVnd(draft.totals.expense ?? '0') },
+          { label: 'Doanh thu thuần', value: formatVnd(totals.netRevenue) },
+          { label: 'Chi phí', value: formatVnd(totals.totalCosts) },
           { label: 'Bản ghi', value: String(draft.members.length) },
         ],
         timeline: [{ title: 'Đã phê duyệt chốt kỳ', by: ws.membership.displayName, at: now }],
@@ -289,11 +290,11 @@ export class CloseService {
       const periodId = p.periodId ?? tenant.settings.currentPeriod;
       const entityId = ws.entityId;
       const g = await this.gather(tx, ws, entityId, periodId);
-      const revenue = sum(
-        g.records.filter((r) => r.kind === 'ORDER' || r.kind === 'REVENUE').map((r) => r.amount),
-      );
-      const expense = sum(g.records.filter((r) => r.kind === 'EXPENSE').map((r) => r.amount));
-      const net = D(revenue).minus(expense);
+      // The same figures as the overview and the finance report: confirmed records only.
+      const t = periodTotals(g.records, new Map(g.docs.map((d) => [d.id, d])));
+      const revenue = t.netRevenue;
+      const expense = t.totalCosts;
+      const net = t.result;
       const validated = g.docs.filter((d) => d.status === 'VALIDATED').length;
       const confirmed = g.groups.filter((x) => x.status === 'CONFIRMED').length;
       const periods = (await tx.list('periods', ws.tenantId)).filter(
@@ -321,8 +322,8 @@ export class CloseService {
           netNote: `Thu ${compact(revenue)} · Chi ${compact(expense)}`,
         },
         rows: [
-          { label: 'Doanh thu', value: formatVnd(revenue), source: 'Chứng từ · POS' },
-          { label: 'Chi phí', value: formatVnd(expense), source: 'Chứng từ · ngân hàng' },
+          { label: 'Doanh thu thuần', value: formatVnd(revenue), source: 'Chứng từ đã xác nhận · POS' },
+          { label: 'Chi phí', value: formatVnd(expense), source: 'Chứng từ chi · phí nền tảng' },
           { label: 'Chứng từ đã soát', value: `${validated} / ${g.docs.length}`, source: 'Hồ sơ xác nhận' },
           { label: 'Nhóm đối soát', value: `${confirmed} nhóm`, source: 'Đơn · tiền · phí' },
         ],
@@ -352,9 +353,9 @@ export class CloseService {
           tenantName: tenant.name,
           scope: label,
           rows: [
-            ['Doanh thu', revenue.toFixed(), 'Chứng từ · POS'],
-            ['Chi phí', expense.toFixed(), 'Chứng từ · ngân hàng'],
-            ['Dòng tiền thuần', net.toFixed(), 'Tính toán = doanh thu − chi phí'],
+            ['Doanh thu thuần', revenue.toFixed(), 'Chứng từ đã xác nhận · sau hoàn tiền, chiết khấu'],
+            ['Chi phí', expense.toFixed(), 'Chứng từ chi · phí nền tảng'],
+            ['Kết quả thu − chi', net.toFixed(), 'Tính toán = doanh thu thuần − chi phí'],
             ['Chứng từ đã soát', `${validated}/${g.docs.length}`, 'Hồ sơ xác nhận'],
             ['Nhóm đối soát đã xác nhận', String(confirmed), 'Đơn · tiền · phí'],
             ['Trạng thái', closed ? 'Đã chốt' : 'Bản nháp', label],

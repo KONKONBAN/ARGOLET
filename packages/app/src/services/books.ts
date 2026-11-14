@@ -30,6 +30,7 @@ import type { Tx } from '../store';
 import type { BusinessRecordRow, DocumentRow, TenantRow } from '../types';
 import { scoped } from './documents';
 import { scopeLabel } from './org';
+import { isConfirmed } from './report';
 
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const monthLabel = (periodId: string) => `Tháng ${periodId.slice(5)}/${periodId.slice(0, 4)}`;
@@ -65,8 +66,7 @@ async function load(tx: Tx, ws: WorkspaceState, tenant: TenantRow, periodId: str
   const docs = new Map((await scoped(tx, ws, 'documents')).map((d) => [d.id, d]));
   // Only what a person confirmed: records of validated documents, or entered directly.
   const records = (await scoped(tx, ws, 'records'))
-    .filter((r) => r.periodId === periodId)
-    .filter((r) => !r.documentId || docs.get(r.documentId)?.status === 'VALIDATED')
+    .filter((r) => r.periodId === periodId && isConfirmed(r, docs))
     .sort((a, b) => a.date.localeCompare(b.date) || a.code.localeCompare(b.code));
   const scope = await scopeLabel(tx, ws.tenantId, ws.entityId);
   return { tenant, periodId, records, docs, location: scope === 'Tất cả cơ sở' ? tenant.name : scope };
@@ -110,7 +110,12 @@ function revenueLines(s: Source): BookLine[] {
       };
       g.n++;
       g.amount = dec(D(g.amount).plus(r.amount));
-      g.refund = dec(D(g.refund).plus(r.refund || '0'));
+      // Refunds and merchant-funded discounts reduce the sales (as in the finance report).
+      g.refund = dec(
+        D(g.refund)
+          .plus(r.refund || '0')
+          .plus(r.discount || '0'),
+      );
       groups.set(key, g);
     }
   }
@@ -125,7 +130,7 @@ function revenueLines(s: Source): BookLine[] {
       out.push({
         docNo: g.docNo,
         date: g.date,
-        description: `Hoàn tiền cho khách ngày ${ddmm(g.date)} · ${g.channel}`,
+        description: `Hoàn tiền, chiết khấu cho khách ngày ${ddmm(g.date)} · ${g.channel}`,
         amount: dec(D(g.refund).neg()),
       });
   }

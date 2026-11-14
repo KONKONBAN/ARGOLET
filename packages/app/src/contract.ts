@@ -280,6 +280,14 @@ export const operations = {
   ),
 
   // 07 · Finance Engine
+  'finance.report': op('GET', '/v1/finance/report', (a, c, p: ParamsOf<Svc['finance']['report']>) =>
+    a.finance.report(c, p),
+  ),
+  'finance.exportReport': op(
+    'GET',
+    '/v1/finance/report/export',
+    (a, c, p: ParamsOf<Svc['finance']['exportReport']>) => a.finance.exportReport(c, p),
+  ),
   'finance.appraisal': op('GET', '/v1/finance/appraisal', (a, c, p: ParamsOf<Svc['finance']['appraisal']>) =>
     a.finance.appraisal(c, p),
   ),

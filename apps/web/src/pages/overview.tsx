@@ -69,7 +69,7 @@ export function OverviewPage() {
             <Button icon={<Files size={18} />} onClick={() => navigate('/decision-pack')}>
               Bộ hồ sơ
             </Button>
-            <Button icon={<ChartColumn size={18} />} onClick={() => navigate('/finance')}>
+            <Button icon={<ChartColumn size={18} />} onClick={() => navigate('/finance-report')}>
               Tài chính
             </Button>
             {o.canCreate && (

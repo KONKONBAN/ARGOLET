@@ -130,6 +130,7 @@ describe('every screen renders without errors', () => {
     ['clients', /khách hàng/i],
     ['sales', /Bán hàng/],
     ['projects', /Dự án/],
+    ['finance-report', 'Báo cáo tài chính'],
     ['finance', /Phân tích tài chính|Thẩm định/],
     ['scenarios', /kịch bản/i],
     ['assets', /Tài sản/],

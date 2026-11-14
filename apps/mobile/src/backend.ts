@@ -41,7 +41,9 @@ export async function saveServer(url: string | null): Promise<void> {
   await secureSet(SERVER_KEY, url ? url.replace(/\/$/, '') : null);
 }
 
-const extra = (Constants.expoConfig?.extra ?? {}) as { apiUrl?: string | null; appEnv?: string };
+const extra = (Constants.expoConfig?.extra ?? {}) as { apiUrl?: unknown; appEnv?: unknown };
+/** The build's server address, only when it is a real string (manifests can carry {} for "none"). */
+const BUILD_API_URL = typeof extra.apiUrl === 'string' && extra.apiUrl.trim() ? extra.apiUrl.trim() : null;
 
 /** Store builds (APP_ENV=production) only ever talk to an ARGOLET server — never to sample data. */
 export const IS_PRODUCTION = extra.appEnv === 'production';
@@ -53,7 +55,7 @@ export const IS_PRODUCTION = extra.appEnv === 'production';
  *  3. preview / development only: the full application on the device with labelled sample data.
  */
 export async function createMobileBackend(): Promise<Backend> {
-  const configured = (await getSavedServer()) ?? (process.env.EXPO_PUBLIC_API_URL || extra.apiUrl || null);
+  const configured = (await getSavedServer()) ?? (process.env.EXPO_PUBLIC_API_URL || BUILD_API_URL);
   if (configured) {
     if (IS_PRODUCTION && !configured.startsWith('https://'))
       throw new Error('Máy chủ ARGOLET phải dùng kết nối bảo mật (https://)');
@@ -74,5 +76,7 @@ export async function createMobileBackend(): Promise<Backend> {
       ? `Không kết nối được ${configured} · đang dùng dữ liệu mẫu trên thiết bị (bản thử nghiệm)`
       : 'Dữ liệu mẫu chạy trên thiết bị (bản thử nghiệm)',
     userAgent: `ARGOLET ${Platform.OS}`,
+    // Try-out builds pass from one person to the next: signing out restores the sample data.
+    freshAfterSignOut: true,
   });
 }

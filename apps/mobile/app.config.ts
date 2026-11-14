@@ -68,5 +68,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
   ],
-  extra: { apiUrl: API_URL || null, appEnv: APP_ENV },
+  // An empty string, not null, when unset: the web manifest turns null into {}.
+  extra: { apiUrl: API_URL, appEnv: APP_ENV },
 });

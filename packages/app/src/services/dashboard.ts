@@ -5,17 +5,21 @@ import type { Tx } from '../store';
 import { scoped } from './documents';
 import { localDate, relativeDay } from './approvals';
 import { compact } from './close';
+import { isConfirmed, periodTotals } from './report';
 
 export class DashboardService {
   constructor(private readonly core: AppCore) {}
 
   async computeOverview(tx: Tx, ws: WorkspaceState, periodId: string) {
-    const records = (await scoped(tx, ws, 'records')).filter((r) => r.periodId === periodId);
-    const counter = records.filter((r) => r.kind === 'REVENUE');
-    const platform = records.filter((r) => r.kind === 'ORDER');
+    const all = (await scoped(tx, ws, 'records')).filter((r) => r.periodId === periodId);
+    const docMap = new Map((await scoped(tx, ws, 'documents')).map((d) => [d.id, d]));
+    // The same figures as the finance report and the books: confirmed records only.
+    const t = periodTotals(all, docMap);
+    const records = all.filter((r) => isConfirmed(r, docMap));
+    const sales = records.filter((r) => r.kind === 'REVENUE' || r.kind === 'ORDER');
     const expenses = records.filter((r) => r.kind === 'EXPENSE');
-    const revenue = sum([...counter, ...platform].map((r) => r.amount));
-    const expense = sum(expenses.map((r) => r.amount));
+    const revenue = t.netRevenue;
+    const expense = t.totalCosts;
     // Last 7 days of the period (or up to today) — inflow vs outflow, in millions.
     const lastDay =
       records
@@ -28,11 +32,22 @@ export class DashboardService {
     const series = days.map((d) => ({
       date: d,
       label: `${d.slice(8)}/${d.slice(5, 7)}`,
-      inflow: D(sum([...counter, ...platform].filter((r) => r.date === d).map((r) => r.amount)))
+      inflow: D(
+        sum(
+          sales
+            .filter((r) => r.date === d)
+            .flatMap((r) => [r.amount, `-${r.refund || '0'}`, `-${r.discount || '0'}`]),
+        ),
+      )
         .div(1_000_000)
         .toDecimalPlaces(1)
         .toNumber(),
-      outflow: D(sum(expenses.filter((r) => r.date === d).map((r) => r.amount)))
+      outflow: D(
+        sum([
+          ...expenses.filter((r) => r.date === d).map((r) => r.amount),
+          ...sales.filter((r) => r.date === d).map((r) => r.fee || '0'),
+        ]),
+      )
         .div(1_000_000)
         .toDecimalPlaces(1)
         .toNumber(),
@@ -46,7 +61,7 @@ export class DashboardService {
       (a) => a.status === 'PENDING' && a.makerId !== ws.user.id && a.targetType === 'EXPENSE',
     );
     const discrepancies = groups.filter((g) => g.status === 'DISCREPANCY').length;
-    const docsToReview = (await scoped(tx, ws, 'documents')).filter(
+    const docsToReview = [...docMap.values()].filter(
       (d) => d.status === 'NEEDS_REVIEW' || d.status === 'NEEDS_RECON' || d.status === 'EXTRACTED',
     ).length;
     return {
@@ -54,13 +69,13 @@ export class DashboardService {
       periodLabel: formatPeriod(periodId),
       revenue: revenue.toFixed(),
       expense: expense.toFixed(),
-      net: revenue.minus(expense).toFixed(),
+      net: t.result.toFixed(),
       revenueLabel: formatVnd(revenue),
       expenseLabel: formatVnd(expense),
-      netLabel: formatSignedVnd(revenue.minus(expense)),
+      netLabel: formatSignedVnd(t.result),
       netNote: `Thu ${compact(revenue)} · Chi ${compact(expense)}`,
-      revenueNote: `Tại quầy ${compact(sum(counter.map((r) => r.amount)))} · Nền tảng ${compact(sum(platform.map((r) => r.amount)))}`,
-      expenseNote: `${expenses.length} khoản chi đã ghi nhận`,
+      revenueNote: `Tại quầy ${compact(t.counter)} · Nền tảng ${compact(t.platform)}${t.pendingSales.gt(0) ? ` · chờ xác nhận ${compact(t.pendingSales)}` : ''}`,
+      expenseNote: `${t.expenseCount} khoản chi${t.platformFees.gt(0) ? ` · phí nền tảng ${compact(t.platformFees)}` : ' đã ghi nhận'}`,
       series,
       seriesLabel: `${days[0]!.slice(8)}–${days[6]!.slice(8)}/${days[6]!.slice(5, 7)}/${days[6]!.slice(0, 4)} · Đơn vị: triệu đồng`,
       tasks: [
@@ -90,16 +105,16 @@ export class DashboardService {
         {
           key: 'counter',
           label: 'Tại quầy',
-          amount: sum(counter.map((r) => r.amount)).toFixed(),
-          amountLabel: formatVnd(sum(counter.map((r) => r.amount))),
+          amount: t.counter.toFixed(),
+          amountLabel: formatVnd(t.counter),
           status: counterIssues ? `${counterIssues} ca lệch tiền` : 'Đã đối soát',
           tone: counterIssues ? 'warning' : 'success',
         },
         {
           key: 'platform',
           label: 'Nền tảng giao hàng',
-          amount: sum(platform.map((r) => r.amount)).toFixed(),
-          amountLabel: formatVnd(sum(platform.map((r) => r.amount))),
+          amount: t.platform.toFixed(),
+          amountLabel: formatVnd(t.platform),
           status: platformIssues ? `${platformIssues} nhóm cần xem` : 'Đã đối soát',
           tone: platformIssues ? 'warning' : 'success',
         },
@@ -136,10 +151,10 @@ export class DashboardService {
     const records = (await tx.list('records', event.tenantId)).filter(
       (r) => r.periodId === tenant.settings.currentPeriod,
     );
-    const revenue = sum(
-      records.filter((r) => r.kind === 'ORDER' || r.kind === 'REVENUE').map((r) => r.amount),
-    );
-    const expense = sum(records.filter((r) => r.kind === 'EXPENSE').map((r) => r.amount));
+    const docs = new Map((await tx.list('documents', event.tenantId)).map((d) => [d.id, d]));
+    const t = periodTotals(records, docs);
+    const revenue = t.netRevenue;
+    const expense = t.totalCosts;
     await tx.put('projections', {
       id,
       tenantId: event.tenantId,
