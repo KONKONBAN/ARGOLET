@@ -43,6 +43,13 @@ import {
 } from 'lucide-react-native';
 import { C, G, R, font } from './theme';
 
+/** A note such as "Tại quầy 248,6 triệu · Nền tảng 180 triệu" wraps only between its parts. */
+const keepPhrases = (note: string) =>
+  note
+    .split(' · ')
+    .map((part) => part.replace(/ /g, '\u00a0'))
+    .join(' · ');
+
 /** Money figures stay on one line: with large text they shrink to fit rather than wrap mid-number. */
 const FIT = { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.5 } as const;
 
@@ -232,6 +239,7 @@ export function HeroSplit({ items }: { items: { label: string; value: string; no
           style={
             stacked
               ? {
+                  alignItems: 'center',
                   paddingTop: i ? 12 : 0,
                   marginTop: i ? 12 : 0,
                   borderTopWidth: i ? 1 : 0,
@@ -239,18 +247,22 @@ export function HeroSplit({ items }: { items: { label: string; value: string; no
                 }
               : {
                   flex: 1,
-                  paddingLeft: i ? 12 : 0,
-                  marginLeft: i ? 12 : 0,
+                  alignItems: 'center',
+                  paddingHorizontal: 6,
+                  marginLeft: i ? 6 : 0,
                   borderLeftWidth: i ? 1 : 0,
                   borderLeftColor: 'rgba(213,232,231,0.25)',
                 }
           }
         >
-          <Text style={{ color: C.heroMuted, fontSize: 12, fontFamily: font }}>{x.label}</Text>
+          <Text style={{ color: C.heroMuted, fontSize: 12, fontFamily: font, textAlign: 'center' }}>
+            {x.label}
+          </Text>
           <Text
             {...FIT}
             style={{
               color: '#fff',
+              textAlign: 'center',
               fontSize: stacked ? 22 : 17,
               fontWeight: '700',
               marginTop: 4,
@@ -260,7 +272,17 @@ export function HeroSplit({ items }: { items: { label: string; value: string; no
             {x.value}
           </Text>
           {x.note ? (
-            <Text style={{ color: C.heroMuted, fontSize: 12, marginTop: 4, fontFamily: font }}>{x.note}</Text>
+            <Text
+              style={{
+                color: C.heroMuted,
+                fontSize: 12,
+                marginTop: 4,
+                fontFamily: font,
+                textAlign: 'center',
+              }}
+            >
+              {keepPhrases(x.note)}
+            </Text>
           ) : null}
         </View>
       ))}

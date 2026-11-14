@@ -41,6 +41,19 @@ export function PageFoot() {
   return <p className="page-foot">ARGOLET · Đơn vị tiền: VND · Kỳ dữ liệu: {period.replace('Tháng ', '')}</p>;
 }
 
+/**
+ * A note such as "Tại quầy 248,6 triệu · Nền tảng 180 triệu" wraps between its parts; a part longer
+ * than the column (narrowest phones) still wraps inside itself instead of overflowing.
+ */
+function keepPhrases(note: string) {
+  return note.split(' · ').map((part, i) => (
+    <span key={i}>
+      {i > 0 && ' · '}
+      <span className="phrase">{part}</span>
+    </span>
+  ));
+}
+
 // ───────── 09 · Tổng quan kinh doanh ─────────
 export function OverviewPage() {
   const navigate = useNavigate();
@@ -94,7 +107,7 @@ export function OverviewPage() {
           <div key={x.label} className="hero-col">
             <div className="hero-label">{x.label}</div>
             <div className={`hero-value num${x.net ? ' net' : ''}`}>{x.value}</div>
-            <div className="hero-label small">{x.note}</div>
+            <div className="hero-label small">{keepPhrases(x.note)}</div>
           </div>
         ))}
         <div className="hero-ring" aria-hidden />
