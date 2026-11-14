@@ -139,7 +139,11 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     name: 'ARGOLET',
     version: VERSION,
     store: deps.storeKind,
-    assistant: app.deps.llm ? app.deps.llm.name : 'rules',
+    // Providers this server can use (each organisation chooses one or none in its settings).
+    assistant:
+      Object.values(app.deps.llms)
+        .map((c) => c!.name)
+        .join(', ') || 'rules',
     extraction: app.deps.extraction.modelVersion,
     demo: config.demoSeed ? { email: DEMO_EMAIL, password: DEMO_PASSWORD, clock: config.demoClock } : null,
     now: app.core.now(),

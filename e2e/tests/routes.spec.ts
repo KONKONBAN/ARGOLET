@@ -103,26 +103,37 @@ test('drill-down screens open from their lists', async ({}, info) => {
 test('documents are paginated with page numbers; the page survives opening a record', async ({}, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await go(page, 'documents', 'Chứng từ');
-  await expect(page.locator('.pager-info')).toContainText('1–20 trên 128 chứng từ');
+  // Static mode: this context's own demo data (exactly 128). API mode: one shared server where other
+  // tests add documents while this one runs, so the total is matched as "some number".
+  const exact = info.project.name === 'static';
+  const range = (from: number, to: number | null) =>
+    exact ? `${from}–${to ?? 128} trên 128` : new RegExp(`${from}–${to ?? '\\d+'} trên \\d+`);
+  const pager = page.locator('.pager-info');
+  await expect(pager).toContainText(range(1, 20));
   await expect(page.locator('table tbody tr')).toHaveCount(20);
   const firstOnPage1 = await page.locator('table tbody tr').first().innerText();
   await page.getByRole('button', { name: 'Trang 2' }).click();
-  await expect(page.locator('.pager-info')).toContainText('21–40 trên 128 chứng từ');
+  await expect(pager).toContainText(range(21, 40));
   await expect(page).toHaveURL(/page=2/);
   expect(await page.locator('table tbody tr').first().innerText()).not.toBe(firstOnPage1);
   await page.getByRole('button', { name: 'Trang sau' }).click();
-  await expect(page.locator('.pager-info')).toContainText('41–60 trên 128');
+  await expect(pager).toContainText(range(41, 60));
   await page.locator('.pager-size select').selectOption('50');
-  await expect(page.locator('.pager-info')).toContainText('1–50 trên 128');
+  await expect(pager).toContainText(range(1, 50));
   await page.getByRole('button', { name: 'Trang 3' }).click();
-  await expect(page.locator('.pager-info')).toContainText('101–128 trên 128');
-  await expect(page.locator('table tbody tr')).toHaveCount(28);
+  await expect(pager).toContainText(range(101, null));
+  if (exact) await expect(page.locator('table tbody tr')).toHaveCount(28);
+  const lastPage = await pager.innerText();
   await page.locator('table tbody tr').first().click();
   await page.goBack();
-  await expect(page.locator('.pager-info')).toContainText('101–128 trên 128');
+  // Back on the same page (page and page size kept in the address).
+  await expect(pager).toContainText(exact ? lastPage : range(101, null));
+  await expect(page).toHaveURL(/page=3/);
   await page.locator('#doc-status').selectOption('review');
-  // API mode shares one database with the flow tests, which may confirm one of these documents.
-  await expect(page.locator('.pager-info')).toContainText(/1–[34] trên [34] chứng từ/);
+  // API mode shares one database with the other tests, which add and confirm documents.
+  await expect(page.locator('.pager-info')).toContainText(
+    info.project.name === 'static' ? /1–[34] trên [34] chứng từ/ : /1–\d+ trên \d+ chứng từ/,
+  );
   await page.setViewportSize({ width: 390, height: 844 });
   await noHorizontalOverflow(page);
   await expectClean(w, info);

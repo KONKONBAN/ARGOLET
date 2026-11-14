@@ -20,7 +20,11 @@ async function main() {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   await server.listen({ port: config.port, host: config.host });
   server.log.info(
-    `ARGOLET API on :${config.port} · store=${store.kind} · web=${config.webDist ?? 'none'} · assistant=${app.deps.llm?.name ?? 'rules'}`,
+    `ARGOLET API on :${config.port} · store=${store.kind} · web=${config.webDist ?? 'none'} · assistant=${
+      Object.values(app.deps.llms)
+        .map((c) => c!.name)
+        .join(', ') || 'rules'
+    }`,
   );
 }
 

@@ -73,7 +73,11 @@ export interface Notifier {
   sendInvitation?(to: string, invitation: InvitationMessage): Promise<void>;
 }
 
+/** Generative AI providers ARGOLET can use, each only when the organisation chose it. */
+export type AiProvider = 'claude' | 'openai';
+
 export interface LlmClient {
+  readonly provider: AiProvider;
   readonly name: string;
   /** Runs a tool-using conversation and returns the final assistant text + the tool calls made. */
   run(input: LlmRunInput): Promise<{
@@ -87,6 +91,8 @@ export interface LlmRunInput {
   messages: { role: 'user' | 'assistant'; content: string }[];
   tools: { name: string; description: string; input_schema: Record<string, unknown> }[];
   callTool: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+  /** Pseudonymous id of the person asking (provider abuse monitoring) — never a name or e-mail. */
+  userRef: string;
 }
 
 export interface AppConfig {
@@ -133,7 +139,8 @@ export interface AppDeps {
   hasher: PasswordHasher;
   notifier: Notifier;
   extraction: ExtractionProvider;
-  llm: LlmClient | null;
+  /** Providers configured on this server (keys stay server-side); an organisation picks one or none. */
+  llms: Partial<Record<AiProvider, LlmClient>>;
   clock: () => Date;
   config: AppConfig;
   secrets: SecretBox | null;

@@ -111,32 +111,42 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 | `SMTP_URL`                     | —                                                                               | Máy chủ gửi email, ví dụ `smtps://user:mat-khau@smtp.example.com:465` (Amazon SES, SendGrid, Mailgun, Google Workspace, Zoho…). Bật gửi mã xác minh, mã đặt lại mật khẩu, mã xác thực bổ sung và thư mời thành viên |
 | `MAIL_FROM`                    | `ARGOLET <no-reply@argolet.local>`                                              | Người gửi hiển thị trong email                                                                                                                                                                                      |
 | `EXPOSE_DEV_CODES`             | bật khi chưa cấu hình `SMTP_URL` và (không phải production hoặc có dữ liệu mẫu) | Hiển thị mã OTP trên giao diện thay vì gửi email — chỉ dùng cho thử nghiệm                                                                                                                                          |
-| `ANTHROPIC_API_KEY`            | —                                                                               | Bật trợ lý Claude và trích xuất chứng từ bằng thị giác; không đặt thì dùng trợ lý theo luật                                                                                                                         |
+| `ANTHROPIC_API_KEY`            | —                                                                               | Cho phép tổ chức chọn Claude làm trợ lý AI, và bật trích xuất chứng từ bằng thị giác                                                                                                                                |
 | `ARGOLET_CLAUDE_MODEL`         | `claude-opus-5-5`                                                               | Model Claude cho trợ lý                                                                                                                                                                                             |
+| `OPENAI_API_KEY`               | —                                                                               | Cho phép tổ chức chọn ChatGPT làm trợ lý AI (Responses API, `store: false`)                                                                                                                                         |
+| `ARGOLET_OPENAI_MODEL`         | `gpt-6.1-sol`                                                                   | Model OpenAI cho trợ lý                                                                                                                                                                                             |
+| `ARGOLET_SECRET_KEY`           | —                                                                               | 32 byte ngẫu nhiên (`openssl rand -base64 32`): mã hóa AES-256-GCM khóa API của đối tác (SePay, KiotViet). Không đặt thì tắt kết nối API đối tác. Giữ cố định và sao lưu an toàn                                    |
 | `PUBLIC_BASE_URL`              | `http://localhost:<PORT>`                                                       | Địa chỉ công khai (liên kết trong thông báo)                                                                                                                                                                        |
 | `CORS_ORIGINS`                 | —                                                                               | Danh sách origin được phép, phân tách bằng dấu phẩy (khi web chạy ở tên miền khác)                                                                                                                                  |
 | `COOKIE_SECURE`, `TRUST_PROXY` | theo `NODE_ENV`                                                                 | Cookie `Secure`; tin cậy `X-Forwarded-*` từ reverse proxy                                                                                                                                                           |
 | `WEB_DIST`                     | tự dò                                                                           | Thư mục web build mà API phục vụ                                                                                                                                                                                    |
 
-Trợ lý Claude dùng Messages API với _adaptive thinking_ và bật **server-side fallbacks** (`fallbacks: "default"`): khi model chính từ chối một yêu cầu, Anthropic tự chuyển sang model dự phòng.
+**Trợ lý AI (Gen AI)** mặc định tắt cho mọi tổ chức. Quản trị viên chọn Claude hoặc ChatGPT trong _Cài đặt → Trợ lý AI_ (chỉ các nhà cung cấp có khóa trên máy chủ). Trước khi gửi, ARGOLET thay email, số điện thoại, mã số thuế, CCCD, số tài khoản và tên nhân sự bằng mã ẩn và khôi phục khi hiển thị; dữ liệu chỉ đi tới nhà cung cấp đã chọn; người hỏi được nhận diện bằng mã ẩn danh; nhật ký không lưu nội dung; mỗi người tối đa 20 câu hỏi / 10 phút. Claude dùng Messages API với _adaptive thinking_ và **server-side fallbacks** (`fallbacks: "default"`) trong cùng nhà cung cấp.
 
 ### 3. Ứng dụng Android / iOS
 
-Ứng dụng tự kết nối máy chủ khi có `EXPO_PUBLIC_API_URL` (hoặc người dùng nhập ở màn hình _Máy chủ ARGOLET_); nếu không, chạy toàn bộ trên thiết bị với dữ liệu mẫu. Bản cài đặt dựng bằng EAS Build (cần tài khoản Expo; iOS cần Apple Developer):
+Ứng dụng React Native dựng bằng Expo / EAS Build thành bản cài đặt native (`.aab` cho Google Play, `.ipa` cho App Store). Có ba hồ sơ dựng (`apps/mobile/eas.json`):
+
+- `production` — bản phát hành: **bắt buộc** `EXPO_PUBLIC_API_URL` dạng `https://` (dựng sẽ dừng nếu thiếu), chỉ làm việc với máy chủ ARGOLET và không bao giờ chuyển sang dữ liệu mẫu; mất kết nối thì báo và cho _Thử lại_;
+- `preview`, `development` — bản thử nghiệm nội bộ: không có máy chủ thì chạy trên thiết bị với dữ liệu mẫu (có ghi rõ).
 
 ```bash
 npm i -g eas-cli
 ```
 
 ```bash
-cd apps/mobile && eas build --platform android --profile preview
+cd apps/mobile && eas env:create --environment production --name EXPO_PUBLIC_API_URL --value https://api.ten-mien-cua-ban.vn
 ```
 
 ```bash
-cd apps/mobile && eas build --platform ios --profile production
+cd apps/mobile && eas build --platform all --profile production
 ```
 
-Đặt địa chỉ API trong `apps/mobile/eas.json` (`EXPO_PUBLIC_API_URL`) trước khi dựng bản production. Mã gói: `vn.argolet.app`.
+```bash
+cd apps/mobile && eas submit --platform all --profile production
+```
+
+Mã gói `vn.argolet.app`; quyền: camera (không micro), không sao lưu dữ liệu ứng dụng lên đám mây; cần tài khoản Expo, Google Play Console và Apple Developer.
 
 ## Bảo mật (tóm tắt)
 

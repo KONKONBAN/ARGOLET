@@ -16,6 +16,7 @@ import {
   Network,
   Plug,
   ShieldCheck,
+  Sparkles,
   Smartphone,
   Store,
   Truck,
@@ -364,6 +365,112 @@ function HkdTaxSettings({
   );
 }
 
+const AI_NAMES = { claude: 'Claude (Anthropic)', openai: 'ChatGPT (OpenAI)' } as const;
+
+/** Choice of generative AI provider: off by default, only providers configured on the server. */
+function AiSettings({
+  open,
+  onClose,
+  ai,
+  canManage,
+}: {
+  open: boolean;
+  onClose: () => void;
+  ai: { provider: string; available: { provider: string; name: string }[] };
+  canManage: boolean;
+}) {
+  const toast = useToast();
+  const update = useMutation('org.updateSettings', { silent: true });
+  const [choice, setChoice] = useState<string | null>(null);
+  const current = choice ?? ai.provider;
+  const options = [
+    {
+      k: 'off',
+      t: 'Tắt Gen AI',
+      s: 'Trợ lý trả lời bằng bộ quy tắc trong ARGOLET; không dữ liệu nào ra ngoài.',
+    },
+    ...(['claude', 'openai'] as const).map((k) => {
+      const a = ai.available.find((x) => x.provider === k);
+      return {
+        k,
+        t: AI_NAMES[k],
+        s: a ? `Mô hình ${a.name.split(':')[1]}` : 'Máy chủ ARGOLET chưa cấu hình khóa của nhà cung cấp này',
+        disabled: !a,
+      };
+    }),
+  ];
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Trợ lý AI (Claude / ChatGPT)"
+      width={620}
+      footer={
+        canManage ? (
+          <Button
+            variant="primary"
+            loading={update.loading}
+            disabled={current === ai.provider}
+            onClick={async () => {
+              try {
+                await update.mutate({ aiProvider: current as 'off' });
+                toast(
+                  'success',
+                  current === 'off' ? 'Đã tắt Gen AI' : `Đã bật ${AI_NAMES[current as 'claude']}`,
+                );
+                onClose();
+              } catch (e) {
+                toast('error', e instanceof Error ? e.message : 'Không lưu được');
+              }
+            }}
+          >
+            Lưu
+          </Button>
+        ) : undefined
+      }
+    >
+      <fieldset className="hkd-tax" disabled={!canManage} style={{ marginTop: 0 }}>
+        <legend>Nhà cung cấp cho tổ chức</legend>
+        {options.map((o) => (
+          <label key={o.k} className="radio-row">
+            <input
+              type="radio"
+              name="ai-provider"
+              checked={current === o.k}
+              disabled={'disabled' in o && o.disabled}
+              onChange={() => setChoice(o.k)}
+            />
+            <span>
+              {o.t} <span className="muted small">· {o.s}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      <h3 className="card-title">Bảo vệ khi dùng Gen AI</h3>
+      <ul className="small" style={{ paddingLeft: 18, lineHeight: 1.7, margin: 0 }}>
+        <li>Chỉ gửi tới nhà cung cấp tổ chức đã chọn; không tự chuyển sang nhà cung cấp khác khi lỗi.</li>
+        <li>
+          Email, số điện thoại, mã số thuế, CCCD, số tài khoản và tên nhân sự được thay bằng mã ẩn trước khi
+          gửi, rồi khôi phục khi hiển thị cho người hỏi.
+        </li>
+        <li>
+          Chỉ gửi số liệu trong phạm vi quyền của người hỏi; dữ liệu chứng từ được coi là dữ liệu, không phải
+          lệnh.
+        </li>
+        <li>AI chỉ đề xuất; xác nhận, phê duyệt vẫn cần người có quyền.</li>
+        <li>Khóa API nằm trên máy chủ ARGOLET, không gửi về trình duyệt hay ứng dụng.</li>
+        <li>
+          OpenAI: không lưu phản hồi (store: false). Nhà cung cấp chỉ nhận mã định danh ẩn danh của người hỏi.
+        </li>
+        <li>
+          Nhật ký ghi ai hỏi, lúc nào, nhà cung cấp nào và bao nhiêu thông tin được che — không ghi nội dung.
+        </li>
+        <li>Giới hạn 20 câu hỏi mỗi 10 phút cho mỗi người.</li>
+      </ul>
+    </Modal>
+  );
+}
+
 export function SettingsPage() {
   const navigate = useNavigate();
   const toast = useToast();
@@ -371,7 +478,7 @@ export function SettingsPage() {
   const data = useQuery('org.settings');
   const update = useMutation('org.updateSettings', { silent: true });
   const location = useLocation();
-  const [panel, setPanel] = useState<null | 'org' | 'audit' | 'backup' | 'privacy'>(
+  const [panel, setPanel] = useState<null | 'org' | 'audit' | 'backup' | 'privacy' | 'ai'>(
     location.hash === '#co-cau' ? 'org' : null,
   );
   const [regime, setRegime] = useState<string>('');
@@ -438,6 +545,15 @@ export function SettingsPage() {
       title: 'Bảo vệ dữ liệu cá nhân',
       desc: 'Quyền truy cập, lưu trữ và nhật ký',
       act: () => setPanel('privacy'),
+    },
+    {
+      icon: Sparkles,
+      title: 'Trợ lý AI (Claude / ChatGPT)',
+      desc:
+        d.ai.provider === 'off'
+          ? 'Đang tắt · dữ liệu không gửi ra ngoài'
+          : `Đang dùng ${d.ai.provider === 'claude' ? 'Claude' : 'ChatGPT'} · thông tin cá nhân được che`,
+      act: () => setPanel('ai'),
     },
   ];
   return (
@@ -646,6 +762,7 @@ export function SettingsPage() {
           Lịch sao lưu và điểm khôi phục do quản trị hạ tầng cấu hình khi triển khai (pg_dump / PITR).
         </p>
       </Modal>
+      <AiSettings open={panel === 'ai'} onClose={() => setPanel(null)} ai={d.ai} canManage={d.canManage} />
       <Modal open={panel === 'privacy'} onClose={() => setPanel(null)} title="Bảo vệ dữ liệu cá nhân">
         <ul style={{ paddingLeft: 18, lineHeight: 1.8, margin: 0 }}>
           <li>Không đưa PII thô vào sự kiện, broker hay nhật ký (kiểm tra tự động).</li>

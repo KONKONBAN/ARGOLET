@@ -5,6 +5,7 @@ import {
   type AppConfig,
   type AppDeps,
   type HttpFetch,
+  type AiProvider,
   type LlmClient,
   type Notifier,
   type PasswordHasher,
@@ -32,7 +33,7 @@ export interface ArgoletAppOptions {
   hasher?: PasswordHasher;
   notifier?: Notifier;
   extraction?: ExtractionProvider;
-  llm?: LlmClient | null;
+  llms?: Partial<Record<AiProvider, LlmClient>>;
   clock?: () => Date;
   config?: Partial<AppConfig>;
   secrets?: SecretBox | null;
@@ -49,7 +50,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
     hasher: opts.hasher ?? new ScryptHasher(),
     notifier: opts.notifier ?? { sendCode: async () => undefined },
     extraction: opts.extraction ?? new ManualEntryExtractionProvider(),
-    llm: opts.llm ?? null,
+    llms: opts.llms ?? {},
     clock: opts.clock ?? (() => new Date()),
     config: { ...DEFAULT_CONFIG, ...opts.config },
     secrets: opts.secrets ?? null,

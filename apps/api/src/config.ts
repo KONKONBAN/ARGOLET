@@ -14,6 +14,8 @@ export interface ApiConfig {
   exposeDevCodes: boolean;
   pepper: string;
   anthropicApiKey: string | null;
+  /** OpenAI (ChatGPT) key: enables ChatGPT as a choice for organisations; kept server-side. */
+  openaiApiKey: string | null;
   /** SMTP connection URL (smtp:// or smtps://user:pass@host:port); enables real email delivery. */
   smtpUrl: string | null;
   mailFrom: string;
@@ -61,6 +63,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     exposeDevCodes: bool(env.EXPOSE_DEV_CODES, !env.SMTP_URL && (!production || demoSeed)),
     pepper: pepper || 'argolet-dev-pepper-change-me',
     anthropicApiKey: env.ANTHROPIC_API_KEY || null,
+    openaiApiKey: env.OPENAI_API_KEY || null,
     smtpUrl: env.SMTP_URL || null,
     mailFrom: env.MAIL_FROM || 'ARGOLET <no-reply@argolet.local>',
     webDist,

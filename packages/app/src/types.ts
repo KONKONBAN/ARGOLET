@@ -93,6 +93,8 @@ export interface TenantSettings {
   /** Registered address, printed on the accounting books. */
   address?: string | undefined;
   hkd?: HkdSettings | undefined;
+  /** Generative AI for the assistant: off unless an administrator picks a provider. */
+  ai?: { provider: 'claude' | 'openai' | 'off' } | undefined;
   packages: ('G1' | 'G2' | 'G3' | 'G4')[];
   currentPeriod: string;
   dataLocation: string;
@@ -418,7 +420,7 @@ export interface AssistantAnswer {
   toolCalls: { tool: string; status: string }[];
   note: string;
   proposal?: { toolName: string; args: Record<string, unknown>; impact: string } | undefined;
-  engine: 'claude' | 'rules';
+  engine: 'claude' | 'openai' | 'rules';
 }
 export interface NotificationRow extends BaseRow {
   userId: string | null;

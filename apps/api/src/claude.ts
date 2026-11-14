@@ -10,11 +10,17 @@ const CLAUDE_MODEL = process.env.ARGOLET_CLAUDE_MODEL ?? 'claude-opus-5-5';
  * Server-side refusal fallbacks are enabled ("default" routing by refusal category).
  */
 export class ClaudeLlmClient implements LlmClient {
+  readonly provider = 'claude' as const;
   readonly name = `claude:${CLAUDE_MODEL}`;
   private readonly client: Anthropic;
 
-  constructor(apiKey?: string) {
-    this.client = new Anthropic(apiKey ? { apiKey } : {});
+  constructor(apiKey?: string, opts: { fetch?: typeof fetch } = {}) {
+    this.client = new Anthropic({
+      ...(apiKey ? { apiKey } : {}),
+      timeout: 60_000,
+      maxRetries: 2,
+      ...(opts.fetch ? { fetch: opts.fetch } : {}),
+    });
   }
 
   async run(input: LlmRunInput): Promise<{
@@ -38,6 +44,8 @@ export class ClaudeLlmClient implements LlmClient {
         max_tokens: 4096,
         system: [{ type: 'text', text: input.system, cache_control: { type: 'ephemeral' } }],
         thinking: { type: 'adaptive' },
+        // Opaque, pseudonymous reference for abuse detection — never a name or e-mail.
+        metadata: { user_id: input.userRef },
         output_config: { effort: 'medium' },
         tools,
         messages,

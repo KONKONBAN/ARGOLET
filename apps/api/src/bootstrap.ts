@@ -2,6 +2,7 @@ import { createArgoletApp, demoClock, seedDemo, type ArgoletApp } from '@argolet
 import type { ApiConfig } from './config';
 import { serverHasher } from './hasher';
 import { ClaudeLlmClient, ClaudeVisionExtractionProvider } from './claude';
+import { OpenAiLlmClient } from './openai';
 import { PgStore, pgDriver, pgliteDriver } from './db';
 import { createMailNotifier } from './mailer';
 import { aesGcmBox, parseSecretKey } from './secrets';
@@ -27,7 +28,11 @@ export async function createRuntime(
     store,
     hasher: serverHasher(),
     clock,
-    llm: config.anthropicApiKey ? new ClaudeLlmClient(config.anthropicApiKey) : null,
+    // Each provider is available only with its key; an organisation still has to choose it.
+    llms: {
+      ...(config.anthropicApiKey ? { claude: new ClaudeLlmClient(config.anthropicApiKey) } : {}),
+      ...(config.openaiApiKey ? { openai: new OpenAiLlmClient(config.openaiApiKey) } : {}),
+    },
     extraction: config.anthropicApiKey
       ? new ClaudeVisionExtractionProvider(config.anthropicApiKey)
       : undefined,

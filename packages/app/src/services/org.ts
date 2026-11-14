@@ -474,6 +474,13 @@ export class OrgService {
       return {
         canManage: this.core.can(ws, 'settings.manage'),
         tenant: { name: t.name, orgType: t.orgType, taxCode: t.taxCode, settings: t.settings },
+        ai: {
+          provider: t.settings.ai?.provider ?? 'off',
+          available: Object.entries(this.core.deps.llms).map(([provider, c]) => ({
+            provider,
+            name: c!.name,
+          })),
+        },
         entities: await (async () => {
           const all = await tx.list('entities', ws.tenantId);
           const byId = new Map(all.map((e) => [e.id, e]));
@@ -511,6 +518,7 @@ export class OrgService {
       currentPeriod?: string;
       address?: string;
       hkd?: HkdSettings;
+      aiProvider?: 'claude' | 'openai' | 'off';
     },
   ) {
     return this.core.command(call, async (tx, em) => {
@@ -530,6 +538,12 @@ export class OrgService {
       }
       if (p.address !== undefined) next.settings.address = String(p.address).trim().slice(0, 250);
       if (p.hkd !== undefined) next.settings.hkd = validHkd(p.hkd);
+      if (p.aiProvider !== undefined) {
+        // Data only ever goes to a provider this server is configured for and the organisation chose.
+        if (p.aiProvider !== 'off' && !this.core.deps.llms[p.aiProvider])
+          throw new AppError('VALIDATION', 'Nhà cung cấp AI này chưa được cấu hình trên máy chủ ARGOLET');
+        next.settings.ai = { provider: p.aiProvider };
+      }
       if (p.packages) {
         if (p.packages.length === 0 || p.packages.some((x) => !['G1', 'G2', 'G3', 'G4'].includes(x)))
           throw new AppError('VALIDATION', 'Gói nghiệp vụ không hợp lệ');
