@@ -57,10 +57,10 @@ export function formatShortDateTime(iso: string): string {
   return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-/** ISO datetime → "09:32 · 31/10/2026" (Vietnam time, UTC+7) */
+/** ISO datetime → "09:32 ngày 31/10/2026" (Vietnam time, UTC+7) */
 export function formatTimeDate(iso: string): string {
   const d = new Date(new Date(iso).getTime() + 7 * 3600_000);
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} · ${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} ngày ${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
 
 /** "2026-10" → "Tháng 10/2026" */
@@ -71,8 +71,8 @@ export function formatPeriod(periodId: string): string {
 
 /** Shorten a hex fingerprint: 0167ecbf31e793…237b3c1e1e3d5c */
 export function shortHash(hex: string, head = 14, tail = 14): string {
-  if (hex.length <= head + tail + 3) return hex;
-  return `${hex.slice(0, head)}...${hex.slice(-tail)}`;
+  if (hex.length <= head + tail) return hex;
+  return `${hex.slice(0, head)} ${hex.slice(-tail)}`;
 }
 
 export function initials(name: string): string {

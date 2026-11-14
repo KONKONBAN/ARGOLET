@@ -33,7 +33,7 @@ export function AuthenticityCard({ result }: { result: AuthenticityResult }) {
             <Icon size={16} color={ICON_COLOR[c.status]} style={{ marginTop: 2 }} />
             <Text style={[T.small, { flex: 1 }]}>
               <Text style={[T.strong, { color: C.text }]}>{c.label}</Text>
-              {` — ${c.detail}`}
+              {`: ${c.detail}`}
             </Text>
           </View>
         );

@@ -94,7 +94,7 @@ function revenueLines(s: Source): BookLine[] {
       out.push({
         docNo: docCode(s, r),
         date: r.date,
-        description: `${invoice ? 'Hóa đơn bán ra' : `Doanh thu bán hàng ngày ${ddmm(r.date)}`}${no}${r.counterparty ? ` · ${r.counterparty}` : ''}`,
+        description: `${invoice ? 'Hóa đơn bán ra' : `Doanh thu bán hàng ngày ${ddmm(r.date)}`}${no}${r.counterparty ? `, ${r.counterparty}` : ''}`,
         amount: r.amount,
       });
     } else if (r.kind === 'ORDER') {
@@ -122,14 +122,14 @@ function revenueLines(s: Source): BookLine[] {
     out.push({
       docNo: g.docNo,
       date: g.date,
-      description: `Doanh thu bán hàng ngày ${ddmm(g.date)} · ${g.channel} (${g.n} đơn)`,
+      description: `Doanh thu bán hàng ngày ${ddmm(g.date)}, ${g.channel} (${g.n} đơn)`,
       amount: g.amount,
     });
     if (D(g.refund).gt(0))
       out.push({
         docNo: g.docNo,
         date: g.date,
-        description: `Hoàn tiền, chiết khấu cho khách ngày ${ddmm(g.date)} · ${g.channel}`,
+        description: `Hoàn tiền, chiết khấu cho khách ngày ${ddmm(g.date)}, ${g.channel}`,
         amount: dec(D(g.refund).neg()),
       });
   }
@@ -143,11 +143,11 @@ function costLines(s: Source): Partial<Record<CostCategory, BookLine[]>> {
   for (const r of s.records) {
     if (r.kind === 'EXPENSE') {
       const d = r.documentId ? s.docs.get(r.documentId) : undefined;
-      const what = [r.counterparty, d?.title, r.description].filter(Boolean).join(' · ');
+      const what = [r.counterparty, d?.title, r.description].filter(Boolean).join(', ');
       add(costCategory(what), {
         docNo: docCode(s, r),
         date: r.date,
-        description: `${r.counterparty || d?.title || 'Chi phí'}${d?.fields.documentNo ? ` · số ${d.fields.documentNo}` : ''}`,
+        description: `${r.counterparty || d?.title || 'Chi phí'}${d?.fields.documentNo ? `, số ${d.fields.documentNo}` : ''}`,
         amount: r.amount,
       });
     } else if (r.kind === 'ORDER' && D(r.fee || '0').gt(0)) {
@@ -181,7 +181,7 @@ function moneyAccounts(s: Source): MoneyAccount[] {
     else if (r.kind === 'BANK_TXN') {
       const d = r.documentId ? s.docs.get(r.documentId) : undefined;
       const name =
-        r.counterparty && r.counterparty.includes('·')
+        r.counterparty && r.channel === 'Ngân hàng'
           ? r.counterparty
           : d?.fields.documentNo || d?.title || 'Tài khoản thanh toán';
       const acc = banks.get(name) ?? { name, kind: 'BANK' as const, lines: [] };

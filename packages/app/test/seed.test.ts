@@ -16,14 +16,14 @@ describe('demo dataset matches the Figma design', () => {
     expect(o.netLabel).toBe('+84.600.000 đ');
     expect(o.revenueLabel).toBe('428.600.000 đ');
     expect(o.expenseLabel).toBe('344.000.000 đ');
-    expect(o.netNote).toBe('Thu 428,6 triệu · Chi 344 triệu');
+    expect(o.netNote).toBe('Thu 428,6 triệu, chi 344 triệu');
     expect(o.periodLabel).toBe('Tháng 10/2026');
     expect(o.channels.map((c) => [c.label, c.amountLabel])).toEqual([
       ['Tại quầy', '248.600.000 đ'],
       ['Nền tảng giao hàng', '180.000.000 đ'],
     ]);
     expect(o.channels[0]!.status).toBe('Đã đối soát');
-    expect(o.tasks[0]!.detail).toBe('3 hồ sơ · 14.500.000 đ');
+    expect(o.tasks[0]!.detail).toBe('3 hồ sơ, 14.500.000 đ');
     expect(o.tasks[1]!.detail).toBe('2 nhóm giao dịch cần xác nhận');
     expect(o.tasks[2]!.detail).toBe('4 hồ sơ cần bổ sung thông tin');
     expect(o.series).toHaveLength(7);
@@ -80,7 +80,7 @@ describe('demo dataset matches the Figma design', () => {
     expect(g.group.fee).toBe('125000');
     expect(g.group.received).toBe('1125000');
     expect(g.group.residual).toBe('0');
-    expect(g.group.feeRule).toBe('10% · Quy tắc hiệu lực 01/10');
+    expect(g.group.feeRule).toBe('10%, quy tắc hiệu lực 01/10');
     expect(g.orders.map((o) => o.code)).toEqual(['DH-1031-01', 'DH-1031-02', 'DH-1031-03']);
     expect(g.receipts[0]!.code).toBe('GD-883019');
     const g32 = await app.recon.getGroup(call, { groupId: 'DS-1032' });
@@ -99,7 +99,7 @@ describe('demo dataset matches the Figma design', () => {
   it('17 · Chốt kỳ (Quận 3) shows the checklist', async () => {
     const st = await app.close.status(call, { entityId: 'site_q3' });
     expect(st.periodLabel).toBe('Kỳ tháng 10/2026');
-    expect(st.scopeLabel).toBe('Minh An · Cơ sở Quận 3');
+    expect(st.scopeLabel).toBe('Minh An, Cơ sở Quận 3');
     expect(st.status).toBe('OPEN');
     expect(st.ready).toBe(false);
     expect(st.checklist.find((c) => c.key === 'approvals')!.title).toBe('3 hồ sơ chờ phê duyệt');
@@ -108,10 +108,10 @@ describe('demo dataset matches the Figma design', () => {
   it('18 · Bằng chứng CT-1027 phiên bản 03 in batch EV-20261031-003', async () => {
     const e = await app.evidence.documentEvidence(call, { documentId: 'CT-1027' });
     expect(e.version!.label).toBe('Phiên bản 03');
-    expect(e.version!.confirmedAtLabel).toBe('Xác nhận lúc 09:32 · 31/10/2026');
+    expect(e.version!.confirmedAtLabel).toBe('Xác nhận lúc 09:32 ngày 31/10/2026');
     expect(e.rows.find((r) => r.label === 'Mã lô bằng chứng')!.value).toBe('EV-20261031-003');
-    expect(e.rows.find((r) => r.label === 'Người xác nhận')!.value).toBe('Thanh Hà · Kế toán');
-    expect(e.rows.find((r) => r.label === 'Phiên bản trước')!.value).toBe('02 · 30/10/2026, 17:05');
+    expect(e.rows.find((r) => r.label === 'Người xác nhận')!.value).toBe('Thanh Hà, Kế toán');
+    expect(e.rows.find((r) => r.label === 'Phiên bản trước')!.value).toBe('02, lúc 17:05 ngày 30/10/2026');
     expect(e.history.map((h) => h.title)).toEqual([
       'Tiếp nhận bản gốc',
       'Xác nhận phiên bản 01',
@@ -219,14 +219,14 @@ describe('demo dataset matches the Figma design', () => {
     expect(b.sources).toHaveLength(6);
     const dp = await app.close.decisionPack(call);
     expect(dp.kpis.netLabel).toBe('+84.600.000 đ');
-    expect(dp.statusLabel).toBe('Bản nháp · Chưa chốt');
+    expect(dp.statusLabel).toBe('Bản nháp, chưa chốt');
     expect(dp.rows[3]!.value).toBe('82 nhóm');
   });
 
   it('40 · Kiểm tra toàn vẹn CT-1027 with the stored original passes', async () => {
     const info = await app.evidence.integrityInfo(call, { documentId: 'CT-1027' });
-    expect(info.title).toBe('Hồ sơ CT-1027 · Phiên bản 03');
-    expect(info.subtitle).toBe('Bản gốc lưu ngoài chuỗi · EV-20261031-003');
+    expect(info.title).toBe('Hồ sơ CT-1027, phiên bản 03');
+    expect(info.subtitle).toBe('Bản gốc lưu ngoài chuỗi, EV-20261031-003');
     expect(info.hasOriginal).toBe(true);
     const v = await app.evidence.verifyDocument(call, {
       documentId: 'CT-1027',

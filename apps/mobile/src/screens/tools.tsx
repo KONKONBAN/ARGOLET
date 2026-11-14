@@ -30,8 +30,8 @@ const pct = (s: string): number | null => {
 };
 const vnd = (v: string) => formatVnd(D(v));
 const whole = (v: string) => D(v).toDecimalPlaces(0).abs().toFixed();
-const times = (v: string | null) => (v === null ? '—' : `${formatNumber(D(v), 2)} lần`);
-const percent = (v: string | null) => (v === null ? '—' : formatPercent(v));
+const times = (v: string | null) => (v === null ? 'Không xác định' : `${formatNumber(D(v), 2)} lần`);
+const percent = (v: string | null) => (v === null ? 'Không xác định' : formatPercent(v));
 function attempt<T>(f: () => T): { value: T } | { error: string } {
   try {
     return { value: f() };
@@ -78,7 +78,7 @@ function LoanTool() {
       <Card title="Khoản vay">
         <Money label="Số tiền vay" value={f.principal} onChange={(v) => setF({ ...f, principal: v })} />
         <Input
-          label="Lãi suất · %/năm"
+          label="Lãi suất (%/năm)"
           keyboardType="decimal-pad"
           value={f.rate}
           onChangeText={(v) => setF({ ...f, rate: v.replace(/[^\d.,]/g, '') })}
@@ -139,10 +139,10 @@ function LoanTool() {
                 style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}
               >
                 <Text style={[T.body, T.strong]}>
-                  Kỳ {x.period} · phải trả {formatNumber(D(x.payment))}
+                  Kỳ {x.period}, phải trả {formatNumber(D(x.payment))}
                 </Text>
                 <Text style={T.small}>
-                  Gốc {formatNumber(D(x.principal))} · Lãi {formatNumber(D(x.interest))} · Còn nợ{' '}
+                  Gốc {formatNumber(D(x.principal))}, lãi {formatNumber(D(x.interest))}, còn nợ{' '}
                   {formatNumber(D(x.closing))}
                 </Text>
               </View>
@@ -231,7 +231,7 @@ function LeverageTool() {
         />
         <Money label="Chi phí lãi vay" value={f.interest} onChange={(v) => setF({ ...f, interest: v })} />
         <Input
-          label="Thuế suất TNDN · %"
+          label="Thuế suất TNDN (%)"
           keyboardType="decimal-pad"
           value={f.tax}
           onChangeText={(v) => setF({ ...f, tax: v.replace(/[^\d.,]/g, '') })}

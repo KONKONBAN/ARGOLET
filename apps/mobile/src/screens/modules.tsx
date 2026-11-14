@@ -213,7 +213,7 @@ export function DailyCloseScreen() {
             <Row
               key={l.channel}
               title={l.channel}
-              subtitle={`Hệ thống ${l.systemLabel} · Thực kiểm ${l.countedLabel}`}
+              subtitle={`Hệ thống ${l.systemLabel}, thực kiểm ${l.countedLabel}`}
               right={<Text style={[T.body, T.strong]}>{l.diffLabel}</Text>}
             />
           )}
@@ -243,7 +243,7 @@ export function DailyCloseScreen() {
               <Row
                 key={h.id}
                 title={h.label}
-                subtitle={`${h.unit} · ${h.total} · lệch ${h.diffLabel}`}
+                subtitle={`${h.unit}, ${h.total}, lệch ${h.diffLabel}`}
                 right={<Chip tone={h.tone}>{h.statusLabel}</Chip>}
                 onPress={() => setShiftId(h.id)}
               />
@@ -255,7 +255,7 @@ export function DailyCloseScreen() {
         {shift?.lines.map((l) => (
           <Money
             key={l.channel}
-            label={`${l.channel} · hệ thống ${l.systemLabel}`}
+            label={`${l.channel}, hệ thống ${l.systemLabel}`}
             value={counted[l.channel] ?? ''}
             onChange={(v) => setCounted({ ...counted, [l.channel]: v })}
           />
@@ -411,7 +411,7 @@ export function InventoryScreen() {
           <Row
             key={r.id}
             title={r.name}
-            subtitle={`${r.onHand} ${r.unit} · ${r.value}`}
+            subtitle={`${r.onHand} ${r.unit}, ${r.value}`}
             right={<Chip tone={r.tone}>{r.status}</Chip>}
             onPress={
               d.canWrite
@@ -456,7 +456,7 @@ export function InventoryScreen() {
           </View>
         )}
       </View>
-      <Sheet visible={open} onClose={() => setOpen(false)} title={`Công thức · ${d.recipe?.name ?? ''}`}>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={`Công thức ${d.recipe?.name ?? ''}`}>
         {d.recipe?.lines.map((l) => (
           <Row
             key={l.itemId}
@@ -534,11 +534,7 @@ export function InventoryScreen() {
         />
         <Gap h={24} />
       </Sheet>
-      <Sheet
-        visible={!!counting}
-        onClose={() => setCounting(null)}
-        title={`Kiểm kê · ${counting?.name ?? ''}`}
-      >
+      <Sheet visible={!!counting} onClose={() => setCounting(null)} title={`Kiểm kê ${counting?.name ?? ''}`}>
         <Input
           label={`Tồn thực tế (${counting?.unit ?? ''})`}
           keyboardType="decimal-pad"
@@ -675,7 +671,7 @@ export function PurchasingScreen({ navigation }: ScreenProps<'Purchasing'>) {
           <Row
             key={r.id}
             title={r.label}
-            subtitle={`Hạn ${r.dueDate} · ${r.outstanding}`}
+            subtitle={`Hạn ${r.dueDate}, ${r.outstanding}`}
             right={<Chip tone={r.tone}>{r.status}</Chip>}
           />
         )}
@@ -755,7 +751,7 @@ export function BooksScreen() {
           <Row
             key={r.label}
             title={r.label}
-            subtitle={`${r.period} · ${r.action}`}
+            subtitle={`${r.period}, ${r.action}`}
             right={<Chip tone={r.tone}>{r.status}</Chip>}
           />
         )}
@@ -796,7 +792,7 @@ export function ClientsScreen() {
           <Row
             key={r.id}
             title={r.name}
-            subtitle={`${r.scope} · ${r.completion} · hạn ${r.closeDue}`}
+            subtitle={`${r.scope}, ${r.completion}, hạn ${r.closeDue}`}
             right={<Chip tone={r.tone}>{r.status}</Chip>}
           />
         )}
@@ -867,7 +863,7 @@ export function SalesScreen() {
           <Row
             key={r.id}
             title={r.label}
-            subtitle={`${r.stage} · ${r.value}`}
+            subtitle={`${r.stage}, ${r.value}`}
             right={<Chip tone={r.tone}>{r.status}</Chip>}
             onPress={
               d.canWrite
@@ -996,7 +992,7 @@ export function ProjectsScreen() {
               <Row
                 key={t.code}
                 title={t.label}
-                subtitle={`${t.owner} · ${t.progressLabel} · phụ thuộc ${t.dependsOn}`}
+                subtitle={`${t.owner}, ${t.progressLabel}, phụ thuộc ${t.dependsOn}`}
                 right={<Chip tone={t.tone}>{t.statusLabel}</Chip>}
                 onPress={
                   d.canWrite
@@ -1192,37 +1188,37 @@ function AssumptionInputs({ f, setF }: { f: AssumptionForm; setF: (f: Assumption
   return (
     <>
       <Input
-        label="Đầu tư ban đầu · triệu đ"
+        label="Đầu tư ban đầu (triệu đ)"
         keyboardType="number-pad"
         value={f.investment}
         onChangeText={(v) => setF({ ...f, investment: digits(v) })}
       />
       <Input
-        label="Dòng tiền thuần / năm · triệu đ"
+        label="Dòng tiền thuần / năm (triệu đ)"
         keyboardType="number-pad"
         value={f.annualCashflow}
         onChangeText={(v) => setF({ ...f, annualCashflow: v.replace(/[^\d-]/g, '') })}
       />
       <Input
-        label="Thời gian phân tích · năm"
+        label="Thời gian phân tích (năm)"
         keyboardType="number-pad"
         value={f.years}
         onChangeText={(v) => setF({ ...f, years: digits(v) })}
       />
       <Input
-        label="Suất chiết khấu · %"
+        label="Suất chiết khấu (%)"
         keyboardType="decimal-pad"
         value={f.rate}
         onChangeText={(v) => setF({ ...f, rate: v.replace(/[^\d.,]/g, '') })}
       />
       <Input
-        label="Trả nợ / năm · triệu đ"
+        label="Trả nợ / năm (triệu đ)"
         keyboardType="number-pad"
         value={f.debt}
         onChangeText={(v) => setF({ ...f, debt: digits(v) })}
       />
       <Input
-        label="Giá trị thanh lý cuối dự án · triệu đ (nếu có)"
+        label="Giá trị thanh lý cuối dự án (triệu đ, nếu có)"
         keyboardType="number-pad"
         value={f.salvage ?? ''}
         onChangeText={(v) => setF({ ...f, salvage: digits(v) })}
@@ -1384,7 +1380,7 @@ function CalcRunHistory() {
         <Row
           key={r.id}
           title={r.taskLabel}
-          subtitle={`${formatShortDateTime(r.createdAt)} · ${r.engineVersion} · ${r.inputSnapshotDigest.slice(0, 12)}…`}
+          subtitle={`${formatShortDateTime(r.createdAt)}, ${r.engineVersion}, ${r.inputSnapshotDigest.slice(0, 12)}`}
         />
       ))}
     </Card>
@@ -1488,7 +1484,7 @@ export function AssetsScreen() {
           <Row
             key={r.id}
             title={r.name}
-            subtitle={`${r.baseline}${r.period ? ' · ' + r.period : ''}`}
+            subtitle={`${r.baseline}${r.period ? ', ' + r.period : ''}`}
             right={<Chip tone={r.tone}>{r.result}</Chip>}
             onPress={
               d.canWrite && !r.isMetric && r.canComplete
@@ -1574,7 +1570,7 @@ export function AssetsScreen() {
         />
         <Gap h={24} />
       </Sheet>
-      <Sheet visible={!!maint} onClose={() => setMaint(null)} title={`Đã bảo trì · ${maint?.name ?? ''}`}>
+      <Sheet visible={!!maint} onClose={() => setMaint(null)} title={`Đã bảo trì: ${maint?.name ?? ''}`}>
         {maint && (
           <Input
             label="Hạn bảo trì kế tiếp (không bắt buộc)"
@@ -1628,13 +1624,13 @@ function CreateShipmentSheet({
         label="Tuyến"
         value={f.route}
         onChangeText={(v) => setF({ ...f, route: v })}
-        placeholder="Cát Lái → Kho Thủ Đức"
+        placeholder="Cát Lái đến Kho Thủ Đức"
       />
       <Input
         label="Container / phương tiện"
         value={f.container}
         onChangeText={(v) => setF({ ...f, container: v })}
-        placeholder="1×40HC"
+        placeholder="1x40HC"
       />
       <Input
         label="Bắt đầu tính miễn phí (YYYY-MM-DD)"
@@ -1765,7 +1761,7 @@ export function LogisticsScreen({ navigation }: ScreenProps<'Logistics'>) {
         right={<Chip tone={s.status === 'DELIVERED' ? 'success' : 'warning'}>{s.statusLabel}</Chip>}
       >
         <Steps
-          items={s.events.map((e) => ({ title: e.title, sub: `${e.detail} · ${e.atLabel}`, done: e.done }))}
+          items={s.events.map((e) => ({ title: e.title, sub: `${e.detail}, ${e.atLabel}`, done: e.done }))}
         />
         {d.canWrite && s.status !== 'DELIVERED' && (
           <Button
@@ -1968,13 +1964,13 @@ export function GroupScreen() {
       <KpiGrid items={data.data.kpis as Kpis} />
       <ListCard
         title={data.data.title}
-        subtitle="Dữ liệu phục vụ hợp nhất · chưa kiểm toán"
+        subtitle="Dữ liệu phục vụ hợp nhất, chưa kiểm toán"
         rows={data.data.items}
         render={(r) => (
           <Row
             key={r.id}
-            title={`${r.name} · ${r.code}`}
-            subtitle={`Chứng từ ${r.docs} · ${r.ic}`}
+            title={`${r.name} (${r.code})`}
+            subtitle={`Chứng từ ${r.docs}, ${r.ic}`}
             right={<Chip tone={r.tone}>{r.status}</Chip>}
           />
         )}
@@ -2136,12 +2132,12 @@ export function IntercompanyScreen() {
         {amounts && (
           <>
             <Money
-              label={`Phải thu · ${p.sideAName}`}
+              label={`Phải thu: ${p.sideAName}`}
               value={amounts.a}
               onChange={(v) => setAmounts({ ...amounts, a: v })}
             />
             <Money
-              label={`Phải trả · ${p.sideBName}`}
+              label={`Phải trả: ${p.sideBName}`}
               value={amounts.b}
               onChange={(v) => setAmounts({ ...amounts, b: v })}
             />
@@ -2199,7 +2195,7 @@ export function MembersScreen() {
           <Row
             key={m.id}
             title={m.isSelf ? `${m.name} (bạn)` : m.name}
-            subtitle={`${m.roleLabel} · ${m.scopeLabel} · hạn mức ${m.limitLabel}${m.code ? ` · mã ${m.code}` : ''}`}
+            subtitle={`${m.roleLabel}, ${m.scopeLabel}, hạn mức ${m.limitLabel}${m.code ? `, mã ${m.code}` : ''}`}
             right={<Chip tone={m.status === 'ACTIVE' ? 'success' : 'info'}>{m.statusLabel}</Chip>}
             onPress={
               data.data!.canManage && m.status !== 'INVITED' && !m.isSelf
@@ -2305,7 +2301,7 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
           rows={[
             { label: 'Tên', value: d.tenant.name },
             { label: 'Loại hình', value: d.tenant.orgType },
-            { label: 'Mã số thuế', value: d.tenant.taxCode ?? '—' },
+            { label: 'Mã số thuế', value: d.tenant.taxCode ?? 'Chưa có' },
             { label: 'Chế độ kế toán', value: d.tenant.settings.accountingRegime },
             { label: 'Kỳ hiện tại', value: d.tenant.settings.currentPeriod },
           ]}
@@ -2327,7 +2323,7 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
           label="Chế độ kế toán"
           value={sf.regime}
           options={[
-            { value: 'HKD', label: 'Hộ kinh doanh · TT152/2025' },
+            { value: 'HKD', label: 'Hộ kinh doanh (TT152/2025)' },
             { value: 'TT133', label: 'TT133 (DN nhỏ và vừa)' },
             { value: 'TT99', label: 'TT99/2025 (thay TT200)' },
           ]}
@@ -2379,7 +2375,7 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
           <Row
             key={e.id}
             title={e.name}
-            subtitle={`${e.kindLabel} · ${e.code}${e.parentName ? ` · thuộc ${e.parentName}` : ''}`}
+            subtitle={`${e.kindLabel}, ${e.code}${e.parentName ? `, thuộc ${e.parentName}` : ''}`}
           />
         )}
       />
@@ -2390,7 +2386,7 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
           <Row
             key={i.id}
             title={i.name}
-            subtitle={`${i.description} · ${i.status === 'CONNECTED' ? 'Đã kết nối' : 'Chưa kết nối'}`}
+            subtitle={`${i.description}, ${i.status === 'CONNECTED' ? 'Đã kết nối' : 'Chưa kết nối'}`}
             right={
               d.canManage ? (
                 <Button
@@ -2420,8 +2416,8 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
         render={(a, i) => (
           <Row
             key={i}
-            title={`${a.actor} · ${a.action}`}
-            subtitle={`${a.target} · ${new Date(Date.parse(a.at) + 7 * 3600e3).toISOString().replace('T', ' ').slice(0, 16)}`}
+            title={`${a.actor}, ${a.action}`}
+            subtitle={`${a.target}, ${new Date(Date.parse(a.at) + 7 * 3600e3).toISOString().replace('T', ' ').slice(0, 16)}`}
           />
         )}
       />
@@ -2589,7 +2585,7 @@ export function SecurityScreen() {
                 <CircleCheck size={18} color={C.action} />
               )
             }
-            title={`${s.channel === 'mobile' ? 'Ứng dụng di động' : 'Web'}${s.current ? ' · phiên này' : ''}`}
+            title={`${s.channel === 'mobile' ? 'Ứng dụng di động' : 'Web'}${s.current ? ', phiên này' : ''}`}
             subtitle={deviceName(s.userAgent)}
             right={
               s.current ? (
@@ -2608,7 +2604,7 @@ export function SecurityScreen() {
 
 /** A readable device name from the user agent ("Chrome · Windows"). */
 function deviceName(ua: string) {
-  if (!ua) return '—';
+  if (!ua) return 'Không rõ thiết bị';
   const browser = /Edg\//.test(ua)
     ? 'Edge'
     : /Chrome\//.test(ua)
@@ -2631,5 +2627,5 @@ function deviceName(ua: string) {
           : /Linux/.test(ua)
             ? 'Linux'
             : '';
-  return os ? `${browser} · ${os}` : browser;
+  return os ? `${browser}, ${os}` : browser;
 }

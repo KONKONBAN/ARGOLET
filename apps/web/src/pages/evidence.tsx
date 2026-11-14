@@ -86,7 +86,7 @@ export function EvidenceIndexPage() {
                       <span className="snap-main">
                         <strong>Kỳ {r.periodId}</strong>
                         <span className="small muted">
-                          Phiên bản {r.version} · {formatShortDateTime(r.closedAt)}
+                          Phiên bản {r.version}, {formatShortDateTime(r.closedAt)}
                         </span>
                       </span>
                       <Chip tone={r.evidenceStatus === 'ANCHORED' ? 'success' : 'warning'}>
@@ -117,7 +117,7 @@ function CloseSnapshotDialog({ closeId, onClose }: { closeId: string; onClose: (
   const s = snap.data;
   return (
     <Modal
-      title={s ? `Bộ chốt kỳ ${s.periodId} · phiên bản ${s.version}` : 'Bộ chốt kỳ'}
+      title={s ? `Bộ chốt kỳ ${s.periodId}, phiên bản ${s.version}` : 'Bộ chốt kỳ'}
       open
       onClose={onClose}
       width={680}
@@ -155,7 +155,7 @@ function CloseSnapshotDialog({ closeId, onClose }: { closeId: string; onClose: (
             {
               label: 'Biên nhận sổ cái',
               value: s.receipt
-                ? `${s.receipt.batchCode} · khối ${s.receipt.blockNumber} · ${s.receipt.validationCode}`
+                ? `${s.receipt.batchCode}, khối ${s.receipt.blockNumber}, ${s.receipt.validationCode}`
                 : 'Đang tạo bằng chứng',
             },
           ]}
@@ -175,10 +175,12 @@ function CloseSnapshotDialog({ closeId, onClose }: { closeId: string; onClose: (
             <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
               {result.steps.map((st) => (
                 <li key={st.code}>
-                  {st.ok ? '✓' : '✗'} {st.code} · {st.label}: {st.detail}
+                  {st.code} {st.label}: {st.detail} ({st.ok ? 'đạt' : 'không đạt'})
                 </li>
               ))}
-              <li>{result.chainValid ? '✓' : '✗'} Chuỗi khối của sổ cái liền mạch</li>
+              <li>
+                {result.chainValid ? 'Chuỗi khối của sổ cái liền mạch' : 'Chuỗi khối của sổ cái bị đứt'}
+              </li>
             </ul>
           </Alert>
         </div>
@@ -257,7 +259,7 @@ export function EvidencePage() {
             <Timeline
               items={e.history.map((h) => ({
                 title: h.title,
-                sub: `${h.by} · ${formatShortDateTime(h.at)}`,
+                sub: `${h.by}, ${formatShortDateTime(h.at)}`,
               }))}
             />
           </div>
@@ -341,14 +343,14 @@ export function VerificationPage() {
                 tone={result.ok ? 'success' : 'danger'}
                 title={
                   result.ok
-                    ? `Kết quả: trùng khớp${fileName ? ` · ${fileName}` : ''}`
+                    ? `Kết quả: trùng khớp${fileName ? `, ${fileName}` : ''}`
                     : 'Kết quả: không trùng khớp'
                 }
               >
                 <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
                   {result.steps.map((s) => (
                     <li key={s.code}>
-                      {s.ok ? '✓' : '✗'} {s.code} · {s.label}: {s.detail}
+                      {s.code} {s.label}: {s.detail} ({s.ok ? 'đạt' : 'không đạt'})
                     </li>
                   ))}
                 </ul>
@@ -432,8 +434,8 @@ export function VerificationPage() {
           </div>
           {d.status !== 'PENDING' && !result && (
             <p className="small muted mt-8">
-              Lần kiểm chứng gần nhất: {d.statusLabel.toLowerCase()} ·{' '}
-              {formatTimeDate(new Date().toISOString()).slice(8)}
+              Lần kiểm chứng gần nhất: {d.statusLabel.toLowerCase()}, ngày{' '}
+              {formatTimeDate(new Date().toISOString()).slice(-10)}
             </p>
           )}
         </Card>

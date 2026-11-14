@@ -144,7 +144,7 @@ export function parseInvoiceQr(raw: string): InvoiceQr | null {
   } else {
     const payload = text.slice(0, text.length - 4);
     crcOk = crc16Ccitt(payload) === crcObj.value.toUpperCase();
-    if (!crcOk) problems.push('Mã kiểm tra CRC không khớp — dữ liệu QR đã bị thay đổi hoặc đọc sai');
+    if (!crcOk) problems.push('Mã kiểm tra CRC không khớp, dữ liệu QR đã bị thay đổi hoặc đọc sai');
   }
 
   const mst = s('01');

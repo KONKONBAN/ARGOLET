@@ -105,7 +105,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
       taxCodeChecksumOk(tax) ? 'PASS' : 'FAIL',
       taxCodeChecksumOk(tax)
         ? `${tax} đúng cấu trúc và chữ số kiểm tra`
-        : `${tax} sai chữ số kiểm tra — mã số thuế không tồn tại theo thuật toán cấp mã`,
+        : `${tax} sai chữ số kiểm tra, mã số thuế không tồn tại theo thuật toán cấp mã`,
     );
   else {
     // A receipt from a small shop has no tax code — only worth a warning on an invoice, or on a
@@ -118,9 +118,9 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
       inv
         ? 'Hóa đơn điện tử không ghi mã số thuế người bán'
         : f.series
-          ? 'Hóa đơn có ký hiệu nhưng chưa nhập mã số thuế người bán — nhập MST để đối chiếu'
+          ? 'Hóa đơn có ký hiệu nhưng chưa nhập mã số thuế người bán, nhập MST để đối chiếu'
           : large
-            ? `Khoản chi từ ${vnd(threshold)} nhưng chứng từ không có mã số thuế người bán — kiểm tra đã có hóa đơn chưa`
+            ? `Khoản chi từ ${vnd(threshold)} nhưng chứng từ không có mã số thuế người bán, kiểm tra đã có hóa đơn chưa`
             : 'Chứng từ không ghi mã số thuế (biên lai, phiếu bán lẻ)',
     );
   }
@@ -177,7 +177,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
         party === org ? 'PASS' : 'FAIL',
         party === org
           ? `MST ${i.kind === 'REVENUE' ? 'người bán' : 'người mua'} ${party} là của tổ chức`
-          : `Hóa đơn ghi MST người mua ${party}, không phải MST của tổ chức (${org}) — không được khấu trừ thuế`,
+          : `Hóa đơn ghi MST người mua ${party}, không phải MST của tổ chức (${org}), không được khấu trừ thuế`,
       );
   }
 
@@ -189,7 +189,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
       inv.sellerSigned ? 'PASS' : 'FAIL',
       inv.sellerSigned
         ? `Có chữ ký số trong tệp XML${inv.certificates.length ? ' kèm chứng thư số' : ''}`
-        : 'Tệp XML không có chữ ký số của người bán — hóa đơn điện tử hợp lệ luôn được ký',
+        : 'Tệp XML không có chữ ký số của người bán, hóa đơn điện tử hợp lệ luôn được ký',
     );
     if (inv.series.startsWith('C'))
       add(
@@ -197,7 +197,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
         'Mã của cơ quan thuế',
         inv.taxAuthorityCode ? 'PASS' : 'FAIL',
         inv.taxAuthorityCode
-          ? `Có mã CQT ${inv.taxAuthorityCode.slice(0, 8)}…`
+          ? `Có mã CQT ${inv.taxAuthorityCode.slice(0, 8)}`
           : 'Ký hiệu "C" là hóa đơn có mã nhưng tệp không có mã của cơ quan thuế (MCCQT)',
       );
     else add('TAX_AUTHORITY_CODE', 'Mã của cơ quan thuế', 'NA', 'Hóa đơn không mã (ký hiệu "K")');
@@ -235,7 +235,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
         'RELATED',
         'Hóa đơn thay thế / điều chỉnh',
         'WARN',
-        `${inv.related.kind === 'REPLACEMENT' ? 'Thay thế' : 'Điều chỉnh'} hóa đơn ${inv.related.symbol} số ${inv.related.documentNo} — kiểm tra hóa đơn gốc trước khi ghi sổ`,
+        `${inv.related.kind === 'REPLACEMENT' ? 'Thay thế' : 'Điều chỉnh'} hóa đơn ${inv.related.symbol} số ${inv.related.documentNo}, kiểm tra hóa đơn gốc trước khi ghi sổ`,
       );
   } else if (f.series) {
     const sym = invoiceSymbolProblems(
@@ -280,7 +280,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
       ageDays < 0
         ? 'Ngày chứng từ ở tương lai'
         : ageDays > 366
-          ? `Chứng từ đã ${Math.floor(ageDays)} ngày — quá một năm`
+          ? `Chứng từ đã ${Math.floor(ageDays)} ngày, quá một năm`
           : 'Ngày hợp lý',
     );
   }
@@ -322,7 +322,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
         'NON_CASH',
         'Thanh toán không dùng tiền mặt',
         'WARN',
-        `${sameDay.length + 1} chứng từ cùng ngày của cùng đối tác, mỗi chứng từ dưới ${vnd(threshold)} nhưng cộng lại ${vnd(dec(splitSum))} — dấu hiệu tách hóa đơn`,
+        `${sameDay.length + 1} chứng từ cùng ngày của cùng đối tác, mỗi chứng từ dưới ${vnd(threshold)} nhưng cộng lại ${vnd(dec(splitSum))}, dấu hiệu tách hóa đơn`,
       );
     else
       add(
@@ -341,7 +341,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
       'Dấu vết chỉnh sửa ảnh',
       editor ? 'WARN' : i.imageMeta && (i.imageMeta.make || i.imageMeta.software) ? 'PASS' : 'NA',
       editor
-        ? `Ảnh được lưu bởi phần mềm chỉnh sửa "${editor}" — đối chiếu với bản giấy`
+        ? `Ảnh được lưu bởi phần mềm chỉnh sửa "${editor}", đối chiếu với bản giấy`
         : i.imageMeta?.make
           ? `Chụp bằng ${[i.imageMeta.make, i.imageMeta.model].filter(Boolean).join(' ')}${i.imageMeta.takenAt ? ` lúc ${i.imageMeta.takenAt}` : ''}`
           : 'Ảnh không có thông tin máy chụp để đối chiếu',
@@ -374,7 +374,7 @@ export function assessAuthenticity(i: AuthenticityInput): AuthenticityResult {
         'Mã QR của hóa đơn',
         !q.crcOk || diffs.length ? 'FAIL' : format.length ? 'WARN' : 'PASS',
         !q.crcOk
-          ? 'Mã kiểm tra CRC của mã QR không khớp — dữ liệu QR đã bị thay đổi hoặc ảnh chụp đọc sai'
+          ? 'Mã kiểm tra CRC của mã QR không khớp, dữ liệu QR đã bị thay đổi hoặc ảnh chụp đọc sai'
           : diffs.length
             ? `Mã QR ghi ${diffs.map((d) => `${d.label} ${d.qr}`).join(', ')} nhưng chứng từ ghi ${diffs.map((d) => d.document).join(', ')}`
             : format.length

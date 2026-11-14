@@ -699,7 +699,7 @@ export function Pagination({
       <span className="pager-info">
         Hiển thị{' '}
         <b>
-          {from}–{to}
+          {from} đến {to}
         </b>{' '}
         trên <b>{total}</b> {unit}
       </span>
@@ -727,9 +727,7 @@ export function Pagination({
         </button>
         {pageWindow(page, pageCount).map((p, i) =>
           p === null ? (
-            <span key={`gap${i}`} className="pager-gap" aria-hidden>
-              …
-            </span>
+            <span key={`gap${i}`} className="pager-gap" aria-hidden />
           ) : (
             <button
               type="button"

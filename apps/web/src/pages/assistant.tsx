@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Files, Plus, SendHorizontal, Sparkles } from 'lucide-react';
+import { Files, MessageCircle, Plus, SendHorizontal } from 'lucide-react';
 import { useMutation, useQuery } from '../api/hooks';
 import { useSession } from '../app/session';
 import { Button, Card, Chip, ErrorNote, PageHeader, PageLoading, useToast } from '../ui/components';
@@ -97,7 +97,7 @@ export function AssistantPage() {
           <div className="chat-scroll mt-16" ref={scroll} aria-live="polite">
             {messages.length === 0 && !pending && (
               <div className="muted" style={{ padding: '24px 0' }}>
-                <Sparkles size={20} color="#087452" />
+                <MessageCircle size={20} color="#087452" />
                 <p className="mt-8">
                   Hỏi về số liệu, đối soát, chứng từ hoặc kết quả tính toán. Trợ lý chỉ dùng dữ liệu trong
                   phạm vi bạn được cấp và luôn dẫn nguồn.
@@ -182,7 +182,7 @@ export function AssistantPage() {
               <>
                 <div className="bubble-user">{pending}</div>
                 <div className="row muted small">
-                  <span className="spinner dark" /> Trợ lý đang tra cứu dữ liệu…
+                  <span className="spinner dark" /> Trợ lý đang tra cứu dữ liệu
                 </div>
               </>
             )}

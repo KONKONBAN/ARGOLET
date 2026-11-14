@@ -43,7 +43,7 @@ export async function createBrowserBackend(): Promise<Backend> {
     persist: save,
     clockStart,
     tokens: { get: async () => safeGet(TOKEN_KEY), set: async (t) => safeSet(TOKEN_KEY, t) },
-    label: 'Bản chạy trên trình duyệt · dữ liệu mẫu',
+    label: 'Bản chạy trên trình duyệt, dữ liệu mẫu',
     userAgent: navigator.userAgent,
     publicBaseUrl: location.href.split('#')[0],
     onReset: async () => {

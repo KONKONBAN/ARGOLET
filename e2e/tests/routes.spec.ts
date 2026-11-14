@@ -112,7 +112,7 @@ test('documents are paginated with page numbers; the page survives opening a rec
   // tests add documents while this one runs, so the total is matched as "some number".
   const exact = info.project.name === 'static';
   const range = (from: number, to: number | null) =>
-    exact ? `${from}–${to ?? 128} trên 128` : new RegExp(`${from}–${to ?? '\\d+'} trên \\d+`);
+    exact ? `${from} đến ${to ?? 128} trên 128` : new RegExp(`${from} đến ${to ?? '\\d+'} trên \\d+`);
   const pager = page.locator('.pager-info');
   await expect(pager).toContainText(range(1, 10));
   await expect(page.locator('table tbody tr')).toHaveCount(10);
@@ -140,7 +140,7 @@ test('documents are paginated with page numbers; the page survives opening a rec
   await page.locator('#doc-status').selectOption('review');
   // API mode shares one database with the other tests, which add and confirm documents.
   await expect(page.locator('.pager-info')).toContainText(
-    info.project.name === 'static' ? /1–[34] trên [34] chứng từ/ : /1–\d+ trên \d+ chứng từ/,
+    info.project.name === 'static' ? /1 đến [34] trên [34] chứng từ/ : /1 đến \d+ trên \d+ chứng từ/,
   );
   await page.setViewportSize({ width: 390, height: 844 });
   await noHorizontalOverflow(page);

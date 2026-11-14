@@ -599,9 +599,9 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       kind: 'EXPENSE',
       fields: expFields('Nguyên liệu Việt', 'HD-00318', day(31), '7250000'),
       lines: [
-        { description: 'Cà phê hạt · 15 kg', amount: '3750000' },
-        { description: 'Sữa tươi · 100 hộp', amount: '2500000' },
-        { description: 'Bao bì · 1 lô', amount: '1000000' },
+        { description: 'Cà phê hạt 15 kg', amount: '3750000' },
+        { description: 'Sữa tươi 100 hộp', amount: '2500000' },
+        { description: 'Bao bì 1 lô', amount: '1000000' },
       ],
       extraction: {
         modelVersion: 'vlm-receipt-2026.10',
@@ -1142,7 +1142,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
         allocations: p.allocations,
         explanation: p.explanation,
         basis: p.basis,
-        feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',').replace(/,0$/, '')}% · Quy tắc hiệu lực 01/10`,
+        feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',').replace(/,0$/, '')}%, quy tắc hiệu lực 01/10`,
         inputSnapshotVersion: sha256Hex(canonicalize({ g: g.code })).slice(0, 16),
         rulesVersion: DEFAULT_RULES.rulesVersion,
         confirmedBy: confirmedAt ? USERS.accountant : null,
@@ -1430,7 +1430,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
         { label: 'Người nhận', value: 'Nhà cung cấp Nguyên liệu Việt' },
         { label: 'Mục đích', value: 'Mua nguyên liệu tuần 44' },
         { label: 'Phương thức', value: 'Chuyển khoản' },
-        { label: 'Chứng từ kèm theo', value: 'HD-00318 · Đã kiểm tra' },
+        { label: 'Chứng từ kèm theo', value: 'HD-00318, đã kiểm tra' },
       ],
       timeline: [
         { title: 'Đã lập hồ sơ', by: 'Nguyễn Minh Anh', at: vn(day(31), '08:45') },
@@ -1454,7 +1454,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
         { label: 'Người nhận', value: 'Bao bì An Phát' },
         { label: 'Mục đích', value: 'Thanh toán bao bì tháng 10' },
         { label: 'Phương thức', value: 'Chuyển khoản' },
-        { label: 'Chứng từ kèm theo', value: 'PGH-2910 · Đã kiểm tra' },
+        { label: 'Chứng từ kèm theo', value: 'PGH-2910, đã kiểm tra' },
       ],
       timeline: [{ title: 'Đã lập hồ sơ', by: 'Nguyễn Minh Anh', at: vn(day(30), '15:20') }],
       createdAt: vn(day(30), '15:20'),
@@ -1495,7 +1495,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       makerId: USERS.accountant,
       requesterName: 'Thanh Hà',
       details: [
-        { label: 'Nhóm giao dịch', value: 'DS-1031 · 3 đơn hàng' },
+        { label: 'Nhóm giao dịch', value: 'DS-1031, 3 đơn hàng' },
         { label: 'Tổng đơn', value: '1.250.000 đ' },
         { label: 'Phí & hoàn tiền', value: '125.000 đ' },
         { label: 'Tiền thực nhận', value: '1.125.000 đ' },
@@ -1620,7 +1620,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       id: 'prj_da001',
       tenantId: T,
       code: 'DA-001',
-      name: 'Điện mặt trời · Nhà máy Minh An',
+      name: 'Điện mặt trời Nhà máy Minh An',
       manager: 'Hải Nam',
       budget: '1000000000',
       recorded: '420000000',
@@ -1749,13 +1749,13 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       id: 'shp_261031',
       tenantId: T,
       code: 'SH-261031',
-      route: 'Cát Lái → Kho Minh An',
+      route: 'Cát Lái đến Kho Minh An',
       container: '1 container 40HC',
       status: 'DELIVERING',
       events: [
         {
           title: 'Đã nhận booking',
-          detail: 'BK-20318 · Hãng vận tải',
+          detail: 'BK-20318, hãng vận tải',
           at: vn('2026-10-27', '09:00'),
           done: true,
         },
@@ -1768,13 +1768,13 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
         },
         {
           title: 'Container ra cổng',
-          detail: 'EIR-1031 · Đính kèm biên bản',
+          detail: 'EIR-1031, đính kèm biên bản',
           at: vn('2026-10-31', '08:40'),
           done: true,
         },
         {
           title: 'Giao đến kho',
-          detail: 'Dự kiến · Chờ xác nhận giao nhận',
+          detail: 'Dự kiến, chờ xác nhận giao nhận',
           at: vn('2026-10-31', '14:00'),
           done: false,
         },
@@ -1794,7 +1794,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
       costs: [
         { name: 'Cước vận chuyển', basis: '1 container', amount: '12000000' },
         { name: 'Phí nội địa', basis: 'Hồ sơ + vận chuyển', amount: '5000000' },
-        { name: 'Lưu bãi', basis: '2 ngày tính phí · 600.000 đ/ngày', amount: '1200000' },
+        { name: 'Lưu bãi', basis: '2 ngày tính phí, 600.000 đ/ngày', amount: '1200000' },
       ],
       allocation: [
         { item: 'Hàng A', weightShare: '60' },

@@ -315,12 +315,12 @@ export class DocumentService {
               issues.push({
                 field: 'total',
                 severity: 'warning',
-                message: `Hóa đơn bằng ${inv.currency}, tỷ giá ${inv.exchangeRate}: quy đổi ${formatVnd(inv.totalVnd)} — kiểm tra tỷ giá ghi sổ`,
+                message: `Hóa đơn bằng ${inv.currency}, tỷ giá ${inv.exchangeRate}: quy đổi ${formatVnd(inv.totalVnd)}, kiểm tra tỷ giá ghi sổ`,
               });
             doc = {
               ...common,
               title: isSale
-                ? `Hóa đơn bán ra · ${counterparty || 'khách hàng'}`
+                ? `Hóa đơn bán ra, ${counterparty || 'khách hàng'}`
                 : inv.sellerName || 'Hóa đơn điện tử',
               counterparty,
               sourceKind: 'XML_EINVOICE',
@@ -412,7 +412,7 @@ export class DocumentService {
                 discount: '0',
                 reference: t.reference,
                 payoutBatch: extractBatchRef(t.description),
-                counterparty: [t.bank, t.account].filter(Boolean).join(' · '),
+                counterparty: [t.bank, t.account].filter(Boolean).join(', '),
                 channel: 'Ngân hàng',
                 description: t.description,
               }));
@@ -441,7 +441,7 @@ export class DocumentService {
             const bank = snap.provider === 'SEPAY';
             const dates = rows.map((r) => r.date).sort();
             const total = dec(sum(rows.map((r) => r.amount)));
-            const label = bank ? 'Giao dịch ngân hàng · SePay' : 'Hóa đơn bán hàng · KiotViet';
+            const label = bank ? 'Giao dịch ngân hàng SePay' : 'Hóa đơn bán hàng KiotViet';
             const fields = {
               supplier: label,
               documentNo: f.name.replace(/\.[^.]+$/, ''),
@@ -535,7 +535,7 @@ export class DocumentService {
               const issue = {
                 field: d.field,
                 severity: 'warning' as const,
-                message: `Hai lần đọc khác nhau: OCR "${shown(d.ocr)}", VLM "${shown(d.vlm)}" — đối chiếu với ảnh gốc`,
+                message: `Hai lần đọc khác nhau: OCR "${shown(d.ocr)}", VLM "${shown(d.vlm)}", đối chiếu với ảnh gốc`,
               };
               if (at >= 0) issues[at] = issue;
               else issues.push(issue);
@@ -670,7 +670,7 @@ export class DocumentService {
           code: d.code,
           title: d.title,
           counterparty: d.counterparty,
-          label: `${d.code} · ${d.title}`,
+          label: `${d.code}, ${d.title}`,
           source: SOURCE_LABEL[d.sourceKind],
           date: d.date,
           dateLabel: formatDate(d.date),
@@ -1093,7 +1093,7 @@ function vndLines(inv: ReturnType<typeof parseEInvoiceXml>): { description: stri
   const lines = inv.lines
     .filter((l) => l.kind !== 'NOTE' && (l.kind !== 'PROMOTION' || !D(l.amount).isZero()))
     .map((l) => ({
-      description: l.kind === 'DISCOUNT' ? `Chiết khấu thương mại · ${l.description}` : l.description,
+      description: l.kind === 'DISCOUNT' ? `Chiết khấu thương mại, ${l.description}` : l.description,
       amount: D(l.amount).times(rate).toDecimalPlaces(0).toFixed(),
     }));
   if (!lines.length || !inv.subtotalVnd) return lines;

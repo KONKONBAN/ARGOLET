@@ -161,15 +161,15 @@ export function DocumentsPage() {
 
 /** What the QR code on a photo says: the invoice identity (checked with its CRC), a link, or nothing. */
 function QrNote({ raw }: { raw: string | null | undefined }) {
-  if (raw === undefined) return <p className="muted small">Đang tìm mã QR hóa đơn…</p>;
+  if (raw === undefined) return <p className="muted small">Đang tìm mã QR hóa đơn</p>;
   const c = raw === null ? null : readQrContent(raw);
   const ok = c?.kind === 'INVOICE' && c.qr.crcOk && c.qr.problems.length === 0;
   const text =
     c === null
-      ? 'Không thấy mã QR hóa đơn trên ảnh — nhập các trường khi kiểm tra'
+      ? 'Không thấy mã QR hóa đơn trên ảnh, nhập các trường khi kiểm tra'
       : c.kind === 'INVOICE'
         ? ok
-          ? `Mã QR hóa đơn: ${c.qr.symbol} · số ${c.qr.documentNo} · ${formatDate(c.qr.issueDate)} · ${formatVnd(c.qr.total)} · MST ${c.qr.sellerTaxCode}`
+          ? `Mã QR hóa đơn: ${c.qr.symbol}, số ${c.qr.documentNo}, ${formatDate(c.qr.issueDate)}, ${formatVnd(c.qr.total)}, MST ${c.qr.sellerTaxCode}`
           : `Mã QR hóa đơn bị lỗi: ${c.qr.problems[0]}`
         : c.kind === 'URL'
           ? `Mã QR là đường dẫn tra cứu của nhà cung cấp hóa đơn (${c.host})`
@@ -218,7 +218,7 @@ function PickedFile({
           </span>
         </div>
         {isImage &&
-          (quality ? <QualityList q={quality} /> : <span className="muted small">Đang kiểm tra ảnh…</span>)}
+          (quality ? <QualityList q={quality} /> : <span className="muted small">Đang kiểm tra ảnh</span>)}
         {isImage && <QrNote raw={qr} />}
       </div>
     </div>
@@ -304,7 +304,7 @@ export function CapturePage() {
         period={period}
       />
       <div className="grid split-main">
-        <Card title="Thêm chứng từ vào hồ sơ" subtitle="Ảnh, PDF, XML, Excel · Nhiều tệp trong cùng một lô">
+        <Card title="Thêm chứng từ vào hồ sơ" subtitle="Ảnh, PDF, XML, Excel, nhiều tệp trong cùng một lô">
           <div
             className={`dropzone${drag ? ' drag' : ''}`}
             onDragOver={(e) => {
@@ -380,7 +380,7 @@ export function CapturePage() {
               >
                 {sites.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {(ctx?.entities.find((x) => x.id === s.parentId)?.shortName ?? '') + ' · ' + s.shortName}
+                    {(ctx?.entities.find((x) => x.id === s.parentId)?.shortName ?? '') + ', ' + s.shortName}
                   </option>
                 ))}
               </select>
@@ -407,7 +407,7 @@ export function CapturePage() {
           {result && (
             <div className="mt-24">
               <Alert tone={result.needsReview ? 'warning' : 'success'} title={`Lô ${result.code}`}>
-                {result.normalized} tệp sẵn sàng · {result.needsReview} cần kiểm tra · {result.duplicates} tệp
+                {result.normalized} tệp sẵn sàng, {result.needsReview} cần kiểm tra, {result.duplicates} tệp
                 trùng đã tách
               </Alert>
               {result.files.map((f, i) => (
@@ -416,7 +416,7 @@ export function CapturePage() {
                     {f.duplicate ? <Copy size={18} /> : <FileText size={18} />}
                   </span>
                   <span>
-                    <div className="li-title">{f.duplicate ? f.filename : `${f.code} · ${f.filename}`}</div>
+                    <div className="li-title">{f.duplicate ? f.filename : `${f.code}, ${f.filename}`}</div>
                     <div className="li-sub">
                       {f.duplicate
                         ? 'Trùng dấu vân tay với chứng từ đã tiếp nhận'
@@ -531,7 +531,7 @@ export function ReviewPage() {
   const doConfirm = async () => {
     try {
       const r = await confirm.mutate({ documentId: d.id, fields: plain(), acknowledgeWarnings: ack });
-      toast('success', `Đã xác nhận ${d.code} · phiên bản ${String(r.version).padStart(2, '0')}`);
+      toast('success', `Đã xác nhận ${d.code}, phiên bản ${String(r.version).padStart(2, '0')}`);
       navigate(`/evidence/${d.id}`);
     } catch (e) {
       if (e instanceof ApiError && e.details?.needsAcknowledge) setAck(false);
@@ -564,8 +564,8 @@ export function ReviewPage() {
       />
       <div className="grid split-even">
         <Card
-          title={`Bản gốc · ${d.code}`}
-          subtitle={`${d.sourceLabel} · Tiếp nhận ${formatDate(d.receivedAt)}, ${new Date(Date.parse(d.receivedAt) + 7 * 3600e3).toISOString().slice(11, 16)}`}
+          title={`Bản gốc ${d.code}`}
+          subtitle={`${d.sourceLabel}, tiếp nhận ${formatDate(d.receivedAt)}, ${new Date(Date.parse(d.receivedAt) + 7 * 3600e3).toISOString().slice(11, 16)}`}
         >
           <OriginalPreview doc={d} artifact={doc.data.artifact} />
           {doc.data.authenticity && <AuthenticityPanel result={doc.data.authenticity} />}
@@ -759,12 +759,12 @@ function OriginalPreview({
         {doc.rows.slice(0, 12).map((r, i) => (
           <div className="line" key={i}>
             <span>
-              {r.code} · {formatDate(r.date)}
+              {r.code}, {formatDate(r.date)}
             </span>
             <span className="num">{formatVnd(r.amount)}</span>
           </div>
         ))}
-        {doc.rows.length > 12 && <p className="muted small">… và {doc.rows.length - 12} dòng khác</p>}
+        {doc.rows.length > 12 && <p className="muted small">Và {doc.rows.length - 12} dòng khác</p>}
       </div>
     );
   }
@@ -773,7 +773,7 @@ function OriginalPreview({
       <h3>{doc.sourceKind === 'XML_EINVOICE' ? 'HÓA ĐƠN ĐIỆN TỬ' : doc.title.toUpperCase()}</h3>
       <p className="small strong">{(doc.counterparty || 'Nhà cung cấp chưa xác định').toUpperCase()}</p>
       <p className="small muted" style={{ marginTop: 12 }}>
-        Ngày {doc.date ? formatDate(doc.date) : '—'} · Mã {doc.fields.documentNo || '—'}
+        Ngày {doc.date ? formatDate(doc.date) : 'Chưa có'}, mã {doc.fields.documentNo || 'Chưa có'}
       </p>
       <hr />
       {doc.lines.map((l, i) => (
@@ -833,7 +833,7 @@ export function IngestionPage() {
         period={period}
       />
       <div className="grid split-even">
-        <Card title="Nguồn dữ liệu được phép sử dụng" subtitle="Ảnh · PDF · XML · Excel / CSV">
+        <Card title="Nguồn dữ liệu được phép sử dụng" subtitle="Ảnh, PDF, XML, Excel, CSV">
           {data.data.sources.map((s) => {
             const Icon = SOURCE_ICON[s.kind as keyof typeof SOURCE_ICON] ?? Files;
             return (
@@ -861,7 +861,7 @@ export function IngestionPage() {
         </Card>
         <Card
           title={b ? `Lô ${b.code}` : 'Chưa có lô dữ liệu'}
-          subtitle={b ? `${b.entityLabel} · ${b.fileCount} tệp đã tiếp nhận` : 'Tiếp nhận tệp để bắt đầu'}
+          subtitle={b ? `${b.entityLabel}, ${b.fileCount} tệp đã tiếp nhận` : 'Tiếp nhận tệp để bắt đầu'}
         >
           {b && (
             <>
@@ -871,7 +871,7 @@ export function IngestionPage() {
                 </div>
                 <div className="kpi-value">{b.normalized} tệp</div>
                 <div className="kpi-note">
-                  {b.needsReview} tệp cần rà soát · {b.duplicates} tệp trùng
+                  {b.needsReview} tệp cần rà soát, {b.duplicates} tệp trùng
                 </div>
               </div>
               <div className="list-item">

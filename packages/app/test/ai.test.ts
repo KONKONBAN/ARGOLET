@@ -91,7 +91,7 @@ describe('generative AI providers', () => {
     // Audit: who, which provider, how much was hidden — never the content.
     const audit = await store.read((tx) => tx.list('audit', DEMO_TENANT, { action: 'assistant.ai_call' }));
     expect(audit).toHaveLength(1);
-    expect(audit[0]!.detail).toMatch(/^openai:test-model · 1 công cụ · che: /);
+    expect(audit[0]!.detail).toMatch(/^openai:test-model, 1 công cụ, che: /);
     expect(audit[0]!.detail).not.toContain('minhanh@');
     expect(audit[0]!.detail).not.toContain('CT-1028');
 

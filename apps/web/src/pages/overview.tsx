@@ -38,17 +38,17 @@ export function usePeriodLabel(): string {
 
 export function PageFoot() {
   const period = usePeriodLabel();
-  return <p className="page-foot">ARGOLET · Đơn vị tiền: VND · Kỳ dữ liệu: {period.replace('Tháng ', '')}</p>;
+  return <p className="page-foot">Đơn vị tiền: VND, kỳ dữ liệu: {period.replace('Tháng ', '')}</p>;
 }
 
 /**
- * A note such as "Tại quầy 248,6 triệu · Nền tảng 180 triệu" wraps between its parts; a part longer
+ * A note such as "Tại quầy 248,6 triệu, nền tảng 180 triệu" wraps between its parts; a part longer
  * than the column (narrowest phones) still wraps inside itself instead of overflowing.
  */
 function keepPhrases(note: string) {
-  return note.split(' · ').map((part, i) => (
+  return note.split(', ').map((part, i) => (
     <span key={i}>
-      {i > 0 && ' · '}
+      {i > 0 && ', '}
       <span className="phrase">{part}</span>
     </span>
   ));

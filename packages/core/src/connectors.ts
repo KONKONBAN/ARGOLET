@@ -148,7 +148,7 @@ export function readKiotVietInvoices(pages: unknown[]): {
           (p) =>
             `${METHOD[str(p.method).toLowerCase()] ?? (str(p.method) || 'Khác')} ${vnd(amount(p.amount, what))}`,
         )
-        .join(' · ');
+        .join(', ');
       const channel = isObj(inv.SaleChannel) ? str(inv.SaleChannel.Name) : '';
       sales.push({
         externalId: id,

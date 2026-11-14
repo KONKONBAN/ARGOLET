@@ -73,7 +73,7 @@ export async function createMobileBackend(): Promise<Backend> {
     clockStart: Date.now(),
     tokens: { get: async () => memory.local ?? null, set: async (t) => void (memory.local = t) },
     label: configured
-      ? `Không kết nối được ${configured} · đang dùng dữ liệu mẫu trên thiết bị (bản thử nghiệm)`
+      ? `Không kết nối được ${configured}, đang dùng dữ liệu mẫu trên thiết bị (bản thử nghiệm)`
       : 'Dữ liệu mẫu chạy trên thiết bị (bản thử nghiệm)',
     userAgent: `ARGOLET ${Platform.OS}`,
     // Try-out builds pass from one person to the next: signing out restores the sample data.

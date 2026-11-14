@@ -58,8 +58,9 @@ const pct = (s: string): number | null => {
 /** Whole đồng from a money field ("40.000.000" → "40000000"). */
 const money = (s: string) => s.replace(/[^\d]/g, '');
 const vnd = (v: string | number) => formatVnd(D(v));
-const ratio = (v: string | null, digits = 2) => (v === null ? '—' : `${formatNumber(D(v), digits)} lần`);
-const percent = (v: string | null, digits = 2) => (v === null ? '—' : formatPercent(v, digits));
+const ratio = (v: string | null, digits = 2) =>
+  v === null ? 'Không xác định' : `${formatNumber(D(v), digits)} lần`;
+const percent = (v: string | null, digits = 2) => (v === null ? 'Không xác định' : formatPercent(v, digits));
 
 function Result({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
   return (
@@ -92,9 +93,9 @@ function attempt<T>(f: () => T): { value: T; error: null } | { value: null; erro
 
 /** Thuế suất thuế TNDN (Luật Thuế TNDN số 67/2025/QH15). */
 const CIT_RATES = [
-  { value: '20', label: '20% · phổ thông' },
-  { value: '17', label: '17% · doanh thu năm trên 3 đến 50 tỷ' },
-  { value: '15', label: '15% · doanh thu năm đến 3 tỷ' },
+  { value: '20', label: '20% (phổ thông)' },
+  { value: '17', label: '17% (doanh thu năm trên 3 đến 50 tỷ)' },
+  { value: '15', label: '15% (doanh thu năm đến 3 tỷ)' },
 ];
 
 // ───────── 1 · Vay vốn: lịch trả nợ ─────────
@@ -290,7 +291,7 @@ function LoanTool() {
         <>
           <MoneyInput label="Số tiền vay" value={f.principal} onChange={(v) => set({ principal: v })} />
           <TextInput
-            label="Lãi suất · %/năm"
+            label="Lãi suất (%/năm)"
             inputMode="decimal"
             value={f.rate}
             onChange={(e) => set({ rate: e.target.value })}
@@ -322,7 +323,7 @@ function LoanTool() {
             />
           </div>
           <TextInput
-            label="Ân hạn gốc · tháng"
+            label="Ân hạn gốc (tháng)"
             inputMode="numeric"
             value={f.grace}
             onChange={(e) => set({ grace: e.target.value.replace(/[^\d]/g, '') })}
@@ -396,7 +397,7 @@ function LoanTool() {
                 { label: 'Tổng phải trả', value: vnd(s.totalPayment) },
                 {
                   label: 'Lãi suất thực / năm',
-                  value: cost ? formatPercent(cost.annual) : '—',
+                  value: cost ? formatPercent(cost.annual) : 'Chưa có',
                   note: cost ? `Hiệu dụng ${formatPercent(cost.effectiveAnnual)}` : undefined,
                 },
               ]}
@@ -411,7 +412,7 @@ function LoanTool() {
                   onClick={() =>
                     scheduleXlsx(
                       s,
-                      `${vnd(money(f.principal))} · ${f.rate}%/năm · ${f.periods} kỳ × ${f.periodMonths} tháng · ${METHODS.find((m) => m.value === f.method)!.label}`,
+                      `${vnd(money(f.principal))}, ${f.rate}%/năm, ${f.periods} kỳ, mỗi kỳ ${f.periodMonths} tháng, ${METHODS.find((m) => m.value === f.method)!.label}`,
                     )
                   }
                 >
@@ -630,7 +631,7 @@ function LeverageTool() {
                 },
                 {
                   label: 'ROE',
-                  value: B ? percent(B.dupont.roe) : '—',
+                  value: B ? percent(B.dupont.roe) : 'Chưa có',
                 },
               ]}
             />
@@ -728,13 +729,13 @@ function InterestTool() {
             />
           </div>
           <TextInput
-            label="Lãi suất · %/năm"
+            label="Lãi suất (%/năm)"
             inputMode="decimal"
             value={f.rate}
             onChange={(e) => setF({ ...f, rate: e.target.value })}
           />
           <TextInput
-            label="Thời gian · năm"
+            label="Thời gian (năm)"
             inputMode="decimal"
             value={f.years}
             onChange={(e) => setF({ ...f, years: e.target.value })}
@@ -763,12 +764,12 @@ function InterestTool() {
           <Figures
             items={[
               {
-                label: 'Giá trị cuối kỳ · lãi đơn',
+                label: 'Giá trị cuối kỳ theo lãi đơn',
                 value: vnd(round(simple(years))),
                 note: `Tiền lãi ${vnd(round(simple(years).minus(V0)))}`,
               },
               {
-                label: 'Giá trị cuối kỳ · lãi kép',
+                label: 'Giá trị cuối kỳ theo lãi kép',
                 value: vnd(round(compound(years))),
                 note: `Tiền lãi ${vnd(round(compound(years).minus(V0)))}`,
                 lead: true,
@@ -862,7 +863,7 @@ function BillTool() {
             onChange={(x) => setB({ ...b, face: x })}
           />
           <TextInput
-            label="Lãi suất chiết khấu · %/năm"
+            label="Lãi suất chiết khấu (%/năm)"
             inputMode="decimal"
             value={b.rate}
             onChange={(e) => setB({ ...b, rate: e.target.value })}
@@ -880,13 +881,13 @@ function BillTool() {
             onChange={(e) => setB({ ...b, to: e.target.value })}
           />
           <TextInput
-            label="Hoa hồng ký hậu · %/năm"
+            label="Hoa hồng ký hậu (%/năm)"
             inputMode="decimal"
             value={b.endorsement}
             onChange={(e) => setB({ ...b, endorsement: e.target.value })}
           />
           <TextInput
-            label="Hoa hồng chung · %"
+            label="Hoa hồng chung (%)"
             inputMode="decimal"
             value={b.commission}
             onChange={(e) => setB({ ...b, commission: e.target.value })}
@@ -998,7 +999,7 @@ function AnnuityTool() {
             />
           </div>
           <TextInput
-            label="Lãi suất mỗi kỳ · %"
+            label="Lãi suất mỗi kỳ (%)"
             inputMode="decimal"
             value={a.rate}
             onChange={(e) => setA({ ...a, rate: e.target.value })}
@@ -1031,15 +1032,15 @@ function AnnuityTool() {
             items={[
               {
                 label: 'Hiện giá của chuỗi',
-                value: pay ? vnd(round(annuityPresentValue(pay, String(ar), n, a.due))) : '—',
+                value: pay ? vnd(round(annuityPresentValue(pay, String(ar), n, a.due))) : 'Chưa có',
               },
               {
                 label: 'Giá trị tương lai',
-                value: pay ? vnd(round(annuityFutureValue(pay, String(ar), n, a.due))) : '—',
+                value: pay ? vnd(round(annuityFutureValue(pay, String(ar), n, a.due))) : 'Chưa có',
               },
               {
                 label: 'Kỳ khoản trả đều (PMT)',
-                value: pmt ? vnd(pmt) : '—',
+                value: pmt ? vnd(pmt) : 'Chưa có',
 
                 lead: true,
               },
@@ -1140,20 +1141,20 @@ function WaccTool() {
           <MoneyInput label="Vốn chủ sở hữu" value={w.equity} onChange={(x) => setW({ ...w, equity: x })} />
           <MoneyInput label="Nợ vay" value={w.debt} onChange={(x) => setW({ ...w, debt: x })} />
           <TextInput
-            label="Lãi suất vay · %"
+            label="Lãi suất vay (%)"
             inputMode="decimal"
             value={w.rd}
             onChange={(e) => setW({ ...w, rd: e.target.value })}
           />
           <TextInput
-            label="Thuế suất TNDN · %"
+            label="Thuế suất TNDN (%)"
             inputMode="decimal"
             value={w.tax}
             onChange={(e) => setW({ ...w, tax: e.target.value })}
           />
           <div className="wide">
             <TextInput
-              label="Chi phí vốn chủ sở hữu · %"
+              label="Chi phí vốn chủ sở hữu (%)"
               inputMode="decimal"
               value={w.re}
               onChange={(e) => setW({ ...w, re: e.target.value })}
@@ -1161,7 +1162,7 @@ function WaccTool() {
             />
           </div>
           <TextInput
-            label="Lãi suất phi rủi ro · %"
+            label="Lãi suất phi rủi ro (%)"
             inputMode="decimal"
             value={w.rf}
             onChange={(e) => setW({ ...w, rf: e.target.value })}
@@ -1173,7 +1174,7 @@ function WaccTool() {
             onChange={(e) => setW({ ...w, beta: e.target.value })}
           />
           <TextInput
-            label="Lợi suất thị trường · %"
+            label="Lợi suất thị trường (%)"
             inputMode="decimal"
             value={w.rm}
             onChange={(e) => setW({ ...w, rm: e.target.value })}
@@ -1315,7 +1316,7 @@ function DepreciationTool() {
             />
           ) : (
             <TextInput
-              label="Thời gian trích · năm"
+              label="Thời gian trích (năm)"
               inputMode="numeric"
               value={f.years}
               onChange={(e) => setF({ ...f, years: e.target.value.replace(/[^\d]/g, '') })}

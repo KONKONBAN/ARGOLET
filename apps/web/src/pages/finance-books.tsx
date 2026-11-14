@@ -41,9 +41,9 @@ const VIEWS = [
 ] as const;
 type View = (typeof VIEWS)[number]['value'];
 
-const money = (v: string) => (D(v).isZero() ? '–' : formatNumber(D(v)));
+const money = (v: string) => formatNumber(D(v));
 export function ratioText(r: { value: string | null; unit: Ratio['unit'] }) {
-  if (r.value === null) return '—';
+  if (r.value === null) return 'Không xác định';
   if (r.unit === 'PERCENT') return formatPercent(r.value, 2);
   if (r.unit === 'DAYS') return `${formatNumber(D(r.value), 1)} ngày`;
   return `${formatNumber(D(r.value), 2)} lần`;
@@ -117,7 +117,7 @@ export function FinanceBooksPage() {
       <PageHeader
         eyebrow="Tài chính"
         title="Sổ sách & chỉ số"
-        subtitle={`${b.rangeLabel} · ${b.location}`}
+        subtitle={`${b.rangeLabel}, ${b.location}`}
         period={period}
         actions={
           <>
@@ -242,8 +242,8 @@ function IncomeView({ b }: { b: Books }) {
       <Card
         title={
           b.regime === 'TT99'
-            ? 'Kết quả hoạt động kinh doanh · B02-DN'
-            : 'Kết quả hoạt động kinh doanh · B02-DNN'
+            ? 'Kết quả hoạt động kinh doanh (B02-DN)'
+            : 'Kết quả hoạt động kinh doanh (B02-DNN)'
         }
       >
         <StatementTable
@@ -266,7 +266,7 @@ function IncomeView({ b }: { b: Books }) {
           <div className="calc-kpi-value num">{formatVnd(f.netRevenue)}</div>
         </div>
         <div className="calc-kpi">
-          <div className="calc-kpi-label">Thuế TNDN · {formatPercent(b.citRate, 0)}</div>
+          <div className="calc-kpi-label">Thuế TNDN {formatPercent(b.citRate, 0)}</div>
           <div className="calc-kpi-value num">{formatVnd(f.cit)}</div>
         </div>
         <Card title="Theo tháng">
@@ -311,7 +311,7 @@ function PositionView({ b }: { b: Books }) {
 function TrialView({ b }: { b: Books }) {
   return (
     <Card
-      title={b.regime === 'TT99' ? 'Bảng cân đối tài khoản · F01-DN' : 'Bảng cân đối tài khoản · F01-DNN'}
+      title={b.regime === 'TT99' ? 'Bảng cân đối tài khoản (F01-DN)' : 'Bảng cân đối tài khoản (F01-DNN)'}
       subtitle="Đơn vị: đồng"
     >
       <div className="table-wrap calc-scroll books-trial">
@@ -511,7 +511,7 @@ function SettingsModal({ b, onClose }: { b: Books; onClose: () => void }) {
         {b.openingAccounts.map((a) => (
           <MoneyInput
             key={a.code}
-            label={`${a.code} · ${a.name}`}
+            label={`${a.code} ${a.name}`}
             value={amounts[a.code] ?? ''}
             onChange={(v) => setAmounts({ ...amounts, [a.code]: v })}
           />
@@ -522,7 +522,7 @@ function SettingsModal({ b, onClose }: { b: Books; onClose: () => void }) {
         </label>
       </div>
       <p className={`books-diff${diff.isZero() ? ' ok' : ''}`}>
-        {diff.isZero() ? 'Tổng Nợ bằng tổng Có' : `Chênh lệch Nợ − Có: ${formatVnd(diff.toFixed())}`}
+        {diff.isZero() ? 'Tổng Nợ bằng tổng Có' : `Chênh lệch giữa Nợ và Có: ${formatVnd(diff.toFixed())}`}
       </p>
       <div className="calc-fields mt-16">
         <MoneyInput

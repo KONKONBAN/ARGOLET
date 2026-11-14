@@ -48,7 +48,7 @@ describe('finance report', () => {
     expect([m.netRevenue, m.totalCosts, m.result]).toEqual(['428600000', '344000000', '84600000']);
     const o = await app.dashboard.overview(admin);
     expect([o.revenue, o.expense, o.net]).toEqual([m.netRevenue, m.totalCosts, m.result]);
-    expect(o.revenueNote).toBe('Tại quầy 248,6 triệu · Nền tảng 180 triệu · chờ xác nhận 1,3 triệu');
+    expect(o.revenueNote).toBe('Tại quầy 248,6 triệu, nền tảng 180 triệu, chờ xác nhận 1,3 triệu');
     const dp = await app.close.decisionPack(admin);
     expect([dp.kpis.revenue, dp.kpis.expense, dp.kpis.net]).toEqual([m.netRevenue, m.totalCosts, m.result]);
     const books = await app.modules.booksTax(admin);
@@ -102,11 +102,11 @@ describe('finance report', () => {
     const text = xmlOf(f.contentBase64);
     for (const s of [
       'BÁO CÁO KẾT QUẢ KINH DOANH THEO CHỨNG TỪ',
-      'Tháng 8/2026 – Tháng 10/2026',
+      'Tháng 8/2026 đến tháng 10/2026',
       'Kết quả kinh doanh',
       'Chứng từ nguồn',
       '3. Doanh thu thuần',
-      '5. Kết quả thu − chi',
+      '5. Chênh lệch thu chi',
       'CT-1027',
     ])
       expect(text).toContain(s);

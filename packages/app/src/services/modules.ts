@@ -108,7 +108,7 @@ export class ModuleService {
         shift: current
           ? {
               id: current.id,
-              title: `${current.shift} · ${await scopeLabel(tx, ws.tenantId, current.entityId)}`,
+              title: `${current.shift}, ${await scopeLabel(tx, ws.tenantId, current.entityId)}`,
               status: current.status,
               lines: current.lines.map((l) => ({
                 ...l,
@@ -125,13 +125,13 @@ export class ModuleService {
             const diff = sum(x.lines.map((l) => D(l.counted).minus(l.system)));
             return {
               id: x.id,
-              label: `${x.shift} · ${formatDate(x.date)}`,
+              label: `${x.shift}, ${formatDate(x.date)}`,
               unit: await scopeLabel(tx, ws.tenantId, x.entityId),
               status: x.status,
               statusLabel: x.status === 'OPEN' ? 'Đang mở' : 'Đã gửi chốt',
               tone: x.status === 'OPEN' ? 'warning' : 'success',
               total: formatVnd(sum(x.lines.map((l) => l.system))),
-              diffLabel: x.status === 'OPEN' ? '—' : formatVnd(diff),
+              diffLabel: x.status === 'OPEN' ? 'chưa chốt' : formatVnd(diff),
             };
           }),
         ),
@@ -204,7 +204,7 @@ export class ModuleService {
         kpis: [
           {
             label: recipe ? `Giá thành / ${recipe.name.toLowerCase()}` : 'Giá thành',
-            value: cost ? formatVnd(cost.total) : '—',
+            value: cost ? formatVnd(cost.total) : 'Chưa có',
           },
           { label: 'Nguyên liệu sắp hết', value: `${low.length} mặt hàng` },
           { label: 'Tồn kho ghi nhận', value: formatVnd(value) },
@@ -247,7 +247,7 @@ export class ModuleService {
       const ws = await this.core.requireWorkspace(tx, call, 'module.write');
       const item = requireFound(await tx.get('inventoryItems', ws.tenantId, p.itemId), 'nguyên liệu');
       await tx.put('inventoryItems', { ...item, onHand: qty });
-      await em.audit(ws.tenantId, actor(ws), 'inventory.count', item.name, `${item.onHand} → ${qty}`);
+      await em.audit(ws.tenantId, actor(ws), 'inventory.count', item.name, `từ ${item.onHand} thành ${qty}`);
       return { ok: true };
     });
   }
@@ -281,7 +281,7 @@ export class ModuleService {
         ],
         items: open.map((p) => ({
           id: p.id,
-          label: `${p.supplier} · ${p.code}`,
+          label: `${p.supplier} (${p.code})`,
           dueDate: formatDate(p.dueDate),
           outstanding: formatVnd(p.outstanding),
           status: PO_STATUS[p.status].label,
@@ -343,7 +343,7 @@ export class ModuleService {
           { label: 'Người nhận', value: supplier },
           { label: 'Mục đích', value: p.purpose?.trim() || 'Mua hàng' },
           { label: 'Phương thức', value: 'Chuyển khoản' },
-          { label: 'Chứng từ kèm theo', value: `${code} · Chờ hóa đơn` },
+          { label: 'Chứng từ kèm theo', value: `${code}, chờ hóa đơn` },
         ],
         timeline: [{ title: 'Đã lập hồ sơ', by: ws.membership.displayName, at: now }],
         dueDate: addDays(localDate(now), 1),
@@ -553,7 +553,7 @@ export class ModuleService {
             ...pg,
             items: pg.items.map((d) => ({
               id: d.id,
-              label: `${d.customer} · ${d.code}`,
+              label: `${d.customer} (${d.code})`,
               stage: DEAL_STAGE[d.stage],
               stageCode: d.stage,
               value: formatVnd(d.value),
@@ -599,7 +599,7 @@ export class ModuleService {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
       const all = (await tx.list('projects', ws.tenantId)).sort((a, b) => a.code.localeCompare(b.code));
       const proj = (p.projectId ? all.find((x) => x.id === p.projectId) : undefined) ?? all[0];
-      const list = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.name}` }));
+      const list = all.map((x) => ({ id: x.id, label: `${x.code}, ${x.name}` }));
       if (!proj)
         return { kpis: [], project: null, projects: list, canWrite: this.core.can(ws, 'module.write') };
       const available = D(proj.budget).minus(proj.recorded).minus(proj.committed);
@@ -620,11 +620,11 @@ export class ModuleService {
         project: {
           id: proj.id,
           title: proj.name,
-          subtitle: `WBS · ${proj.wbs.length} công việc · Chủ nhiệm: ${proj.manager}`,
+          subtitle: `WBS ${proj.wbs.length} công việc, chủ nhiệm: ${proj.manager}`,
           tasks: proj.wbs.map((t) => ({
             ...t,
-            label: `${t.code} · ${t.name}`,
-            dependsOn: t.dependsOn ?? '—',
+            label: `${t.code}, ${t.name}`,
+            dependsOn: t.dependsOn ?? 'không',
             progressLabel: `${t.progress}%`,
             statusLabel: WBS_STATUS[t.status].label,
             tone: WBS_STATUS[t.status].tone,
@@ -680,7 +680,7 @@ export class ModuleService {
           { label: 'Tiết kiệm năng lượng', value: `${formatNumber(savings)} kWh` },
           { label: 'Lịch bảo trì đến hạn', value: `${due.length} lịch` },
         ],
-        title: `Đo lường & kiểm chứng · ${requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức').name}`,
+        title: `Đo lường & kiểm chứng: ${requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức').name}`,
         items: rows
           .filter((r) => r.kind === 'METRIC' || r.status !== 'OK')
           .map((r) => {
@@ -720,7 +720,7 @@ export class ModuleService {
         b.code.localeCompare(a.code, undefined, { numeric: true }),
       );
       const sh = (p.shipmentId ? all.find((x) => x.id === p.shipmentId) : undefined) ?? all[0];
-      const shipments = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.route}` }));
+      const shipments = all.map((x) => ({ id: x.id, label: `${x.code}, ${x.route}` }));
       const canWrite = this.core.can(ws, 'module.write');
       if (!sh) return { shipment: null, shipments, canWrite };
       const end = freeTimeEnd(sh.freeTimeStart, sh.freeDays);
@@ -730,9 +730,12 @@ export class ModuleService {
         shipment: {
           id: sh.id,
           title: `Lô hàng ${sh.code}`,
-          subtitle: `${sh.route} · ${sh.container}`,
+          subtitle: `${sh.route}, ${sh.container}`,
           statusLabel,
-          events: sh.events.map((e) => ({ ...e, atLabel: formatShortDateTime(e.at).replace(', ', ' · ') })),
+          events: sh.events.map((e) => ({
+            ...e,
+            atLabel: formatShortDateTime(e.at).split(', ').reverse().join(' ngày '),
+          })),
           documents: sh.documents,
           freeTimeEnd: formatDate(end),
           freeTimeNote:
@@ -755,7 +758,7 @@ export class ModuleService {
         b.code.localeCompare(a.code, undefined, { numeric: true }),
       );
       const sh = (p.shipmentId ? all.find((x) => x.id === p.shipmentId) : undefined) ?? all[0];
-      const shipments = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.route}` }));
+      const shipments = all.map((x) => ({ id: x.id, label: `${x.code}, ${x.route}` }));
       if (!sh) return { shipment: null, shipments, canWrite: this.core.can(ws, 'module.write') };
       const storage = chargeAfterFreeTime(sh.freeDays + sh.storageDays, sh.freeDays, [
         { fromDay: 1, toDay: null, ratePerDay: sh.storageRatePerDay },
@@ -765,7 +768,7 @@ export class ModuleService {
           ? {
               ...c,
               amount: storage.amount,
-              basis: `${storage.chargeableDays} ngày tính phí · ${formatNumber(D(sh.storageRatePerDay))} đ/ngày`,
+              basis: `${storage.chargeableDays} ngày tính phí, ${formatNumber(D(sh.storageRatePerDay))} đ/ngày`,
             }
           : c,
       );
@@ -791,7 +794,7 @@ export class ModuleService {
                   (c) =>
                     `${c.name.replace('Cước vận chuyển', 'Cước').replace('Phí nội địa', 'Nội địa')} ${short(c.amount)}`,
                 )
-                .join(' · '),
+                .join(', '),
             },
             {
               label: 'Lợi nhuận gộp',
@@ -801,7 +804,7 @@ export class ModuleService {
                 : `Biên lợi nhuận gộp ${formatPercent(profit.div(sh.revenue))}`,
             },
           ],
-          tariff: `Biểu phí: ${sh.tariffCode} · Hiệu lực từ ${formatDate(sh.tariffFrom)}`,
+          tariff: `Biểu phí: ${sh.tariffCode}, hiệu lực từ ${formatDate(sh.tariffFrom)}`,
           costs: costs.map((c) => ({ ...c, amountLabel: formatVnd(c.amount) })),
           allocation: alloc.map((a) => ({
             item: a.id,
@@ -890,7 +893,7 @@ export class ModuleService {
       const ic = (p.pairId ? all.find((x) => x.id === p.pairId) : undefined) ?? all[0];
       const pairs = all.map((x) => ({
         id: x.id,
-        label: `${x.reference} · ${x.sideA.name} ↔ ${x.sideB.name}`,
+        label: `${x.reference}: ${x.sideA.name} và ${x.sideB.name}`,
         status: x.status,
       }));
       const legal = (await tx.list('entities', ws.tenantId, { kind: 'LEGAL_ENTITY' })).map((e) => ({
@@ -910,12 +913,12 @@ export class ModuleService {
           reference: ic.reference,
           kpis: [
             {
-              label: `Phải thu · ${ic.sideA.name}`,
+              label: `Phải thu: ${ic.sideA.name}`,
               value: formatVnd(ic.sideA.amount),
               note: `Đối tác nội bộ: ${ic.sideB.name}`,
             },
             {
-              label: `Phải trả · ${ic.sideB.name}`,
+              label: `Phải trả: ${ic.sideB.name}`,
               value: formatVnd(ic.sideB.amount),
             },
             {
@@ -934,8 +937,8 @@ export class ModuleService {
           rows: [
             {
               label: 'Hợp đồng / kỳ',
-              a: `${ic.contract} · ${period}`,
-              b: `${ic.contract} · ${period}`,
+              a: `${ic.contract}, ${period}`,
+              b: `${ic.contract}, ${period}`,
               result: m.sameReference && m.samePeriod ? 'Cùng tham chiếu' : 'Khác tham chiếu',
               tone: m.sameReference ? 'success' : 'warning',
             },
@@ -996,7 +999,7 @@ export class ModuleService {
     const date = requireDate(p.date, 'Ngày');
     const shift = requireText(p.shift, 'Ca làm việc', 40);
     const system = [p.system?.cash ?? '0', p.system?.transfer ?? '0', p.system?.platform ?? '0'].map((v, i) =>
-      requireNonNegative(v || '0', `Hệ thống · ${SHIFT_CHANNELS[i]}`),
+      requireNonNegative(v || '0', `Hệ thống ${SHIFT_CHANNELS[i]}`),
     );
     return this.core.command(call, async (tx, em) => {
       const ws0 = await this.core.requireWorkspace(tx, call, 'module.write');
@@ -1133,7 +1136,7 @@ export class ModuleService {
         actor(ws),
         'deal.stage',
         deal.code,
-        `${DEAL_STAGE[deal.stage]} → ${DEAL_STAGE[p.stage]}${p.done ? ' (hoàn tất)' : ''}`,
+        `từ ${DEAL_STAGE[deal.stage]} sang ${DEAL_STAGE[p.stage]}${p.done ? ' (hoàn tất)' : ''}`,
       );
       return { ok: true };
     });
@@ -1198,7 +1201,7 @@ export class ModuleService {
         actor(ws),
         'wbs.progress',
         `${proj.code} ${task.code}`,
-        `${task.progress}% → ${progress}%`,
+        `từ ${task.progress}% lên ${progress}%`,
       );
       return { ok: true };
     });
@@ -1347,7 +1350,7 @@ export class ModuleService {
         route,
         container,
         status: 'IN_TRANSIT',
-        events: [{ title: 'Đã tạo hồ sơ lô hàng', detail: `${route} · ${container}`, at: now, done: true }],
+        events: [{ title: 'Đã tạo hồ sơ lô hàng', detail: `${route}, ${container}`, at: now, done: true }],
         documents: [],
         freeTimeStart,
         freeDays,

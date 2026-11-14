@@ -41,8 +41,8 @@ export const PROVIDERS: ProviderInfo[] = [
     kind: 'BANK',
     name: 'Ngân hàng qua SePay',
     description:
-      'Giao dịch tiền vào / ra của các tài khoản ngân hàng đã liên kết với SePay (ACB, BIDV, MB, VPBank, Vietcombank…)',
-    howTo: 'my.sepay.vn → Cấu hình Công ty → API Access → + Thêm API, sao chép API Token.',
+      'Giao dịch tiền vào / ra của các tài khoản ngân hàng đã liên kết với SePay (ACB, BIDV, MB, VPBank, Vietcombank và các ngân hàng khác)',
+    howTo: 'Vào my.sepay.vn, chọn Cấu hình Công ty, API Access, + Thêm API rồi sao chép API Token.',
     docsUrl: 'https://developer.sepay.vn/vi/sepay-api/v2/giao-dich/danh-sach',
     fields: [
       {
@@ -61,7 +61,7 @@ export const PROVIDERS: ProviderInfo[] = [
     name: 'Bán hàng qua KiotViet',
     description: 'Hóa đơn bán hàng đã hoàn thành, kèm hình thức thanh toán (tiền mặt, thẻ, chuyển khoản)',
     howTo:
-      'KiotViet → Thiết lập cửa hàng → Thiết lập kết nối API → Tạo mã → Lưu; tên gian hàng nằm trong đường dẫn KiotViet.',
+      'Trên KiotViet, chọn Thiết lập cửa hàng, Thiết lập kết nối API, Tạo mã rồi Lưu; tên gian hàng nằm trong đường dẫn KiotViet.',
     docsUrl: 'https://www.kiotviet.vn/huong-dan-su-dung-kiotviet/retail-ket-noi-api/public-api/',
     fields: [
       {
@@ -82,7 +82,7 @@ export const PROVIDERS: ProviderInfo[] = [
     name: 'Máy POS iPOS (FABi)',
     description: 'Hóa đơn bán hàng nhà hàng / cafe từ iPOS',
     howTo:
-      'iPOS cấp quyền kết nối cho từng đối tác (gói iPOS DW – PARTNERS hoặc iPOS HUB API: token, brand_id, store_id) kèm tài liệu kỹ thuật. Khi có tài liệu, ARGOLET bật kết nối này.',
+      'iPOS cấp quyền kết nối cho từng đối tác (gói iPOS DW PARTNERS hoặc iPOS HUB API: token, brand_id, store_id) kèm tài liệu kỹ thuật. Khi có tài liệu, ARGOLET bật kết nối này.',
     docsUrl: 'https://ipos.vn/',
     fields: [],
     available: false,
@@ -179,7 +179,7 @@ function required(creds: ProviderCredentials, key: string, label: string): strin
   return v;
 }
 
-const mask = (account: string) => (account.length > 4 ? `…${account.slice(-4)}` : account);
+const mask = (account: string) => (account.length > 4 ? `đuôi ${account.slice(-4)}` : account);
 
 // ───────── SePay ─────────
 
@@ -283,7 +283,7 @@ async function kiotTest(deps: AppDeps, http: PartnerHttp, creds: ProviderCredent
   });
   if (!isObj(data) || !Array.isArray(data.data))
     throw new AppError('VALIDATION', 'Phản hồi KiotViet không đúng định dạng');
-  return `KiotViet xác nhận gian hàng "${creds.retailer}" · ${Number(data.total ?? data.data.length)} hóa đơn`;
+  return `KiotViet xác nhận gian hàng "${creds.retailer}", ${Number(data.total ?? data.data.length)} hóa đơn`;
 }
 
 async function kiotFetch(

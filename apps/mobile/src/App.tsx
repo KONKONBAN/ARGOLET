@@ -89,7 +89,7 @@ function ContextHeader({ onBell }: { onBell: () => void }) {
     >
       <Building2 size={20} color={C.muted} />
       <Text style={{ flex: 1, fontSize: 13, color: C.text, fontFamily: font }} numberOfLines={1}>
-        {legal} · {scope}
+        {legal}, {scope}
       </Text>
       <Pressable onPress={onBell} accessibilityLabel="Thông báo" hitSlop={10}>
         <Bell size={22} color={C.muted} />
@@ -365,7 +365,7 @@ export default function App() {
               <Button title="Thử lại" variant="primary" onPress={() => setAttempt((n) => n + 1)} />
             </View>
           ) : (
-            <Text style={[T.small, { marginTop: 16 }]}>Đang khởi động…</Text>
+            <Text style={[T.small, { marginTop: 16 }]}>Đang khởi động</Text>
           )}
         </View>
       ) : (

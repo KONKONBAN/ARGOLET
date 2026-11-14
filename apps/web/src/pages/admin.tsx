@@ -13,10 +13,10 @@ import {
   History,
   KeyRound,
   Lock,
+  MessageCircle,
   Network,
   Plug,
   ShieldCheck,
-  Sparkles,
   Smartphone,
   Store,
   Truck,
@@ -187,7 +187,7 @@ export function MembersPage() {
       >
         {created ? (
           <Alert tone="success" title={`Mã mời: ${created}`}>
-            Người được mời đăng ký bằng đúng email {form.email} rồi nhập mã này tại “Tôi có mã mời”. Lời mời
+            Người được mời đăng ký bằng đúng email {form.email} rồi nhập mã này tại "Tôi có mã mời". Lời mời
             hết hạn sau 7 ngày.
           </Alert>
         ) : (
@@ -298,7 +298,7 @@ function HkdTaxSettings({
             onChange={() => onChange({ ...value, method: m.k })}
           />
           <span>
-            {m.t} <span className="muted small">· {m.s}</span>
+            {m.t} <span className="muted small">({m.s})</span>
           </span>
         </label>
       ))}
@@ -432,7 +432,7 @@ function AiSettings({
               onChange={() => setChoice(o.k)}
             />
             <span>
-              {o.t} <span className="muted small">· {o.s}</span>
+              {o.t} <span className="muted small">({o.s})</span>
             </span>
           </label>
         ))}
@@ -454,7 +454,7 @@ function AiSettings({
           OpenAI: không lưu phản hồi (store: false). Nhà cung cấp chỉ nhận mã định danh ẩn danh của người hỏi.
         </li>
         <li>
-          Nhật ký ghi ai hỏi, lúc nào, nhà cung cấp nào và bao nhiêu thông tin được che — không ghi nội dung.
+          Nhật ký ghi ai hỏi, lúc nào, nhà cung cấp nào và bao nhiêu thông tin được che, không ghi nội dung.
         </li>
         <li>Giới hạn 20 câu hỏi mỗi 10 phút cho mỗi người.</li>
       </ul>
@@ -538,12 +538,12 @@ export function SettingsPage() {
       act: () => setPanel('privacy'),
     },
     {
-      icon: Sparkles,
+      icon: MessageCircle,
       title: 'Trợ lý AI (Claude / ChatGPT)',
       desc:
         d.ai.provider === 'off'
-          ? 'Đang tắt · dữ liệu không gửi ra ngoài'
-          : `Đang dùng ${d.ai.provider === 'claude' ? 'Claude' : 'ChatGPT'} · thông tin cá nhân được che`,
+          ? 'Đang tắt, dữ liệu không gửi ra ngoài'
+          : `Đang dùng ${d.ai.provider === 'claude' ? 'Claude' : 'ChatGPT'}, thông tin cá nhân được che`,
       act: () => setPanel('ai'),
     },
   ];
@@ -613,10 +613,10 @@ export function SettingsPage() {
           rows={[
             { label: 'Tên tổ chức', value: d.tenant.name },
             { label: 'Loại hình', value: d.tenant.orgType },
-            { label: 'Mã số thuế', value: d.tenant.taxCode ?? '—' },
+            { label: 'Mã số thuế', value: d.tenant.taxCode ?? 'Chưa có' },
             {
-              label: 'Tiền tệ · múi giờ',
-              value: `${d.tenant.settings.currency} · ${d.tenant.settings.timezone}`,
+              label: 'Tiền tệ và múi giờ',
+              value: `${d.tenant.settings.currency}, ${d.tenant.settings.timezone}`,
             },
             { label: 'Kỳ hiện tại', value: d.tenant.settings.currentPeriod },
             { label: 'Gói nghiệp vụ', value: d.tenant.settings.packages.join(', ') },
@@ -634,7 +634,7 @@ export function SettingsPage() {
           >
             <option value="TT133">Thông tư 133/2016 (doanh nghiệp nhỏ và vừa)</option>
             <option value="TT99">Thông tư 99/2025 (doanh nghiệp, thay Thông tư 200 từ 01/01/2026)</option>
-            <option value="HKD">Hộ kinh doanh · Thông tư 152/2025</option>
+            <option value="HKD">Hộ kinh doanh (Thông tư 152/2025)</option>
             {d.tenant.settings.accountingRegime === 'TT200' && (
               <option value="TT200" disabled>
                 Thông tư 200/2014 (hết hiệu lực từ 01/01/2026)
@@ -672,7 +672,7 @@ export function SettingsPage() {
             { key: 'n', header: 'Đơn vị', render: (r) => r.name, strong: true },
             { key: 'k', header: 'Loại', render: (r) => r.kindLabel },
             { key: 'c', header: 'Mã', render: (r) => r.code },
-            { key: 'p', header: 'Thuộc', render: (r) => r.parentName || '—' },
+            { key: 'p', header: 'Thuộc', render: (r) => r.parentName || 'Không' },
           ]}
         />
         {d.canManage && (
@@ -693,7 +693,7 @@ export function SettingsPage() {
                 label="Tên đơn vị"
                 value={entityForm.name}
                 onChange={(e) => setEntityForm({ ...entityForm, name: e.target.value })}
-                placeholder={entityForm.kind === 'SITE' ? 'Cửa hàng Nguyễn Trãi' : 'Công ty TNHH …'}
+                placeholder={entityForm.kind === 'SITE' ? 'Cửa hàng Nguyễn Trãi' : 'Công ty TNHH Minh An'}
               />
             </div>
             <div className="field">
@@ -742,7 +742,7 @@ export function SettingsPage() {
       <Modal open={panel === 'backup'} onClose={() => setPanel(null)} title="Sao lưu & khôi phục">
         <KeyValues
           rows={[
-            { label: 'Cơ sở dữ liệu', value: 'PostgreSQL · giao dịch SERIALIZABLE' },
+            { label: 'Cơ sở dữ liệu', value: 'PostgreSQL, giao dịch SERIALIZABLE' },
             { label: 'Bản gốc chứng từ', value: 'Lưu kèm SHA-256, không ghi đè' },
             { label: 'Bằng chứng', value: 'Merkle root neo trên mạng có cấp quyền' },
             { label: 'Quyền khôi phục', value: 'Quản trị tổ chức + phê duyệt' },
@@ -769,7 +769,7 @@ export function SettingsPage() {
 // ───────── Bảo mật tài khoản (02 · quản lý tài khoản và thiết bị) ─────────
 /** A readable device name from the browser's user agent ("Chrome · Windows"). */
 function deviceName(ua: string) {
-  if (!ua) return '—';
+  if (!ua) return 'Không rõ thiết bị';
   const browser = /Edg\//.test(ua)
     ? 'Edge'
     : /OPR\//.test(ua)
@@ -794,7 +794,7 @@ function deviceName(ua: string) {
           : /Linux/.test(ua)
             ? 'Linux'
             : '';
-  return os ? `${browser} · ${os}` : browser;
+  return os ? `${browser}, ${os}` : browser;
 }
 
 export function SecurityPage() {
@@ -860,7 +860,7 @@ export function SecurityPage() {
         </Card>
         <Card
           title="Xác thực nhiều lớp (TOTP)"
-          subtitle="Dùng Google Authenticator, Microsoft Authenticator…"
+          subtitle="Dùng Google Authenticator hoặc Microsoft Authenticator"
         >
           {me?.user.mfaEnabled ? (
             <>
@@ -958,7 +958,7 @@ export function SecurityPage() {
                 key: 'c',
                 header: 'Kênh',
                 render: (r) =>
-                  (r.channel === 'mobile' ? 'Ứng dụng di động' : 'Web') + (r.current ? ' · phiên này' : ''),
+                  (r.channel === 'mobile' ? 'Ứng dụng di động' : 'Web') + (r.current ? ', phiên này' : ''),
                 strong: true,
               },
               { key: 'u', header: 'Thiết bị', render: (r) => deviceName(r.userAgent) },
@@ -1046,7 +1046,7 @@ export function ModulesPage() {
       ],
     },
     {
-      code: 'G1 · Cửa hàng / hộ kinh doanh',
+      code: 'G1 Cửa hàng / hộ kinh doanh',
       items: [
         {
           to: '/daily-close',
@@ -1059,7 +1059,7 @@ export function ModulesPage() {
       ],
     },
     {
-      code: 'G2 · Kế toán / thương mại',
+      code: 'G2 Kế toán / thương mại',
       items: [
         { to: '/clients', icon: Handshake, t: 'Không gian khách hàng' },
         {
@@ -1070,7 +1070,7 @@ export function ModulesPage() {
       ],
     },
     {
-      code: 'G3 · Dự án / logistics',
+      code: 'G3 Dự án / logistics',
       items: [
         { to: '/projects', icon: FolderKanban, t: 'Dự án & công việc' },
         {
@@ -1083,7 +1083,7 @@ export function ModulesPage() {
       ],
     },
     {
-      code: 'G4 · Nhóm công ty',
+      code: 'G4 Nhóm công ty',
       items: [
         { to: '/group', icon: Network, t: 'Điều hành tập đoàn' },
         {

@@ -65,12 +65,12 @@ export function ApprovalPage() {
     }
   };
   const timeline = [
-    ...a.timeline.map((t) => ({ title: t.title, sub: `${t.by} · ${formatShortDateTime(t.at)}`, done: true })),
+    ...a.timeline.map((t) => ({ title: t.title, sub: `${t.by}, ${formatShortDateTime(t.at)}`, done: true })),
     ...(a.status === 'PENDING'
       ? [
           {
             title: 'Chờ phê duyệt',
-            sub: `${canDecide ? 'Bạn' : 'Người có quyền'} · Đến hạn ${a.dueDate === new Date().toISOString().slice(0, 10) ? 'hôm nay' : a.dueDate.split('-').reverse().join('/')}`,
+            sub: `${canDecide ? 'Bạn' : 'Người có quyền'}, đến hạn ${a.dueDate === new Date().toISOString().slice(0, 10) ? 'hôm nay' : a.dueDate.split('-').reverse().join('/')}`,
             done: false,
           },
         ]
@@ -200,7 +200,7 @@ export function ClosePage() {
       const r = await withStepUp(() =>
         close.mutate({ entityId: s.entityId, periodId: s.periodId, digest: s.draftDigest }),
       );
-      toast('success', `Đã chốt kỳ · ${r.closeId}`);
+      toast('success', `Đã chốt kỳ ${r.closeId}`);
       setConfirmOpen(false);
     } catch (e) {
       if (!(e instanceof ApiError && e.code === 'CANCELLED'))
@@ -239,7 +239,7 @@ export function ClosePage() {
           <div className="mt-16">
             {s.status === 'CLOSED' ? (
               <Chip tone="success" icon={<Lock size={12} />}>
-                Đã chốt ·{' '}
+                Đã chốt,{' '}
                 {s.snapshot?.evidenceStatus === 'ANCHORED' ? 'bằng chứng đã neo' : 'đang tạo bằng chứng'}
               </Chip>
             ) : s.blocking > 0 ? (
@@ -255,9 +255,9 @@ export function ClosePage() {
           </div>
           {s.snapshot && (
             <div className="mt-16">
-              <Alert tone="success" title={`Bộ chốt ${s.snapshot.closeId} · phiên bản ${s.snapshot.version}`}>
-                Dấu manifest {s.snapshot.digest.slice(0, 16)}… · doanh thu{' '}
-                {Number(s.snapshot.totals.revenue ?? 0).toLocaleString('vi-VN')} đ · chi phí{' '}
+              <Alert tone="success" title={`Bộ chốt ${s.snapshot.closeId}, phiên bản ${s.snapshot.version}`}>
+                Dấu manifest {s.snapshot.digest.slice(0, 16)}, doanh thu{' '}
+                {Number(s.snapshot.totals.revenue ?? 0).toLocaleString('vi-VN')} đ, chi phí{' '}
                 {Number(s.snapshot.totals.expense ?? 0).toLocaleString('vi-VN')} đ
               </Alert>
             </div>
@@ -337,7 +337,7 @@ export function DecisionPackPage() {
       <PageHeader
         eyebrow="Nền tảng"
         title="Bộ hồ sơ quyết định"
-        subtitle="Decision Pack · Số liệu và căn cứ theo đơn vị, kỳ và phiên bản."
+        subtitle="Decision Pack: số liệu và căn cứ theo đơn vị, kỳ và phiên bản"
         period={period}
       />
       <KpiRow

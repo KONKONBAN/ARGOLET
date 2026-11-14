@@ -121,7 +121,7 @@ export class CloseService {
       return {
         periodId,
         periodLabel: `Kỳ ${formatPeriod(periodId).replace('Tháng', 'tháng')}`,
-        scopeLabel: legal && legal.id !== entityId ? `${legal.shortName} · ${entityLabel}` : entityLabel,
+        scopeLabel: legal && legal.id !== entityId ? `${legal.shortName}, ${entityLabel}` : entityLabel,
         entityId,
         status: period.status,
         checklist: cl.items,
@@ -311,7 +311,7 @@ export class CloseService {
         periodId,
         scopeLabel: label,
         status: closed ? 'CLOSED' : 'DRAFT',
-        statusLabel: closed ? `Đã chốt · ${snapshots.length} bộ chốt` : 'Bản nháp · Chưa chốt',
+        statusLabel: closed ? `Đã chốt (${snapshots.length} bộ chốt)` : 'Bản nháp, chưa chốt',
         kpis: {
           revenue: revenue.toFixed(),
           expense: expense.toFixed(),
@@ -319,13 +319,13 @@ export class CloseService {
           revenueLabel: formatVnd(revenue),
           expenseLabel: formatVnd(expense),
           netLabel: formatSignedVnd(net),
-          netNote: `Thu ${compact(revenue)} · Chi ${compact(expense)}`,
+          netNote: `Thu ${compact(revenue)}, chi ${compact(expense)}`,
         },
         rows: [
-          { label: 'Doanh thu thuần', value: formatVnd(revenue), source: 'Chứng từ đã xác nhận · POS' },
-          { label: 'Chi phí', value: formatVnd(expense), source: 'Chứng từ chi · phí nền tảng' },
+          { label: 'Doanh thu thuần', value: formatVnd(revenue), source: 'Chứng từ đã xác nhận, POS' },
+          { label: 'Chi phí', value: formatVnd(expense), source: 'Chứng từ chi, phí nền tảng' },
           { label: 'Chứng từ đã soát', value: `${validated} / ${g.docs.length}`, source: 'Hồ sơ xác nhận' },
-          { label: 'Nhóm đối soát', value: `${confirmed} nhóm`, source: 'Đơn · tiền · phí' },
+          { label: 'Nhóm đối soát', value: `${confirmed} nhóm`, source: 'Đơn, tiền, phí' },
         ],
         conditions: [
           {
@@ -353,11 +353,11 @@ export class CloseService {
           tenantName: tenant.name,
           scope: label,
           rows: [
-            ['Doanh thu thuần', revenue.toFixed(), 'Chứng từ đã xác nhận · sau hoàn tiền, chiết khấu'],
-            ['Chi phí', expense.toFixed(), 'Chứng từ chi · phí nền tảng'],
-            ['Kết quả thu − chi', net.toFixed(), 'Tính tự động'],
+            ['Doanh thu thuần', revenue.toFixed(), 'Chứng từ đã xác nhận, sau hoàn tiền, chiết khấu'],
+            ['Chi phí', expense.toFixed(), 'Chứng từ chi, phí nền tảng'],
+            ['Chênh lệch thu chi', net.toFixed(), 'Tính tự động'],
             ['Chứng từ đã soát', `${validated}/${g.docs.length}`, 'Hồ sơ xác nhận'],
-            ['Nhóm đối soát đã xác nhận', String(confirmed), 'Đơn · tiền · phí'],
+            ['Nhóm đối soát đã xác nhận', String(confirmed), 'Đơn, tiền, phí'],
             ['Trạng thái', closed ? 'Đã chốt' : 'Bản nháp', label],
           ],
           now: this.core.deps.clock(),
@@ -386,8 +386,8 @@ function decisionPackXlsx(p: {
   const cells: (XCell | null)[][] = [
     [{ v: p.tenantName, s: 'unit' }],
     [],
-    [{ v: `BỘ HỒ SƠ QUYẾT ĐỊNH (DECISION PACK)${p.closed ? '' : ' · BẢN NHÁP'}`, s: 'title' }],
-    [{ v: `${month} · ${p.scope}`, s: 'subtitle' }],
+    [{ v: `BỘ HỒ SƠ QUYẾT ĐỊNH (DECISION PACK)${p.closed ? '' : ' (BẢN NHÁP)'}`, s: 'title' }],
+    [{ v: `${month}, ${p.scope}`, s: 'subtitle' }],
     [{ v: 'Đơn vị tính: đồng', s: 'unitNote' }],
     [
       { v: 'Nội dung', s: 'head' },

@@ -121,7 +121,7 @@ function ConnectionCard({ c, provider }: { c: Conn; provider: ProviderInfo | und
           <Icon size={18} aria-hidden /> {c.label}
         </span>
       }
-      subtitle={`Khóa ${c.secretHint} · kết nối bởi ${c.connectedByName}, ${formatShortDateTime(c.connectedAt)}`}
+      subtitle={`Khóa ${c.secretHint}, kết nối bởi ${c.connectedByName}, ${formatShortDateTime(c.connectedAt)}`}
       actions={<Chip tone={STATUS[c.status].tone}>{STATUS[c.status].label}</Chip>}
     >
       {c.lastError && c.status === 'ERROR' && (
@@ -133,7 +133,7 @@ function ConnectionCard({ c, provider }: { c: Conn; provider: ProviderInfo | und
       )}
       <p className="muted small" style={{ marginTop: 0 }}>
         {c.lastSyncAt
-          ? `Đồng bộ gần nhất ${formatShortDateTime(c.lastSyncAt)} · lần sau lấy tiếp từ điểm đã dừng`
+          ? `Đồng bộ gần nhất ${formatShortDateTime(c.lastSyncAt)}, lần sau lấy tiếp từ điểm đã dừng`
           : 'Chưa đồng bộ: lần đầu lấy dữ liệu từ đầu kỳ hiện tại'}
       </p>
       {active && (
@@ -197,7 +197,7 @@ function ConnectionCard({ c, provider }: { c: Conn; provider: ProviderInfo | und
                       {r.documentCode}
                     </button>
                   ) : (
-                    '—'
+                    'Chưa có'
                   ),
               },
               { key: 'msg', header: 'Ghi chú', render: (r) => <span className="small">{r.message}</span> },

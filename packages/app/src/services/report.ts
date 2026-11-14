@@ -34,7 +34,7 @@ export const COST_SHORT: Record<CostCategory, string> = {
   a: 'Nguyên vật liệu, hàng hóa, nhiên liệu',
   b: 'Tiền lương, tiền công, bảo hiểm',
   c: 'Khấu hao tài sản cố định',
-  d: 'Dịch vụ mua ngoài (điện, nước, thuê…)',
+  d: 'Dịch vụ mua ngoài (điện, nước, thuê mặt bằng)',
   dd: 'Lãi vay',
   e: 'Chi phí khác',
 };
@@ -140,7 +140,7 @@ export function computeMonths(
       const d = r.documentId ? docs.get(r.documentId) : undefined;
       let category: CostCategory | null = null;
       if (r.kind === 'EXPENSE') {
-        category = costCategory([r.counterparty, d?.title, r.description].filter(Boolean).join(' · '));
+        category = costCategory([r.counterparty, d?.title, r.description].filter(Boolean).join(', '));
         costs[category] = dec(D(costs[category]).plus(r.amount));
       }
       sources.push({ record: r, docCode: d?.code ?? r.code, category });
@@ -230,7 +230,7 @@ async function buildReport(tx: Tx, ws: WorkspaceState, tenant: TenantRow, p: Rep
   const report = {
     to,
     periods,
-    rangeLabel: `${formatPeriod(periods[0]!)} – ${formatPeriod(to)}`,
+    rangeLabel: `${formatPeriod(periods[0]!)} đến ${formatPeriod(to).toLowerCase()}`,
     location: await scopeLabel(tx, ws.tenantId, ws.entityId),
     basis: hkd
       ? 'Hộ kinh doanh: doanh thu và chi phí gồm thuế GTGT (không khấu trừ).'
@@ -259,7 +259,7 @@ async function buildReport(tx: Tx, ws: WorkspaceState, tenant: TenantRow, p: Rep
       resultLabel: formatVnd(current.result),
       marginLabel: D(current.netRevenue).gt(0)
         ? formatPercent(D(current.result).div(current.netRevenue), 1)
-        : '—',
+        : 'Chưa có',
     },
     costCaptions: COST_SHORT,
     appraisalHint: avg
@@ -270,7 +270,7 @@ async function buildReport(tx: Tx, ws: WorkspaceState, tenant: TenantRow, p: Rep
           note: `Kết quả bình quân ${formatVnd(avg)}/tháng của ${withSales.length} tháng có doanh thu, quy ra cả năm.`,
         }
       : null,
-    note: 'Chỉ gồm chứng từ đã xác nhận. Chi phí chưa có chứng từ (lương, khấu hao…) chưa được tính: kết quả là chênh lệch thu − chi theo chứng từ, không phải lợi nhuận kế toán.',
+    note: 'Chỉ gồm chứng từ đã xác nhận. Chi phí chưa có chứng từ (lương, khấu hao) chưa được tính: kết quả là chênh lệch giữa thu và chi theo chứng từ, không phải lợi nhuận kế toán.',
     sourceCount: sources.length,
   };
   return { report, sources };
@@ -306,7 +306,7 @@ export async function financeReportXlsx(
     [{ v: `Mã số thuế: ${tenant.taxCode ?? ''}`, s: 'unit' }],
     [],
     [{ v: 'BÁO CÁO KẾT QUẢ KINH DOANH THEO CHỨNG TỪ', s: 'title' }],
-    [{ v: `${r.rangeLabel} · ${r.location}`, s: 'subtitle' }],
+    [{ v: `${r.rangeLabel}, ${r.location}`, s: 'subtitle' }],
     [{ v: 'Đơn vị tính: đồng', s: 'unitNote' }],
     [
       { v: 'Chỉ tiêu', s: 'head' },
@@ -344,7 +344,7 @@ export async function financeReportXlsx(
   });
   for (const k of CATS) add(`   ${COST_SHORT[k]}`, (m) => m.costs[k]);
   add('   Phí nền tảng bán hàng', (m) => m.platformFees);
-  add('5. Kết quả thu − chi', (m) => m.result, {
+  add('5. Chênh lệch thu chi', (m) => m.result, {
     strong: true,
     formula: (c) => `${c}${net}-${c}${costRow}`,
   });
@@ -391,7 +391,7 @@ export async function financeReportXlsx(
         { v: `${x.date.slice(8, 10)}/${x.date.slice(5, 7)}/${x.date.slice(0, 4)}`, s: 'date' },
         { v: docCode, s: 'cellCenter' },
         { v: RECORD_KIND[x.kind], s: 'cell' },
-        { v: [x.counterparty, x.channel, x.description].filter(Boolean).join(' · '), s: 'cell' },
+        { v: [x.counterparty, x.channel, x.description].filter(Boolean).join(', '), s: 'cell' },
         cell(false, x.amount),
         cell(
           false,

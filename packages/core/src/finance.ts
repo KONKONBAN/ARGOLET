@@ -438,8 +438,8 @@ export function matchIntercompany(
     status:
       sameRef && samePeriod && diff.abs().lte(tolerance) ? ('MATCHED' as const) : ('DIFFERENCE' as const),
     eliminationDraft: {
-      debit: `Phải trả nội bộ · ${b.entityId}`,
-      credit: `Phải thu nội bộ · ${a.entityId}`,
+      debit: `Phải trả nội bộ ${b.entityId}`,
+      credit: `Phải thu nội bộ ${a.entityId}`,
       amount: dec(Decimal_min(D(a.amount), bConverted)),
     },
   };

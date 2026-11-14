@@ -168,7 +168,7 @@ export class ConnectionService {
     );
     const label = p.label?.trim()
       ? requireText(p.label, 'Tên kết nối', 80)
-      : `${info.name}${config.retailer ? ` · ${config.retailer}` : ''}`;
+      : `${info.name}${config.retailer ? `, ${config.retailer}` : ''}`;
     const conn = await this.core.command(call, async (tx, em, now) => {
       const w = await this.core.requireWorkspace(tx, call, 'settings.manage', { entityId });
       requireFound(await tx.get('entities', w.tenantId, entityId), 'cơ sở');
@@ -180,7 +180,7 @@ export class ConnectionService {
         status: 'ACTIVE',
         config,
         secretSealed: sealed,
-        secretHint: firstSecret.length > 8 ? `…${firstSecret.slice(-4)}` : '••••',
+        secretHint: firstSecret.length > 8 ? `đuôi ${firstSecret.slice(-4)}` : 'đã ẩn',
         cursor: null,
         entityId,
         connectedBy: w.user.id,
@@ -224,7 +224,7 @@ export class ConnectionService {
 
   private async credentials(conn: ConnectionRow): Promise<ProviderCredentials> {
     if (conn.status === 'DISCONNECTED' || !conn.secretSealed)
-      throw new AppError('CONFLICT', 'Kết nối đã ngắt — kết nối lại để tiếp tục');
+      throw new AppError('CONFLICT', 'Kết nối đã ngắt, kết nối lại để tiếp tục');
     if (!this.core.deps.secrets)
       throw new AppError('VALIDATION', 'Máy chủ chưa cấu hình khóa giải mã (ARGOLET_SECRET_KEY)');
     let secret: ProviderCredentials;
@@ -233,7 +233,7 @@ export class ConnectionService {
     } catch {
       throw new AppError(
         'VALIDATION',
-        'Không giải mã được khóa đã lưu — khóa máy chủ đã đổi? Hãy kết nối lại',
+        'Không giải mã được khóa đã lưu, khóa máy chủ đã đổi? Hãy kết nối lại',
       );
     }
     return { ...conn.config, ...secret };
@@ -326,7 +326,7 @@ export class ConnectionService {
         const name = `${conn.provider === 'SEPAY' ? 'sepay-giao-dich' : 'kiotviet-hoa-don'}-${stamp}.json`;
         const batch = await this.documents.intake(call, {
           entityId: conn.entityId,
-          location: `API · ${conn.label}`,
+          location: `API ${conn.label}`,
           files: [{ name, mime: 'application/json', text: JSON.stringify(snapshot) }],
         });
         const file = batch.files[0]!;

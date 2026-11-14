@@ -12,7 +12,7 @@ test('financial calculators give the textbook answers', async ({ page }, info) =
 
   // Vay 40 trđ, 10%/năm, 6 kỳ tháng, trả góp đều: PMT = 6.862.456 đ (Excel).
   await page.getByLabel('Số tiền vay').fill('40000000');
-  await page.getByLabel('Lãi suất · %/năm').fill('10');
+  await page.getByLabel('Lãi suất (%/năm)').fill('10');
   await page.getByLabel('Số kỳ trả nợ').fill('6');
   await expect(page.getByText('6.862.456 đ')).toBeVisible();
   await expect(page.getByLabel('Số tiền vay')).toHaveValue('40.000.000');
@@ -40,19 +40,19 @@ test('financial calculators give the textbook answers', async ({ page }, info) =
   // Lãi kép: 100 trđ, 10%/năm, 5 năm, ghép lãi năm → 161.051.000 đ; lãi đơn 150.000.000 đ.
   await page.getByRole('tab', { name: 'Lãi đơn & lãi kép' }).click();
   await page.getByLabel('Số tiền gốc').fill('100000000');
-  await page.getByLabel('Lãi suất · %/năm').fill('10');
-  await page.getByLabel('Thời gian · năm').fill('5');
+  await page.getByLabel('Lãi suất (%/năm)').fill('10');
+  await page.getByLabel('Thời gian (năm)').fill('5');
   await expect(page.getByText('161.051.000 đ')).toBeVisible();
   await expect(page.getByText('150.000.000 đ')).toBeVisible();
 
   // Chiết khấu thương phiếu (chương 3, ví dụ 5): AGIO 9.947.945 đ.
   await page.getByRole('tab', { name: 'Chiết khấu thương phiếu' }).click();
   await page.getByLabel('Mệnh giá thương phiếu').fill('300000000');
-  await page.getByLabel('Lãi suất chiết khấu · %/năm').fill('9,6');
+  await page.getByLabel('Lãi suất chiết khấu (%/năm)').fill('9,6');
   await page.getByLabel('Ngày chiết khấu').fill('2026-08-02');
   await page.getByLabel('Ngày đáo hạn').fill('2026-11-15');
-  await page.getByLabel('Hoa hồng ký hậu · %/năm').fill('1');
-  await page.getByLabel('Hoa hồng chung · %').fill('0,1');
+  await page.getByLabel('Hoa hồng ký hậu (%/năm)').fill('1');
+  await page.getByLabel('Hoa hồng chung (%)').fill('0,1');
   await page.getByLabel('Phí khác').fill('500000');
   await expect(page.getByText(/105 ngày/).first()).toBeVisible();
   await expect(page.getByText('9.947.945 đ').first()).toBeVisible();
@@ -60,7 +60,7 @@ test('financial calculators give the textbook answers', async ({ page }, info) =
 
   // Kỳ khoản trả dần 100 trđ trong 12 kỳ, 1%/kỳ: PMT = 8.884.879 đ (Excel PMT).
   await page.getByRole('tab', { name: 'Chuỗi tiền tệ' }).click();
-  await page.getByLabel('Lãi suất mỗi kỳ · %').fill('1');
+  await page.getByLabel('Lãi suất mỗi kỳ (%)').fill('1');
   await page.getByLabel('Số kỳ').fill('12');
   await page.getByLabel('Hoặc: số tiền hiện tại cần trả dần').fill('100000000');
   await expect(page.getByText('8.884.879 đ', { exact: true })).toBeVisible();
@@ -69,8 +69,8 @@ test('financial calculators give the textbook answers', async ({ page }, info) =
   await page.getByRole('tab', { name: 'Chi phí vốn WACC' }).click();
   await page.getByLabel('Vốn chủ sở hữu', { exact: true }).fill('3000000000');
   await page.getByLabel('Nợ vay').fill('1500000000');
-  await page.getByLabel('Chi phí vốn chủ sở hữu · %').fill('15');
-  await page.getByLabel('Lãi suất vay · %').fill('12');
+  await page.getByLabel('Chi phí vốn chủ sở hữu (%)').fill('15');
+  await page.getByLabel('Lãi suất vay (%)').fill('12');
   await expect(page.getByText('13,20%').first()).toBeVisible();
 
   // Khấu hao số dư giảm dần (TT45/2013, phụ lục 2): 20 – 12 – 7,2 – 5,4 – 5,4 trđ.

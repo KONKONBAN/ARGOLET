@@ -8,14 +8,16 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import {
   Bell,
   BookOpen,
+  BookOpenCheck,
   Building2,
+  Calculator,
   Camera,
   ChartColumn,
   CircleCheck,
   ClipboardCheck,
+  Files,
   FileSearch,
   FileText,
-  Files,
   FolderKanban,
   GitCompareArrows,
   Grid2x2,
@@ -23,6 +25,7 @@ import {
   Landmark,
   Lock,
   LogOut,
+  MessageCircle,
   Network,
   Package,
   Plug,
@@ -30,14 +33,11 @@ import {
   Send,
   Settings,
   ShieldCheck,
-  Sparkles,
   Store,
   Truck,
   Upload,
   Users,
   Zap,
-  Calculator,
-  BookOpenCheck,
 } from 'lucide-react-native';
 import { D, formatDate, formatSignedVnd, formatVnd, formatShortDateTime, readQrContent } from '@argolet/core';
 import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
@@ -68,6 +68,7 @@ import {
 import type { ScreenProps } from '../App';
 import { AuthenticityCard } from '../authenticity';
 import { shareFile } from '../share';
+import { DocumentScanner } from '../scanner';
 
 const toneOf = (s: string) =>
   s === 'VALIDATED' ? 'success' : s === 'NEEDS_REVIEW' || s === 'NEEDS_RECON' ? 'warning' : 'neutral';
@@ -149,7 +150,7 @@ export function OverviewScreen({ navigation }: { navigation: unknown }) {
   const o = q.data;
   return (
     <Screen>
-      <Title title="Tổng quan kinh doanh" subtitle={`${o.periodLabel} · VND`} />
+      <Title title="Tổng quan kinh doanh" subtitle={`${o.periodLabel}, VND`} />
       <Hero label="Dòng tiền thuần" value={o.netLabel} note={o.periodLabel}>
         <HeroSplit
           items={[
@@ -281,7 +282,7 @@ export function InboxScreen({ navigation }: { navigation: unknown }) {
     <Screen key={`inbox-${data.data.page}`}>
       <Title
         title="Việc cần xử lý"
-        subtitle={`${data.data.kpis.toApprove} cần duyệt · ${data.data.kpis.toSupplement} cần bổ sung · ${data.data.kpis.dueToday} đến hạn hôm nay`}
+        subtitle={`${data.data.kpis.toApprove} cần duyệt, ${data.data.kpis.toSupplement} cần bổ sung, ${data.data.kpis.dueToday} đến hạn hôm nay`}
       />
       <TextInput
         value={q}
@@ -321,7 +322,7 @@ export function InboxScreen({ navigation }: { navigation: unknown }) {
                 )
               }
               title={r.title}
-              subtitle={`${r.value} · ${r.sender} · ${r.dueLabel}`}
+              subtitle={`${r.value}, ${r.sender}, ${r.dueLabel}`}
               right={<Chip tone={r.tone}>{r.status}</Chip>}
               onPress={() => nav.navigate(to, params)}
             />
@@ -352,7 +353,7 @@ function DecidedApprovals({ onOpen }: { onOpen: (id: string) => void }) {
         <Row
           key={a.id}
           title={a.title}
-          subtitle={`${a.requesterName} · ${a.amountLabel}`}
+          subtitle={`${a.requesterName}, ${a.amountLabel}`}
           right={
             <Chip tone={a.status === 'APPROVED' ? 'success' : a.status === 'REJECTED' ? 'danger' : 'warning'}>
               {a.statusLabel}
@@ -389,7 +390,7 @@ export function DocumentsScreen({ navigation }: { navigation: unknown }) {
     >
       <Title
         title="Chứng từ"
-        subtitle={`${d.kpis.total} chứng từ · ${d.kpis.needsReview} cần kiểm tra · ${d.kpis.validated} đã xác nhận`}
+        subtitle={`${d.kpis.total} chứng từ, ${d.kpis.needsReview} cần kiểm tra, ${d.kpis.validated} đã xác nhận`}
       />
       <TextInput
         value={q}
@@ -437,7 +438,7 @@ export function DocumentsScreen({ navigation }: { navigation: unknown }) {
           <Row
             icon={<FileText size={18} color={C.action} />}
             title={r.label}
-            subtitle={`${r.amountLabel} · ${r.source} · ${r.dateLabel}`}
+            subtitle={`${r.amountLabel}, ${r.source}, ${r.dateLabel}`}
             right={<Chip tone={toneOf(r.status)}>{r.statusLabel}</Chip>}
             onPress={() => nav.navigate(r.status === 'VALIDATED' ? 'Evidence' : 'Review', { id: r.id })}
           />
@@ -469,12 +470,12 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
         { icon: Upload, label: 'Nhập dữ liệu', to: 'Ingestion' },
         { icon: Lock, label: 'Chốt kỳ dữ liệu', to: 'Close' },
         { icon: ClipboardCheck, label: 'Bộ hồ sơ quyết định', to: 'DecisionPack' },
-        { icon: Sparkles, label: 'Trợ lý ARGOLET', to: 'Assistant' },
+        { icon: MessageCircle, label: 'Trợ lý ARGOLET', to: 'Assistant' },
         { icon: Bell, label: 'Thông báo', to: 'Notifications' },
       ],
     },
     {
-      title: 'G1 · Vận hành',
+      title: 'G1 Vận hành',
       items: [
         { icon: Store, label: 'Chốt ca & chốt ngày', to: 'DailyClose' },
         { icon: Package, label: 'Kho & giá thành', to: 'Inventory' },
@@ -483,14 +484,14 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
       ],
     },
     {
-      title: 'G2 · Doanh nghiệp',
+      title: 'G2 Doanh nghiệp',
       items: [
         { icon: Handshake, label: 'Không gian khách hàng', to: 'Clients' },
         { icon: ChartColumn, label: 'Bán hàng & thu nợ', to: 'Sales' },
       ],
     },
     {
-      title: 'G3 · Dự án',
+      title: 'G3 Dự án',
       items: [
         { icon: FolderKanban, label: 'Dự án & công việc', to: 'Projects' },
         { icon: ChartColumn, label: 'Phân tích tài chính', to: 'Finance' },
@@ -503,7 +504,7 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
       ],
     },
     {
-      title: 'G4 · Tập đoàn',
+      title: 'G4 Tập đoàn',
       items: [
         { icon: Network, label: 'Điều hành tập đoàn', to: 'Group' },
         { icon: GitCompareArrows, label: 'Đối soát nội bộ', to: 'Intercompany' },
@@ -522,7 +523,7 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
   ];
   return (
     <Screen>
-      <Title title="Thêm" subtitle={`${ctx?.member.displayName ?? ''} · ${ctx?.member.title ?? ''}`} />
+      <Title title="Thêm" subtitle={`${ctx?.member.displayName ?? ''}, ${ctx?.member.title ?? ''}`} />
       <Card title="Cỡ chữ">
         <TextSizePicker />
         <Text style={[T.small, { marginTop: 8 }]}>
@@ -554,7 +555,7 @@ function photoNote(f: { base64: string; width?: number; height?: number }) {
   const kb = `${Math.max(1, Math.round((f.base64.length * 0.75) / 1024))} KB`;
   if (!f.width || !f.height) return kb;
   const ok = Math.max(f.width, f.height) >= 1000;
-  return `${kb} · ${f.width}×${f.height} · ${ok ? 'đủ nét để đọc' : 'ảnh nhỏ, nên chụp gần hơn'}`;
+  return `${kb}, ${((f.width * f.height) / 1e6).toFixed(1).replace('.', ',')} MP, ${ok ? 'đủ nét để đọc' : 'ảnh nhỏ, nên chụp gần hơn'}`;
 }
 
 /** Reads the QR code printed on a photographed invoice (native barcode scanner); null when none. */
@@ -569,12 +570,12 @@ async function readQr(uri: string): Promise<string | null> {
 
 /** What the QR says, in one line (the server checks it again with the CRC). */
 function qrNote(raw: string | null | undefined): string | null {
-  if (raw === undefined) return 'Đang tìm mã QR hóa đơn…';
+  if (raw === undefined) return 'Đang tìm mã QR hóa đơn';
   if (raw === null) return 'Không thấy mã QR hóa đơn';
   const c = readQrContent(raw);
   if (c.kind === 'INVOICE')
     return c.qr.crcOk && !c.qr.problems.length
-      ? `QR hóa đơn ✓ ${c.qr.symbol} · số ${c.qr.documentNo} · ${formatVnd(c.qr.total)} · MST ${c.qr.sellerTaxCode}`
+      ? `QR hóa đơn hợp lệ: ${c.qr.symbol}, số ${c.qr.documentNo}, ${formatVnd(c.qr.total)}, MST ${c.qr.sellerTaxCode}`
       : `Mã QR hóa đơn bị lỗi: ${c.qr.problems[0]}`;
   return c.kind === 'URL' ? `Mã QR là đường dẫn tra cứu (${c.host})` : 'Mã QR không chứa thông tin hóa đơn';
 }
@@ -601,6 +602,7 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
     setFiles((list) => list.map((f) => (f.uri === uri ? { ...f, qr } : f)));
   const intake = useMutation('documents.intake', { silent: true });
   const [result, setResult] = useState<Awaited<ReturnType<typeof intake.mutate>> | null>(null);
+  const [scanning, setScanning] = useState(false);
   const takePhoto = async (camera: boolean) => {
     const perm = camera
       ? await ImagePicker.requestCameraPermissionsAsync()
@@ -671,6 +673,12 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
       }
     >
       <Title title="Tiếp nhận chứng từ" subtitle="Chụp ảnh, tải tệp hoặc tiếp nhận theo lô." />
+      <DocumentScanner
+        visible={scanning}
+        onClose={() => setScanning(false)}
+        onLibrary={() => void takePhoto(false)}
+        onCapture={(page) => setFiles((f) => [...f, page])}
+      />
       <Card>
         <View
           style={{
@@ -685,10 +693,10 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
           <Text style={{ color: '#fff', marginTop: 10, fontFamily: font }}>Đặt chứng từ vào trong khung</Text>
         </View>
         <Button
-          title="Chụp & kiểm tra ảnh"
+          title="Chụp chứng từ"
           variant="primary"
           icon={<Camera size={18} color="#fff" />}
-          onPress={() => void takePhoto(true)}
+          onPress={() => setScanning(true)}
         />
         <Gap />
         <Button
@@ -739,19 +747,19 @@ export function CaptureScreen({ navigation }: ScreenProps<'Capture'>) {
           label="Mã lô / vị trí bản giấy"
           value={location}
           onChangeText={setLocation}
-          placeholder="LO-20261031 · Kệ A-02"
+          placeholder="LO-20261031, Kệ A-02"
         />
       </Card>
       {intake.error && <Notice tone="danger">{intake.error.message}</Notice>}
       {result && (
         <Card
           title={`Lô ${result.code}`}
-          subtitle={`${result.normalized} sẵn sàng · ${result.needsReview} cần kiểm tra · ${result.duplicates} trùng`}
+          subtitle={`${result.normalized} sẵn sàng, ${result.needsReview} cần kiểm tra, ${result.duplicates} trùng`}
         >
           {result.files.map((f, i) => (
             <Row
               key={i}
-              title={f.duplicate ? f.filename : `${f.code} · ${f.filename}`}
+              title={f.duplicate ? f.filename : `${f.code}, ${f.filename}`}
               subtitle={
                 f.duplicate
                   ? 'Trùng dấu vân tay'
@@ -835,13 +843,13 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
         <Text style={[T.body, T.strong]}>{d.title.toUpperCase()}</Text>
         <Text
           style={[T.small, { marginTop: 4 }]}
-        >{`${d.counterparty || '—'} · ${d.fields.documentNo || '—'}`}</Text>
+        >{`${d.counterparty || 'Chưa có'}, ${d.fields.documentNo || 'Chưa có'}`}</Text>
         <Text style={{ fontSize: 22, fontWeight: '700', color: C.brand, marginTop: 8, fontFamily: font }}>
           {formatVnd(d.amount || '0')}
         </Text>
         <Text
           style={[T.small, { marginTop: 6 }]}
-        >{`${d.sourceLabel} · ${doc.data.artifact?.filename ?? ''}`}</Text>
+        >{`${d.sourceLabel}, ${doc.data.artifact?.filename ?? ''}`}</Text>
       </Card>
       {doc.data.authenticity && <AuthenticityCard result={doc.data.authenticity} />}
       <Input
@@ -878,7 +886,7 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
         autoCapitalize="characters"
       />
       <Input
-        label="Ngày chứng từ · cần kiểm tra"
+        label="Ngày chứng từ (cần kiểm tra)"
         value={f.documentDate}
         onChangeText={(v) => setF({ ...f, documentDate: v })}
         editable={!ro}
@@ -901,7 +909,7 @@ export function ReviewScreen({ route, navigation }: ScreenProps<'Review'>) {
       {confirm.error && (
         <Notice tone="danger">
           {confirm.error.message}
-          {ack ? ' — chạm Xác nhận lần nữa để xác nhận cảnh báo.' : ''}
+          {ack ? ', chạm Xác nhận lần nữa để xác nhận cảnh báo.' : ''}
         </Notice>
       )}
       {d.status !== 'VALIDATED' && (
@@ -980,7 +988,7 @@ export function ReconcileScreen({ navigation }: ScreenProps<'Reconcile'>) {
       key={`recon-${d.page}`}
       footer={
         <Button
-          title="Ghép nhiều–nhiều"
+          title="Ghép nhiều với nhiều"
           variant="primary"
           disabled={!firstId}
           onPress={() => firstId && navigation.navigate('Match', { id: firstId })}
@@ -989,7 +997,7 @@ export function ReconcileScreen({ navigation }: ScreenProps<'Reconcile'>) {
     >
       <Title
         title="Đối soát đa nguồn"
-        subtitle={`${d.kpis.matched} đã khớp · ${d.kpis.toConfirm} cần xác nhận · ${d.kpis.discrepancies} chênh lệch`}
+        subtitle={`${d.kpis.matched} đã khớp, ${d.kpis.toConfirm} cần xác nhận, ${d.kpis.discrepancies} chênh lệch`}
       />
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14, alignItems: 'center' }}>
         {(
@@ -1039,7 +1047,7 @@ export function ReconcileScreen({ navigation }: ScreenProps<'Reconcile'>) {
           <Row
             icon={<GitCompareArrows size={18} color={C.action} />}
             title={r.label}
-            subtitle={`${r.statusLabel} · ${r.receivedLabel}`}
+            subtitle={`${r.statusLabel}, ${r.receivedLabel}`}
             right={<Chip tone={r.tone}>{r.source}</Chip>}
             onPress={() => navigation.navigate('ReconDetail', { id: r.id })}
           />
@@ -1111,13 +1119,13 @@ export function ReconDetailScreen({ route, navigation }: ScreenProps<'ReconDetai
     >
       <Text
         style={[T.small, { marginBottom: 8 }]}
-      >{`${g.code} · ${g.statusLabel} · ${formatDate(orders[0]?.date ?? receipts[0]?.date ?? new Date().toISOString())}`}</Text>
+      >{`${g.code}, ${g.statusLabel}, ${formatDate(orders[0]?.date ?? receipts[0]?.date ?? new Date().toISOString())}`}</Text>
       <Hero label="Tiền thực nhận" value={formatVnd(g.received)} />
       <Card title="Cấu thành khoản nhận">
         <KV
           rows={[
             { label: `${orders.length} đơn hàng`, value: formatVnd(g.gross) },
-            { label: `Phí nền tảng · ${g.feeRule.split(' · ')[0]}`, value: formatSignedVnd(D(g.fee).neg()) },
+            { label: `Phí nền tảng ${g.feeRule.split(', ')[0]}`, value: formatSignedVnd(D(g.fee).neg()) },
             { label: 'Hoàn tiền', value: formatVnd(g.refund) },
             { label: 'Chênh lệch còn lại', value: formatVnd(g.residual) },
           ]}
@@ -1130,7 +1138,7 @@ export function ReconDetailScreen({ route, navigation }: ScreenProps<'ReconDetai
         {g.links.map((l, i) => (
           <Row
             key={i}
-            title={`${orders.find((o) => o.id === l.orderId)?.code} → ${receipts.find((r) => r.id === l.txnId)?.code}`}
+            title={`${orders.find((o) => o.id === l.orderId)?.code} ghép với ${receipts.find((r) => r.id === l.txnId)?.code}`}
             right={<Text style={[T.body, T.strong]}>{formatVnd(l.amount)}</Text>}
           />
         ))}
@@ -1211,7 +1219,7 @@ export function MatchScreen({ route, navigation }: ScreenProps<'Match'>) {
           <Row
             key={r.id}
             title={r.code}
-            subtitle={`${r.dateLabel} · Mã ${r.reference}`}
+            subtitle={`${r.dateLabel}, mã ${r.reference}`}
             right={<Text style={[T.body, T.strong]}>{formatVnd(r.amount)}</Text>}
           />
         ))}
@@ -1275,7 +1283,7 @@ export function ApprovalScreen({ route, navigation }: ScreenProps<'Approval'>) {
       <Text style={{ fontSize: 30, fontWeight: '700', color: C.brand, marginTop: 14, fontFamily: font }}>
         {a.amountLabel}
       </Text>
-      <Text style={[T.muted, { marginTop: 6, marginBottom: 14 }]}>{`${a.title} · ${a.entityLabel}`}</Text>
+      <Text style={[T.muted, { marginTop: 6, marginBottom: 14 }]}>{`${a.title}, ${a.entityLabel}`}</Text>
       <Card>
         <KV rows={a.details.map((d) => ({ label: d.label, value: d.value }))} />
       </Card>
@@ -1283,7 +1291,7 @@ export function ApprovalScreen({ route, navigation }: ScreenProps<'Approval'>) {
         <Steps
           items={a.timeline.map((t) => ({
             title: t.title,
-            sub: `${t.by} · ${formatShortDateTime(t.at)}`,
+            sub: `${t.by}, ${formatShortDateTime(t.at)}`,
             done: true,
           }))}
         />
@@ -1369,10 +1377,10 @@ export function CloseScreen({ navigation }: ScreenProps<'Close'>) {
       </View>
       <Hero
         label={s.periodLabel}
-        value={s.scopeLabel.split(' · ').pop() ?? ''}
+        value={s.scopeLabel.split(', ').pop() ?? ''}
         note={
           s.status === 'CLOSED'
-            ? 'Đã chốt · bằng chứng đã neo'
+            ? 'Đã chốt, bằng chứng đã neo'
             : s.blocking
               ? `Cần hoàn tất ${s.blocking} việc trước khi chốt`
               : 'Đủ điều kiện chốt kỳ'
@@ -1410,12 +1418,12 @@ function ClosedPeriods() {
     try {
       const d = await backend.call('evidence.snapshot', { closeId });
       Alert.alert(
-        `Bộ chốt kỳ ${d.periodId} · v${d.version}`,
+        `Bộ chốt kỳ ${d.periodId}, v${d.version}`,
         [
-          `${d.members} bản ghi · ${d.approvals.length} phê duyệt`,
+          `${d.members} bản ghi, ${d.approvals.length} phê duyệt`,
 
           d.receipt
-            ? `Biên nhận ${d.receipt.batchCode} · khối ${d.receipt.blockNumber}`
+            ? `Biên nhận ${d.receipt.batchCode}, khối ${d.receipt.blockNumber}`
             : 'Đang tạo bằng chứng',
         ].join('\n'),
       );
@@ -1432,13 +1440,13 @@ function ClosedPeriods() {
           key={s.closeId}
           onPress={() => void showDetail(s.closeId)}
           icon={<CircleCheck size={18} color={s.evidenceStatus === 'ANCHORED' ? C.action : C.warning} />}
-          title={`Kỳ ${s.periodId} · phiên bản ${s.version}`}
+          title={`Kỳ ${s.periodId}, phiên bản ${s.version}`}
           subtitle={
             s.closeId in results
               ? results[s.closeId]
                 ? 'Toàn vẹn: khớp bằng chứng đã neo'
                 : 'Không khớp bằng chứng đã neo'
-              : `${formatShortDateTime(s.closedAt)} · ${s.evidenceStatus === 'ANCHORED' ? 'đã neo bằng chứng' : 'đang tạo bằng chứng'}`
+              : `${formatShortDateTime(s.closedAt)}, ${s.evidenceStatus === 'ANCHORED' ? 'đã neo bằng chứng' : 'đang tạo bằng chứng'}`
           }
           right={
             s.evidenceStatus === 'ANCHORED' ? (
@@ -1526,7 +1534,7 @@ export function EvidenceScreen({ route, navigation }: ScreenProps<'Evidence'>) {
         </Text>
         <Text
           style={[T.small, { marginTop: 4 }]}
-        >{`${e.document.code} · ${e.version?.label ?? 'Chưa có phiên bản'}`}</Text>
+        >{`${e.document.code}, ${e.version?.label ?? 'Chưa có phiên bản'}`}</Text>
       </Card>
       {e.version && (
         <Card>
@@ -1537,7 +1545,7 @@ export function EvidenceScreen({ route, navigation }: ScreenProps<'Evidence'>) {
         <Steps
           items={e.history.map((h) => ({
             title: h.title,
-            sub: `${formatShortDateTime(h.at)} · ${h.by}`,
+            sub: `${formatShortDateTime(h.at)}, ${h.by}`,
             done: true,
           }))}
         />
@@ -1595,7 +1603,7 @@ export function VerificationScreen({ route }: ScreenProps<'Verification'>) {
       {result && (
         <Card title="Chuỗi kiểm chứng">
           <Steps
-            items={result.steps.map((s) => ({ title: `${s.code} · ${s.label}`, sub: s.detail, done: s.ok }))}
+            items={result.steps.map((s) => ({ title: `${s.code} ${s.label}`, sub: s.detail, done: s.ok }))}
           />
           <Text style={T.small}>{result.statement}</Text>
         </Card>
@@ -1763,13 +1771,13 @@ export function NotificationsScreen({ navigation }: ScreenProps<'Notifications'>
     >
       <Text
         style={[T.muted, { marginBottom: 12 }]}
-      >{`${data.data.kpis.unread} chưa đọc · ${data.data.kpis.actionRequired} cần hành động · ${data.data.kpis.today} hôm nay`}</Text>
+      >{`${data.data.kpis.unread} chưa đọc, ${data.data.kpis.actionRequired} cần hành động, ${data.data.kpis.today} hôm nay`}</Text>
       {data.data.items.map((n) => (
         <Card key={n.id} style={{ paddingVertical: 4 }}>
           <Row
             icon={<Bell size={18} color={C.action} />}
             title={n.title}
-            subtitle={`${n.unit} · ${n.time} · ${n.ref}`}
+            subtitle={`${n.unit}, ${n.time}, ${n.ref}`}
             right={<Chip tone={n.status === 'READ' ? 'neutral' : 'success'}>{n.statusLabel}</Chip>}
             onPress={() => {
               if (n.status === 'UNREAD') void mark.mutate({ ids: [n.id] });
@@ -1810,7 +1818,7 @@ export function IngestionScreen({ navigation }: ScreenProps<'Ingestion'>) {
         <Hero
           label={b.needsReview ? 'Đã chuẩn hóa, sẵn sàng' : 'Đã chuẩn hóa toàn bộ'}
           value={`${b.normalized} tệp`}
-          note={`Lô ${b.code} · ${b.needsReview} cần rà soát · ${b.duplicates} trùng`}
+          note={`Lô ${b.code}, ${b.needsReview} cần rà soát, ${b.duplicates} trùng`}
         />
       )}
       <Card title="Nguồn dữ liệu được phép sử dụng">

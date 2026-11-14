@@ -167,7 +167,7 @@ export async function verifyEvidence(
     label: 'Đọc root đã ghi nhận',
     ok: committedRoot !== null && txValid,
     detail: committedRoot
-      ? `tx ${committed!.txId.slice(0, 16)}… · ${tx?.validationCode ?? 'VALID'}`
+      ? `tx ${committed!.txId.slice(0, 16)}, ${tx?.validationCode ?? 'VALID'}`
       : 'Không tìm thấy root trên sổ cái',
   });
   const computedLeaf = leafHash(commitmentBytes(input.manifest, input.salt));
@@ -175,7 +175,7 @@ export async function verifyEvidence(
     code: 'B5',
     label: 'Tính lại commitment',
     ok: true,
-    detail: `leaf ${computedLeaf.slice(0, 16)}…`,
+    detail: `leaf ${computedLeaf.slice(0, 16)}`,
   });
   const computedRoot = rootFromProof(computedLeaf, input.proof);
   const match = committedRoot !== null && computedRoot === committedRoot;
@@ -206,8 +206,8 @@ export async function verifyEvidence(
 function describePayload(p: SnapshotManifest | EvidencePayload): string {
   const r = p as Record<string, unknown>;
   if (typeof r.closeId === 'string')
-    return `Snapshot ${r.closeId} v${String(r.closeVersion)} · schema ${p.schemaVersion}`;
+    return `Snapshot ${r.closeId} v${String(r.closeVersion)}, schema ${p.schemaVersion}`;
   if (typeof r.documentCode === 'string')
-    return `Hồ sơ ${r.documentCode} v${String(r.version)} · schema ${p.schemaVersion}`;
+    return `Hồ sơ ${r.documentCode} v${String(r.version)}, schema ${p.schemaVersion}`;
   return `schema ${p.schemaVersion}`;
 }

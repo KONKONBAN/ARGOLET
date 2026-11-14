@@ -18,23 +18,31 @@ test('photograph a document with the in-app camera, check the photo and receive 
   const camera = page.getByRole('dialog', { name: 'Chụp chứng từ' });
   const shutter = camera.getByRole('button', { name: 'Chụp', exact: true });
   await expect(shutter).toBeEnabled({ timeout: 15_000 });
+  // Live guidance on the viewfinder: a well-lit, steady, sharp invoice is ready to be captured.
+  await expect(camera.getByRole('status')).toContainText('Ảnh đã rõ, bấm nút chụp', { timeout: 15_000 });
+  await expect(camera.getByRole('list', { name: 'Kiểm tra trực tiếp' }).locator('li.ok')).toHaveCount(3);
   await shutter.click();
-  const checks = camera.getByRole('list', { name: 'Kiểm tra ảnh' });
+  const sheet = camera.getByRole('region', { name: 'Kiểm tra ảnh vừa chụp' });
+  await expect(sheet).toContainText('Ảnh đạt yêu cầu');
+  const checks = sheet.getByRole('list', { name: 'Kiểm tra ảnh' });
   // Every check passes for a well-lit, sharp invoice (resolution as delivered by the camera).
-  await expect(checks).toContainText(/Độ phân giải \d+×\d+/);
+  await expect(checks).toContainText(/Độ phân giải \d+,\d MP/);
   await expect(checks).toContainText('Ánh sáng tốt');
   await expect(checks).toContainText('Ảnh rõ nét');
+  // The e-invoice QR is read right away, before the photo is even kept.
+  await expect(checks).toContainText('Đã đọc mã QR hóa đơn số 778, 1.320.000 đ');
   await expect(checks.locator('li.warn')).toHaveCount(0);
-  await camera.getByRole('button', { name: 'Dùng ảnh & chụp trang tiếp' }).click();
+  await sheet.getByRole('button', { name: 'Chụp trang tiếp' }).click();
   await expect(camera.getByText('Đã thêm 1 trang')).toBeVisible();
+  await expect(camera.getByRole('button', { name: 'Xong, 1 trang' })).toBeVisible();
   await shutter.click();
-  await camera.getByRole('button', { name: 'Dùng ảnh này' }).click();
+  await sheet.getByRole('button', { name: 'Dùng ảnh này' }).click();
   await expect(camera).toBeHidden();
   await expect(page.locator('.picked-file')).toHaveCount(2);
   await expect(page.locator('.picked-thumb')).toHaveCount(2);
   // The QR printed on the invoice is read from the camera picture itself.
   await expect(page.getByRole('list', { name: 'Mã QR hóa đơn' }).first()).toContainText(
-    'Mã QR hóa đơn: 1C26TSX · số 778 · 29/10/2026 · 1.320.000 đ · MST 0314222331',
+    'Mã QR hóa đơn: 1C26TSX, số 778, 29/10/2026, 1.320.000 đ, MST 0314222331',
   );
   await page.getByRole('button', { name: /Tiếp nhận 2 tệp/ }).click();
   await expect(page.getByText(/Đã tiếp nhận lô/)).toBeVisible();
@@ -56,7 +64,26 @@ test('without camera access the device photo picker is offered instead', async (
   await camera.getByRole('button', { name: 'Chọn ảnh từ thiết bị' }).click();
   await (await chooser).setFiles(path.join(fixtures, 'phieu-giao-hang-sua.jpg'));
   await expect(page.locator('.picked-file')).toHaveCount(1);
-  await expect(page.getByRole('list', { name: 'Kiểm tra ảnh' })).toContainText('Độ phân giải 600×800');
+  await expect(page.getByRole('list', { name: 'Kiểm tra ảnh' })).toContainText('Độ phân giải 0,5 MP');
+});
+
+test('automatic capture takes the picture once the document is steady and sharp', async ({ page }, info) => {
+  const w = watch(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.goto('/#/capture?camera=1');
+  const camera = page.getByRole('dialog', { name: 'Chụp chứng từ' });
+  await expect(camera.getByRole('button', { name: 'Chụp', exact: true })).toBeEnabled({ timeout: 15_000 });
+  await camera.getByRole('radio', { name: 'Tự động chụp' }).click();
+  // No tap on the shutter: the review sheet opens by itself.
+  const sheet = camera.getByRole('region', { name: 'Kiểm tra ảnh vừa chụp' });
+  await expect(sheet).toContainText('Ảnh đạt yêu cầu', { timeout: 15_000 });
+  const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(over).toBeLessThanOrEqual(0);
+  await sheet.getByRole('button', { name: 'Dùng ảnh này' }).click();
+  await expect(camera).toBeHidden();
+  await expect(page.locator('.picked-file')).toHaveCount(1);
+  await expectClean(w, info);
 });
 
 test('the e-invoice QR on a photo fills in the invoice and exposes an altered total', async ({
@@ -71,7 +98,7 @@ test('the e-invoice QR on a photo fills in the invoice and exposes an altered to
     .setInputFiles(path.join(fixtures, 'hoa-don-sua-xanh-0000777.jpg'));
   // Read in the browser and verified with its CRC before anything is sent.
   await expect(page.getByRole('list', { name: 'Mã QR hóa đơn' })).toContainText(
-    'Mã QR hóa đơn: 1C26TSX · số 777 · 29/10/2026 · 1.650.000 đ · MST 0314222331',
+    'Mã QR hóa đơn: 1C26TSX, số 777, 29/10/2026, 1.650.000 đ, MST 0314222331',
   );
   await page.getByRole('button', { name: /Tiếp nhận 1 tệp/ }).click();
   await expect(page.getByText(/Đã tiếp nhận lô/)).toBeVisible();

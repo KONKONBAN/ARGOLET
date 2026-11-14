@@ -92,7 +92,7 @@ export async function newCompanyScenario(
     await view();
   expect((await app.finance.appraisal(owner)).empty).toBe(true);
   const conv = await app.assistant.conversations(owner);
-  expect(conv.scopeLabel).toBe('Phạm vi: Tiệm bánh Thu Hà · Tháng 11');
+  expect(conv.scopeLabel).toBe('Phạm vi: Tiệm bánh Thu Hà, tháng 11');
   expect(JSON.stringify(conv.suggestions)).not.toMatch(/DS-1031|tháng 10/);
   expect((await app.modules.group(owner)).items.map((r) => r.name)).toEqual(['Tiệm bánh Thu Hà']);
 
@@ -293,7 +293,7 @@ export async function newCompanyScenario(
   });
   let assets = await app.modules.assets(owner);
   expect(assets.kpis.map((k) => k.value)).toEqual(['1 tài sản', '200 kWh', '1 lịch']);
-  expect(assets.title).toBe('Đo lường & kiểm chứng · Tiệm bánh Thu Hà');
+  expect(assets.title).toBe('Đo lường & kiểm chứng: Tiệm bánh Thu Hà');
   await app.modules.completeMaintenance(owner, { assetId: oven.id, nextDueDate: '2027-02-15' });
   assets = await app.modules.assets(owner);
   expect(assets.kpis[2]!.value).toBe('0 lịch');

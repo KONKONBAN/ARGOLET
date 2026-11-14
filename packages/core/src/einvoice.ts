@@ -249,7 +249,7 @@ export function parseEInvoiceXml(xml: string): ExtractedInvoice {
           .gt(D(1).plus(D(r.taxable).abs().div(1_000_000)))
       )
         inconsistencies.push(
-          `Thuế suất ${r.rate}: ${r.taxable} × ${r.rate} = ${dec(expected.toDecimalPlaces(0))}, hóa đơn ghi ${r.vat}`,
+          `Thuế suất ${r.rate}: tiền thuế đúng là ${dec(expected.toDecimalPlaces(0))}, hóa đơn ghi ${r.vat}`,
         );
     }
   }

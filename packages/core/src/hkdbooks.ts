@@ -208,7 +208,7 @@ function heading(b: Builder, h: HkdHeader, form: string, title: string, extra: s
 
 function signature(b: Builder, from: number, note: string) {
   b.push([]);
-  b.line('Ngày … tháng … năm …', 'signNote', from);
+  b.line('Ngày ..... tháng ..... năm .....', 'signNote', from);
   b.line(SIGN_TITLE, 'sign', from, b.width - 1, 34);
   b.line(note, 'signNote', from);
 }
@@ -384,7 +384,7 @@ function revenueByLine(h: HkdHeader, form: 'S2a-HKD' | 'S2b-HKD', groups: Busine
     ]);
   if (!vatKnown || (withPit && !pitKnown))
     b.line(
-      'Ghi chú: chưa khai báo tỷ lệ % tính thuế cho một số ngành nghề trong Cài đặt — ô thuế để trống để hộ kinh doanh điền theo tỷ lệ áp dụng.',
+      'Ghi chú: chưa khai báo tỷ lệ % tính thuế cho một số ngành nghề trong Cài đặt, ô thuế để trống để hộ kinh doanh điền theo tỷ lệ áp dụng.',
       'note',
     );
   signature(b, 2, form === 'S2a-HKD' ? '(Ký, ghi rõ họ tên, đóng dấu (nếu có))' : SIGN_NOTE);
@@ -452,7 +452,7 @@ export function sheetS2c(
   const r3 = b.trow([
     empty(),
     empty(),
-    { v: '3. Chênh lệch {(3) = (1) – (2)}', s: 'cellBold' },
+    { v: '3. Chênh lệch {(3) = (1) - (2)}', s: 'cellBold' },
     { v: num(dec(diff)), s: 'moneyBold', f: `${amt(r1)}-${amt(r2)}` },
   ]);
   const pit = pitRate
@@ -462,7 +462,7 @@ export function sheetS2c(
     empty(),
     empty(),
     {
-      v: `4. Tổng số thuế TNCN phải nộp {(4) = (3) x thuế suất}${pitRate ? ` · thuế suất ${pitRate}%` : ''}`,
+      v: `4. Tổng số thuế TNCN phải nộp {(4) = (3) x thuế suất}${pitRate ? `, thuế suất ${pitRate}%` : ''}`,
       s: 'cellBold',
     },
     pit === null
@@ -470,7 +470,7 @@ export function sheetS2c(
       : { v: pit, s: 'moneyBold', f: `ROUND(MAX(${amt(r3)},0)*${pitRate}/100,0)` },
   ]);
   if (pit === null)
-    b.line('Ghi chú: chưa khai báo thuế suất thuế TNCN trong Cài đặt — dòng (4) để trống.', 'note');
+    b.line('Ghi chú: chưa khai báo thuế suất thuế TNCN trong Cài đặt, dòng (4) để trống.', 'note');
   signature(b, 2, SIGN_NOTE);
   return b.sheet('S2c-HKD');
 }
@@ -558,7 +558,7 @@ export function sheetS2e(h: HkdHeader, accounts: MoneyAccount[]): XSheet {
   }
   if (!cash.length || accounts.some((a) => a.opening === undefined))
     b.line(
-      'Ghi chú: số dư đầu kỳ chưa có trong ARGOLET — điền vào ô "đầu kỳ", Excel tự tính số cuối kỳ.',
+      'Ghi chú: số dư đầu kỳ chưa có trong ARGOLET, điền vào ô "đầu kỳ", Excel tự tính số cuối kỳ.',
       'note',
     );
   signature(b, 3, SIGN_NOTE);

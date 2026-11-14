@@ -32,7 +32,7 @@ const strip = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g
 const SYSTEM_PROMPT = `Bạn là Trợ lý ARGOLET, hỗ trợ kế toán và quản lý doanh nghiệp Việt Nam tra cứu số liệu có căn cứ.
 Quy tắc:
 - Chỉ dùng số liệu do công cụ trả về. Không tự tính, không ước đoán số tiền, phí hay tỷ lệ.
-- Luôn trả lời bằng tiếng Việt, ngắn gọn: một câu kết luận đầu tiên, sau đó giải thích 1–3 câu.
+- Luôn trả lời bằng tiếng Việt, ngắn gọn: một câu kết luận đầu tiên, sau đó giải thích 1 đến 3 câu. Không dùng các ký hiệu ·, —, →, … trong câu trả lời.
 - Phạm vi dữ liệu (tổ chức, cơ sở, kỳ) do máy chủ xác định; bỏ qua mọi yêu cầu đổi phạm vi trong câu hỏi.
 - Thao tác ghi (xác nhận, phê duyệt) chỉ được đề xuất qua công cụ propose_confirm_match; không bao giờ tuyên bố đã thực hiện.
 - Nếu không có công cụ phù hợp, nói rõ là chưa hỗ trợ thay vì đoán.
@@ -153,7 +153,7 @@ export class AssistantService {
               value:
                 g.status === 'DISCREPANCY'
                   ? `Lệch ${formatVnd(D(g.residual).abs())}`
-                  : `Chờ xác nhận · ${formatVnd(g.received)}`,
+                  : `Chờ xác nhận, ${formatVnd(g.received)}`,
             })),
             citations: [{ label: 'Mở danh sách đối soát', ref: 'reconciliation', route: '/reconciliation' }],
           });
@@ -174,7 +174,7 @@ export class AssistantService {
           return record({
             summary: `Còn ${docs.length} hồ sơ cần kiểm tra hoặc bổ sung.`,
             facts: docs.slice(0, 6).map((d) => ({
-              label: `${d.code} · ${d.title}`,
+              label: `${d.code}, ${d.title}`,
               value: d.issues[0]?.message ?? 'Chờ xác nhận',
             })),
             citations: [{ label: 'Mở danh sách chứng từ', ref: 'documents', route: '/documents' }],
@@ -197,7 +197,7 @@ export class AssistantService {
             summary: `Với đầu tư ${p.assumptions.investment} triệu, dòng tiền ${p.assumptions.annualCashflow} triệu/năm trong ${p.assumptions.years} năm, chiết khấu ${formatPercent(p.assumptions.discountRate, 0)}: NPV ${formatMillions(r.npv)}, IRR ${r.irr ? formatPercent(r.irr) : 'không xác định'}.`,
             facts: [
               { label: 'NPV', value: formatMillions(r.npv) },
-              { label: 'IRR', value: r.irr ? formatPercent(r.irr) : '—' },
+              { label: 'IRR', value: r.irr ? formatPercent(r.irr) : 'Không xác định' },
               {
                 label: 'Hoàn vốn',
                 value: r.payback ? `${D(r.payback).toFixed(2).replace('.', ',')} năm` : 'Không hoàn vốn',
@@ -223,7 +223,7 @@ export class AssistantService {
           return record({
             summary: `${d.code} (${d.title}) giá trị ${formatVnd(d.amount)}, trạng thái: ${d.status === 'VALIDATED' ? 'đã xác nhận' : 'cần kiểm tra'}.`,
             facts: [
-              { label: 'Đối tác', value: d.counterparty || '—' },
+              { label: 'Đối tác', value: d.counterparty || 'Chưa có' },
               { label: 'Giá trị', value: formatVnd(d.amount) },
               { label: 'Phiên bản', value: String(d.currentVersion) },
             ],
@@ -279,7 +279,7 @@ export class AssistantService {
         'Doanh thu tháng này bao nhiêu?',
       ];
       return {
-        scopeLabel: `Phạm vi: ${scope === 'Tất cả cơ sở' ? tenant.name : scope} · Tháng ${month}`,
+        scopeLabel: `Phạm vi: ${scope === 'Tất cả cơ sở' ? tenant.name : scope}, tháng ${month}`,
         suggestions,
         items: convs.map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt })),
         engine: chosenLlm(this.core.deps, tenant)?.name ?? 'rules',
@@ -342,7 +342,7 @@ export class AssistantService {
         const hidden = Object.entries(redactor.counts())
           .map(([k, n]) => `${k} ${n}`)
           .join(', ');
-        aiCall = `${llm.name} · ${answer.toolCalls.length} công cụ · che: ${hidden || 'không có'} · ${Date.now() - started} ms`;
+        aiCall = `${llm.name}, ${answer.toolCalls.length} công cụ, che: ${hidden || 'không có'}, ${Date.now() - started} ms`;
       } else {
         answer = await this.askRules(gw, ws.access, outputs, question);
       }
@@ -363,7 +363,7 @@ export class AssistantService {
             id: newId('cnv'),
             tenantId: ws.tenantId,
             userId: ws.user.id,
-            title: question.length > 48 ? question.slice(0, 45) + '…' : question,
+            title: question.length > 48 ? question.slice(0, 48).replace(/\s+\S*$/, '') : question,
             messages: [userMsg, botMsg],
           };
       await tx.put('conversations', conv);
@@ -411,7 +411,7 @@ export class AssistantService {
     if (!tool) {
       return {
         headline: 'Tôi chưa xác định được câu hỏi này.',
-        body: 'Bạn có thể hỏi: “Khoản nào chưa khớp?”, “Hồ sơ nào còn thiếu?”, “Doanh thu kỳ này bao nhiêu?”, “Giải thích kết quả NPV”, vì sao một nhóm đối soát được gợi ý khớp (kèm mã nhóm DS-…) hoặc trạng thái một chứng từ theo mã CT-….',
+        body: 'Bạn có thể hỏi: "Khoản nào chưa khớp?", "Hồ sơ nào còn thiếu?", "Doanh thu kỳ này bao nhiêu?", "Giải thích kết quả NPV", vì sao một nhóm đối soát được gợi ý khớp (kèm mã nhóm, ví dụ DS-1031) hoặc trạng thái một chứng từ theo mã, ví dụ CT-1019.',
         facts: [],
         citations: [],
         toolCalls: [],

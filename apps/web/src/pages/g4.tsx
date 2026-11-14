@@ -43,7 +43,7 @@ export function GroupPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G4 · Tập đoàn"
+        eyebrow="G4 Tập đoàn"
         title="Điều hành tập đoàn"
         subtitle="Theo dõi pháp nhân và tiến độ gửi dữ liệu."
         period={period}
@@ -130,7 +130,7 @@ export function IntercompanyPage() {
   const canCreate = d.canWrite && d.entities.length >= 2;
   const header = (
     <PageHeader
-      eyebrow="G4 · Tập đoàn"
+      eyebrow="G4 Tập đoàn"
       title="Đối soát nội bộ"
       subtitle="Đối chiếu giao dịch giữa các pháp nhân."
       period={period}
@@ -345,7 +345,7 @@ export function IntercompanyPage() {
                   sideAAmount: amounts.a || '0',
                   sideBAmount: amounts.b || '0',
                 });
-                toast('success', r.matched ? 'Hai phía đã khớp' : 'Đã cập nhật · vẫn còn chênh lệch');
+                toast('success', r.matched ? 'Hai phía đã khớp' : 'Đã cập nhật, vẫn còn chênh lệch');
                 setAmounts(null);
               } catch {
                 /* inline */
@@ -359,12 +359,12 @@ export function IntercompanyPage() {
         {amounts && (
           <>
             <MoneyInput
-              label={`Phải thu · ${p.sideAName}`}
+              label={`Phải thu: ${p.sideAName}`}
               value={amounts.a}
               onChange={(v) => setAmounts({ ...amounts, a: v })}
             />
             <MoneyInput
-              label={`Phải trả · ${p.sideBName}`}
+              label={`Phải trả: ${p.sideBName}`}
               value={amounts.b}
               onChange={(v) => setAmounts({ ...amounts, b: v })}
             />

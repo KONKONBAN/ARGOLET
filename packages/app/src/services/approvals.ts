@@ -91,7 +91,7 @@ export class ApprovalService {
           id: d.id,
           kind: 'DOCUMENT' as const,
           title: `Bổ sung ${d.title.toLowerCase()}`,
-          sender: users.get(d.receivedBy) ?? '—',
+          sender: users.get(d.receivedBy) ?? 'Không rõ',
           due: addDays(d.receivedAt.slice(0, 10), 1),
           dueLabel: relativeDay(addDays(d.receivedAt.slice(0, 10), 1), today),
           value: formatVnd(d.amount),

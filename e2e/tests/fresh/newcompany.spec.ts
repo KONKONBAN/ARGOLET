@@ -94,7 +94,7 @@ test('a new company runs the whole product from an empty server', async ({ brows
     await page.getByRole('button', { name: /Tiếp nhận 4 tệp/ }).click();
     await toast(page, /Đã tiếp nhận lô/);
     await go(page, 'documents', 'Chứng từ');
-    await expect(page.locator('.pager-info')).toContainText('1–4 trên 4 chứng từ');
+    await expect(page.locator('.pager-info')).toContainText('1 đến 4 trên 4 chứng từ');
   });
 
   const confirmDoc = async (label: RegExp, fill?: () => Promise<void>) => {
@@ -147,7 +147,7 @@ test('a new company runs the whole product from an empty server', async ({ brows
     await toast(page, /Đã mở ca sáng/);
     await page.getByRole('button', { name: 'Gửi chốt ca' }).click();
     await dlg(page)
-      .getByLabel(/Tiền mặt · hệ thống/)
+      .getByLabel(/Tiền mặt, hệ thống/)
       .fill('1450000');
     await dlg(page)
       .getByLabel(/Ghi chú/)
@@ -280,10 +280,10 @@ test('a new company runs the whole product from an empty server', async ({ brows
     await go(page, 'finance', 'Phân tích tài chính');
     await page.getByRole('button', { name: 'Tạo dự án thẩm định' }).click();
     await dlg(page).getByLabel('Tên dự án').fill('Cửa hàng thứ hai');
-    await dlg(page).getByLabel('Đầu tư ban đầu · triệu đ').fill('300');
-    await dlg(page).getByLabel('Dòng tiền thuần / năm · triệu đ').fill('90');
-    await dlg(page).getByLabel('Suất chiết khấu · % / năm').fill('12');
-    await dlg(page).getByLabel('Trả nợ / năm · triệu đ').fill('60');
+    await dlg(page).getByLabel('Đầu tư ban đầu (triệu đ)').fill('300');
+    await dlg(page).getByLabel('Dòng tiền thuần / năm (triệu đ)').fill('90');
+    await dlg(page).getByLabel('Suất chiết khấu (% / năm)').fill('12');
+    await dlg(page).getByLabel('Trả nợ / năm (triệu đ)').fill('60');
     await dlg(page).getByRole('button', { name: 'Tạo và tính' }).click();
     await toast(page, /Đã tạo dự án TD-001/);
     await expect(page.getByText('1,50 lần').first()).toBeVisible();
@@ -299,7 +299,7 @@ test('a new company runs the whole product from an empty server', async ({ brows
   await test.step('logistics, subsidiary and intercompany matching', async () => {
     await go(page, 'logistics', 'Hồ sơ logistics');
     await page.getByRole('button', { name: 'Tạo lô hàng' }).first().click();
-    await dlg(page).getByLabel('Tuyến').fill('Cát Lái → Kho Thủ Đức');
+    await dlg(page).getByLabel('Tuyến').fill('Cát Lái đến Kho Thủ Đức');
     await dlg(page).getByLabel('Container / phương tiện').fill('1×20DC');
     await dlg(page).getByLabel('Bắt đầu tính miễn phí').fill('2026-11-05');
     await dlg(page).getByLabel('Số ngày miễn phí').fill('3');

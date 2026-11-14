@@ -31,7 +31,7 @@ const RANGES = [
 ];
 
 /** Thousands-separated đồng; a zero is shown as a dash so the figures that exist stand out. */
-const money = (v: string) => (D(v).isZero() ? '–' : formatNumber(D(v)));
+const money = (v: string) => formatNumber(D(v));
 const shortMonth = (label: string) => label.replace('Tháng ', 'T').replace(/\/20(\d\d)$/, '/$1');
 
 interface Line {
@@ -112,7 +112,7 @@ function MonthBars({ months }: { months: { label: string; revenue: string; costs
           <div
             className="mbars-col"
             key={m.label}
-            title={`${m.label}: doanh thu thuần ${formatVnd(m.revenue)} · chi phí ${formatVnd(m.costs)}`}
+            title={`${m.label}: doanh thu thuần ${formatVnd(m.revenue)}, chi phí ${formatVnd(m.costs)}`}
           >
             <div className="mbars-pair">
               <i className="in" style={{ height: `${h(m.revenue)}%` }} />
@@ -290,7 +290,7 @@ export function FinanceReportPage() {
     ...(D(t.platformFees).isZero()
       ? []
       : [{ key: 'fees', label: 'Phí nền tảng bán hàng', pick: (m: Figures) => m.platformFees, sub: true }]),
-    { key: 'result', label: '5. Kết quả thu − chi', pick: (m) => m.result, strong: true },
+    { key: 'result', label: '5. Chênh lệch thu chi', pick: (m) => m.result, strong: true },
     // VAT printed on confirmed e-invoices, when there is any in the range.
     ...(D(t.vatOut).isZero() && D(t.vatIn).isZero()
       ? []
@@ -354,7 +354,7 @@ export function FinanceReportPage() {
       <PageHeader
         eyebrow="Tài chính"
         title="Báo cáo tài chính"
-        subtitle={`Kết quả kinh doanh · ${r.location}`}
+        subtitle={`Kết quả kinh doanh, ${r.location}`}
         period={period}
         actions={
           <>
@@ -403,7 +403,7 @@ export function FinanceReportPage() {
             ),
           },
           {
-            label: 'Kết quả thu − chi',
+            label: 'Chênh lệch thu chi',
             value: r.current.resultLabel,
             note: `Biên lợi nhuận ${r.current.marginLabel}`,
             highlight: true,

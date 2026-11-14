@@ -69,7 +69,7 @@ describe('Vietnamese formatting', () => {
     expect(initials('Minh Anh')).toBe('MA');
     expect(initials('Trần Thanh Hà')).toBe('TH');
     expect(shortHash('0167ecbf31e793aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa237b3c1e1e3d5c')).toBe(
-      '0167ecbf31e793...237b3c1e1e3d5c',
+      '0167ecbf31e793 237b3c1e1e3d5c',
     );
   });
 });

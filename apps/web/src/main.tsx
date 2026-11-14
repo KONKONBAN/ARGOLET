@@ -38,7 +38,7 @@ function Boot() {
         <div style={{ textAlign: 'center' }}>
           <img src={logo} alt="ARGOLET" style={{ width: 180, margin: '0 auto 20px' }} />
           <span className="spinner dark" style={{ display: 'inline-block' }} />
-          <p className="muted small mt-8">Đang khởi động…</p>
+          <p className="muted small mt-8">Đang khởi động</p>
         </div>
       </div>
     );

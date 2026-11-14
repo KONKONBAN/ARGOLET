@@ -77,7 +77,7 @@ export function ReconPage() {
                     toast(
                       'info',
                       r.unmatchedOrders
-                        ? `Không có giao dịch mới để ghép · ${r.unmatchedOrders} đơn đang chờ tiền về`
+                        ? `Không có giao dịch mới để ghép, ${r.unmatchedOrders} đơn đang chờ tiền về`
                         : 'Không có giao dịch mới để ghép',
                     );
                 }}
@@ -91,7 +91,7 @@ export function ReconPage() {
               disabled={!d.firstOpenId}
               onClick={() => d.firstOpenId && navigate(`/match/${d.firstOpenId}`)}
             >
-              Ghép nhiều–nhiều
+              Ghép nhiều với nhiều
             </Button>
           </>
         }
@@ -197,7 +197,7 @@ export function ReconDetailPage() {
         period={period}
         actions={
           <Chip tone={g.status === 'CONFIRMED' ? 'success' : 'warning'}>
-            {g.code} · {g.statusLabel}
+            {g.code}, {g.statusLabel}
           </Chip>
         }
       />
@@ -248,7 +248,7 @@ export function ReconDetailPage() {
           {g.links.map((l, i) => (
             <div key={i} className="row-between small" style={{ padding: '6px 0' }}>
               <span>
-                {orders.find((o) => o.id === l.orderId)?.code} →{' '}
+                {orders.find((o) => o.id === l.orderId)?.code} ghép với{' '}
                 {receipts.find((r) => r.id === l.txnId)?.code}
               </span>
               <span className="num">{formatVnd(l.amount)}</span>
@@ -265,7 +265,7 @@ export function ReconDetailPage() {
               <span>
                 <div style={{ fontSize: 14 }}>{r.code}</div>
                 <div className="li-sub">
-                  {r.source} · {r.dateLabel}
+                  {r.source}, {r.dateLabel}
                 </div>
               </span>
               <span className="strong num">{formatVnd(r.amount)}</span>
@@ -427,7 +427,7 @@ export function MatchWorkspacePage() {
               <span>
                 <div className="strong">{r.code}</div>
                 <div className="li-sub">
-                  {r.dateLabel} · Mã {r.reference}
+                  {r.dateLabel}, mã {r.reference}
                 </div>
               </span>
               <span className="strong num">{formatVnd(r.amount)}</span>

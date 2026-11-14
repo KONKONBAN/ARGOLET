@@ -133,7 +133,7 @@ export class ReconService {
         items: pg.items.map((g) => ({
           id: g.id,
           code: g.code,
-          label: `${g.code} · ${g.orderIds.length} đơn hàng`,
+          label: `${g.code}, ${g.orderIds.length} đơn hàng`,
           source: g.sourceLabel,
           gross: g.gross,
           grossLabel: formatVnd(g.gross),
@@ -326,7 +326,7 @@ export class ReconService {
         allocations: g.allocations,
         explanation: g.explanation,
         basis: g.basis,
-        feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',')}% · ${result.rulesVersion}`,
+        feeRule: `${feePct.toDecimalPlaces(1).toFixed().replace('.', ',')}%, ${result.rulesVersion}`,
         inputSnapshotVersion: inputSnapshotDigest.slice(0, 16),
         rulesVersion: result.rulesVersion,
         confirmedBy: null,
@@ -468,7 +468,7 @@ export class ReconService {
         requesterName: ws.membership.displayName,
         entityLabel,
         details: [
-          { label: 'Nhóm giao dịch', value: `${g.code} · ${g.orderIds.length} đơn hàng` },
+          { label: 'Nhóm giao dịch', value: `${g.code}, ${g.orderIds.length} đơn hàng` },
           { label: 'Tổng đơn', value: formatVnd(g.gross) },
           { label: 'Phí & hoàn tiền', value: formatVnd(sum([g.fee, g.refund, g.discount])) },
           { label: 'Tiền thực nhận', value: formatVnd(g.received) },

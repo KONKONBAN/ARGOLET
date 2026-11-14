@@ -26,15 +26,15 @@ test('partner API connections: SePay connected, synced into a document, then up 
 
   await sepay.getByRole('button', { name: 'Kết nối' }).click();
   const dialog = page.getByRole('dialog', { name: 'Kết nối Ngân hàng qua SePay' });
-  await expect(dialog).toContainText('my.sepay.vn → Cấu hình Công ty → API Access');
+  await expect(dialog).toContainText('Vào my.sepay.vn, chọn Cấu hình Công ty, API Access');
   await dialog.getByLabel('API Token').fill('token-sai');
   await dialog.getByRole('button', { name: 'Kiểm tra & kết nối' }).click();
   await expect(dialog.getByText('SePay từ chối thông tin xác thực')).toBeVisible();
   await dialog.getByLabel('API Token').fill(TOKEN);
   await dialog.getByRole('button', { name: 'Kiểm tra & kết nối' }).click();
-  await expect(page.getByText('SePay xác nhận 1 tài khoản: VCB …5631').first()).toBeVisible();
+  await expect(page.getByText('SePay xác nhận 1 tài khoản: VCB đuôi 5631').first()).toBeVisible();
   await expect(dialog).toBeHidden();
-  const card = page.locator('.card').filter({ hasText: 'Khóa …AB12' });
+  const card = page.locator('.card').filter({ hasText: 'Khóa đuôi AB12' });
   await expect(card).toContainText('Đang hoạt động');
   await expect(page.locator('body')).not.toContainText(TOKEN);
 
@@ -46,7 +46,7 @@ test('partner API connections: SePay connected, synced into a document, then up 
   // The document created by the sync opens from the history.
   await card.locator('table tbody tr').filter({ hasText: 'Thành công' }).getByRole('button').first().click();
   await expect(page.locator('h1')).toHaveText('Kiểm tra chứng từ');
-  await expect(page.getByText('Giao dịch ngân hàng · SePay').first()).toBeVisible();
+  await expect(page.getByText('Giao dịch ngân hàng SePay').first()).toBeVisible();
   await go(page, 'connections', 'Kết nối API');
   await expectClean(w, info);
 });

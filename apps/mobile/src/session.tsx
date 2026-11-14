@@ -150,7 +150,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         </Text>
         <OtpInput value={code} onChange={setCode} />
         {step?.devCode ? (
-          <Notice tone="info">{`Môi trường thử nghiệm · mã xác thực: ${step.devCode}`}</Notice>
+          <Notice tone="info">{`Môi trường thử nghiệm, mã xác thực: ${step.devCode}`}</Notice>
         ) : null}
         {stepErr ? <Notice tone="danger">{stepErr}</Notice> : null}
         <Gap />

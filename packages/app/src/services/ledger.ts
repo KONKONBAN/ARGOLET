@@ -104,7 +104,7 @@ export function sourceEvents(
           kind: 'RECEIPT',
           amount: r.amount,
           via: r.kind === 'CASH' ? 'CASH' : 'BANK',
-          text: [r.description, r.reference, r.counterparty].filter(Boolean).join(' · '),
+          text: [r.description, r.reference, r.counterparty].filter(Boolean).join(', '),
         });
         break;
       case 'EXPENSE': {
@@ -116,7 +116,7 @@ export function sourceEvents(
           vat,
           text: [doc?.title, r.description, ...(doc?.lines.map((l) => l.description) ?? [])]
             .filter(Boolean)
-            .join(' · '),
+            .join(', '),
           // An invoice from a registered seller is paid later (331); a till receipt is paid in cash.
           onCredit: !!(doc?.fields.taxCode || doc?.fields.series || doc?.sourceKind === 'XML_EINVOICE'),
         });
@@ -136,7 +136,7 @@ export function sourceEvents(
         ref: row.code || d.code,
         party: row.counterparty,
         amount: D(row.amount).abs().toFixed(),
-        text: [row.description, row.reference, row.counterparty].filter(Boolean).join(' · '),
+        text: [row.description, row.reference, row.counterparty].filter(Boolean).join(', '),
         documentId: d.id,
       });
     }
@@ -390,7 +390,10 @@ export class LedgerService {
         from: b.from,
         to: b.to,
         months: b.range.length,
-        rangeLabel: b.from === b.to ? formatPeriod(b.to) : `${formatPeriod(b.from)} – ${formatPeriod(b.to)}`,
+        rangeLabel:
+          b.from === b.to
+            ? formatPeriod(b.to)
+            : `${formatPeriod(b.from)} đến ${formatPeriod(b.to).toLowerCase()}`,
         pipeline: {
           documents: b.documents,
           events: b.events,
@@ -484,9 +487,13 @@ export class LedgerService {
           total = total.plus(s);
         }
         if (!total.isZero())
-          throw new AppError('VALIDATION', `Số dư đầu kỳ chưa cân: chênh lệch Nợ − Có ${dec(total)} đ`, {
-            field: 'opening',
-          });
+          throw new AppError(
+            'VALIDATION',
+            `Số dư đầu kỳ chưa cân: chênh lệch giữa Nợ và Có ${dec(total)} đ`,
+            {
+              field: 'opening',
+            },
+          );
         next.opening = clean;
       }
       if (p.stockCounts !== undefined) {
@@ -562,7 +569,7 @@ async function recordBooksRun(tx: Tx, em: Emitter, ws: WorkspaceState, b: Books,
       sourceEvents: b.events,
       sourceDigest: b.sourceDigest,
     },
-    method: 'Kế toán kép · kết chuyển cuối tháng · kết quả kinh doanh · tình hình tài chính · chỉ số',
+    method: 'Kế toán kép, kết chuyển cuối tháng, kết quả kinh doanh, tình hình tài chính, chỉ số',
     result: {
       netRevenue: a.income.figures.netRevenue,
       profitBeforeTax: a.income.figures.profitBeforeTax,
@@ -603,7 +610,7 @@ export function booksWorkbook(b: Books, tenant: TenantRow, location: string, now
         [{ v: title, s: 'title' }],
         [
           {
-            v: `${b.from === b.to ? formatPeriod(b.to) : `${formatPeriod(b.from)} – ${formatPeriod(b.to)}`} · ${location}`,
+            v: `${b.from === b.to ? formatPeriod(b.to) : `${formatPeriod(b.from)} đến ${formatPeriod(b.to).toLowerCase()}`}, ${location}`,
             s: 'subtitle',
           },
         ],
@@ -729,7 +736,7 @@ export function booksWorkbook(b: Books, tenant: TenantRow, location: string, now
       c.rows.push([
         { v: `   ${x.label}`, s: 'cell' },
         x.value === null
-          ? { v: '—', s: 'cellCenter' }
+          ? { v: 'Không xác định', s: 'cellCenter' }
           : x.unit === 'PERCENT'
             ? {
                 v: `${D(x.value).times(100).toDecimalPlaces(2).toFixed(2).replace('.', ',')}%`,
@@ -744,7 +751,7 @@ export function booksWorkbook(b: Books, tenant: TenantRow, location: string, now
   const ratios: XSheet = { name: 'Chỉ số tài chính', cols: [52, 18], rows: c.rows, merges: c.merges };
 
   const bytes = buildXlsx([journal, trial, b02, b01, ratios], {
-    title: `Sổ kế toán và báo cáo tài chính ${b.from} – ${b.to}`,
+    title: `Sổ kế toán và báo cáo tài chính từ ${b.from} đến ${b.to}`,
     author: 'ARGOLET',
     created: now,
   });

@@ -28,7 +28,7 @@ function validateAssumptions(a: ProjectAssumptions): ProjectAssumptions {
     if (!/^-?\d+(\.\d+)?$/.test(s)) throw new AppError('VALIDATION', `${label} phải là số`, { field: label });
     const n = Number(s);
     if (n < min || n > max)
-      throw new AppError('VALIDATION', `${label} phải trong khoảng ${min}–${max}`, { field: label });
+      throw new AppError('VALIDATION', `${label} phải trong khoảng từ ${min} đến ${max}`, { field: label });
     return s;
   };
   return {
@@ -157,7 +157,7 @@ export class FinanceService {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
       const all = await this.list(tx, ws.tenantId);
       const proj = (p.projectId ? all.find((x) => x.id === p.projectId) : undefined) ?? all[0];
-      const projects = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.name}` }));
+      const projects = all.map((x) => ({ id: x.id, label: `${x.code}, ${x.name}` }));
       const canRun = this.core.can(ws, 'finance.run');
       if (!proj) return { empty: true as const, projects, canRun };
       return { empty: false as const, ...this.present(proj), projects, canRun };
@@ -271,7 +271,7 @@ export class FinanceService {
     return this.core.query(async (tx) => {
       const ws = await this.core.requireWorkspace(tx, call, 'workspace.read');
       const all = await this.list(tx, ws.tenantId);
-      const projects = all.map((x) => ({ id: x.id, label: `${x.code} · ${x.name}` }));
+      const projects = all.map((x) => ({ id: x.id, label: `${x.code}, ${x.name}` }));
       const found = (p.projectId ? all.find((x) => x.id === p.projectId) : undefined) ?? all[0];
       if (!found)
         return {
@@ -295,7 +295,7 @@ export class FinanceService {
           isBase: s === base,
           annualCashflowLabel: `${formatNumber(D(s.annualCashflow))} triệu đ`,
           npvLabel: formatMillions(s.npv).replace('−', '-').replace(' triệu', ' triệu đ'),
-          irrLabel: s.irr ? formatPercent(s.irr) : '—',
+          irrLabel: s.irr ? formatPercent(s.irr) : 'Không xác định',
           paybackLabel: years(s.payback),
           annualCashflow: s.annualCashflow,
         })),
@@ -307,7 +307,7 @@ export class FinanceService {
         empty: false as const,
         projects,
         projectId: proj.id,
-        projectName: `${proj.code} · ${proj.name}`,
+        projectName: `${proj.code}, ${proj.name}`,
         ratePct: formatNumber(D(proj.assumptions.discountRate).times(100)),
       };
     });

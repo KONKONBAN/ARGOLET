@@ -171,7 +171,7 @@ export class OrgService {
     if (taxCode && !taxCodeChecksumOk(taxCode))
       throw new AppError(
         'VALIDATION',
-        'Mã số thuế không hợp lệ (sai chữ số kiểm tra) — vui lòng kiểm tra lại',
+        'Mã số thuế không hợp lệ (sai chữ số kiểm tra), vui lòng kiểm tra lại',
         {
           field: 'taxCode',
         },
@@ -530,7 +530,7 @@ export class OrgService {
         if (p.accountingRegime === 'TT200')
           throw new AppError(
             'VALIDATION',
-            'Thông tư 200/2014 hết hiệu lực từ 01/01/2026 — chọn Thông tư 99/2025/TT-BTC',
+            'Thông tư 200/2014 hết hiệu lực từ 01/01/2026, chọn Thông tư 99/2025/TT-BTC',
           );
         if (!['TT133', 'TT99', 'HKD'].includes(p.accountingRegime))
           throw new AppError('VALIDATION', 'Chế độ kế toán không hợp lệ');
@@ -677,11 +677,11 @@ export function defaultIntegrations(
     connectedAt: null,
   });
   return [
-    mk('POS', 'Máy bán hàng / POS', 'Đơn hàng · doanh thu · chốt ca'),
-    mk('PLATFORM', 'Nền tảng giao đồ ăn', 'Đơn gộp · chiết khấu · phí'),
-    mk('BANK', 'Ngân hàng & QR', 'Sao kê · tiền về theo đợt'),
-    mk('EINVOICE', 'Hóa đơn điện tử', 'XML · email · bản thể hiện'),
-    mk('PAPER', 'Chứng từ giấy / ảnh', 'Phiếu giao · biên nhận'),
-    mk('EXCEL', 'Hợp đồng & Excel', 'Dự án · lô hàng · nội bộ'),
+    mk('POS', 'Máy bán hàng / POS', 'Đơn hàng, doanh thu, chốt ca'),
+    mk('PLATFORM', 'Nền tảng giao đồ ăn', 'Đơn gộp, chiết khấu, phí'),
+    mk('BANK', 'Ngân hàng & QR', 'Sao kê, tiền về theo đợt'),
+    mk('EINVOICE', 'Hóa đơn điện tử', 'XML, email, bản thể hiện'),
+    mk('PAPER', 'Chứng từ giấy / ảnh', 'Phiếu giao, biên nhận'),
+    mk('EXCEL', 'Hợp đồng & Excel', 'Dự án, lô hàng, nội bộ'),
   ];
 }

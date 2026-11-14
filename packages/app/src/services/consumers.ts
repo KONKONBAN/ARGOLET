@@ -60,7 +60,7 @@ export async function onMatchResolvedValidateDocuments(
       confirmedBy: actorId,
       confirmedByName: member?.displayName ?? 'Hệ thống',
       confirmedAt: event.occurredAt,
-      note: `Đối soát hoàn tất · ${group.code}`,
+      note: `Đối soát hoàn tất, ${group.code}`,
       fingerprint: saltedFingerprint(payload, salt),
       salt,
     });

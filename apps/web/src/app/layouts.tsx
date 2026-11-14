@@ -1,30 +1,31 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
+  ALargeSmall,
+  ArrowLeftRight,
   Bell,
   Building2,
   ChartColumn,
-  ChevronDown,
-  ALargeSmall,
   Check,
+  ChevronDown,
   CircleHelp,
+  Ellipsis,
   Files,
   FolderKanban,
   GitCompareArrows,
   Grid2x2,
   Inbox,
+  Info,
   LayoutGrid,
   LogOut,
   Menu,
-  Search,
+  MessageCircle,
   Plug,
+  Search,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   Store,
-  Ellipsis,
-  ArrowLeftRight,
   X,
 } from 'lucide-react';
 import logo from '../assets/logo.jpg';
@@ -185,7 +186,7 @@ export function AppShell() {
         </nav>
         <nav className="nav" style={{ marginTop: 26 }}>
           <NavLink to="/assistant" className={({ isActive: a }) => (a ? 'active' : '')}>
-            <Sparkles size={20} aria-hidden />
+            <MessageCircle size={20} aria-hidden />
             <span>Trợ lý ARGOLET</span>
             <span />
           </NavLink>
@@ -258,8 +259,8 @@ export function AppShell() {
       <div className="main">
         {backend.info.mode === 'device' && (
           <div className="demo-banner" role="note">
-            <Sparkles size={14} /> Bản trải nghiệm chạy trên trình duyệt · dữ liệu mẫu Minh An Commerce · thời
-            điểm mô phỏng 31/10/2026
+            <Info size={14} /> Bản trải nghiệm chạy trên trình duyệt, dữ liệu mẫu Minh An Commerce, thời điểm
+            mô phỏng 31/10/2026
           </div>
         )}
         <header className="topbar">
@@ -398,19 +399,19 @@ function GlobalSearch() {
               className="conv-item"
               onClick={() => go(d.status === 'VALIDATED' ? `/evidence/${d.id}` : `/documents/${d.id}/review`)}
             >
-              <Files size={14} style={{ verticalAlign: -2, marginRight: 8 }} /> {d.label} · {d.amountLabel}
+              <Files size={14} style={{ verticalAlign: -2, marginRight: 8 }} /> {d.label}, {d.amountLabel}
             </button>
           ))}
           {(groups.data?.items ?? []).slice(0, 5).map((g) => (
             <button key={g.id} className="conv-item" onClick={() => go(`/reconciliation/${g.id}`)}>
-              <GitCompareArrows size={14} style={{ verticalAlign: -2, marginRight: 8 }} /> {g.label} ·{' '}
+              <GitCompareArrows size={14} style={{ verticalAlign: -2, marginRight: 8 }} /> {g.label},{' '}
               {g.statusLabel}
             </button>
           ))}
           {docs.data && groups.data && docs.data.items.length === 0 && groups.data.items.length === 0 && (
             <div className="empty">Không tìm thấy kết quả</div>
           )}
-          {(docs.loading || groups.loading) && <div className="empty">Đang tìm…</div>}
+          {(docs.loading || groups.loading) && <div className="empty">Đang tìm</div>}
         </div>
       )}
     </div>

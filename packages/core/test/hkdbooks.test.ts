@@ -92,7 +92,7 @@ describe('accounting books on the Ministry of Finance forms (Thông tư 152/2025
     ])
       expect(t.some((v) => v.startsWith(prefix))).toBe(true);
     expect(amountOf(s, '2. Chi phí hợp lý')).toMatchObject({ v: 2750000 });
-    expect(amountOf(s, '3. Chênh lệch {(3) = (1) – (2)}')).toMatchObject({ v: 5820000 });
+    expect(amountOf(s, '3. Chênh lệch {(3) = (1) - (2)}')).toMatchObject({ v: 5820000 });
     const pitRow = s.rows.find((r) => r.some((c) => String(c?.v ?? '').startsWith('4. Tổng số thuế TNCN')))!;
     expect(pitRow.find((c) => typeof c?.v === 'number')).toMatchObject({ v: 873000 });
   });

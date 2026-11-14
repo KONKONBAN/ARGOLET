@@ -181,9 +181,9 @@ describe('connections to partner APIs', () => {
     expect(r.run).toMatchObject({
       trigger: 'TEST',
       status: 'SUCCESS',
-      message: 'SePay xác nhận 1 tài khoản: ACB …6789',
+      message: 'SePay xác nhận 1 tài khoản: ACB đuôi 6789',
     });
-    expect(r.connection.secretHint).toBe('…K7Q2');
+    expect(r.connection.secretHint).toBe('đuôi K7Q2');
     const listed = JSON.stringify(await app.connections.list(admin));
     expect(listed).not.toContain(TOKEN);
     const [row] = await store.read((tx) => tx.list('connections', DEMO_TENANT));
@@ -251,7 +251,7 @@ describe('connections to partner APIs', () => {
       provider: 'KIOTVIET',
       credentials: { retailer: 'tiembanh', clientId: 'cid', clientSecret: 'csecret' },
     });
-    expect(run.message).toBe('KiotViet xác nhận gian hàng "tiembanh" · 3 hóa đơn');
+    expect(run.message).toBe('KiotViet xác nhận gian hàng "tiembanh", 3 hóa đơn');
     expect(connection.config).toEqual({ retailer: 'tiembanh' });
     const first = await app.connections.sync(admin, { connectionId: connection.id });
     expect(first).toMatchObject({ status: 'SUCCESS', fetched: 3, imported: 2 });

@@ -262,7 +262,7 @@ export function postEvent(e: LedgerEvent, regime: Regime): JournalEntry {
       return journalEntry({
         ...base,
         kind: 'DOCUMENT',
-        description: `Doanh thu bán hàng · ${e.party || 'khách lẻ'}`,
+        description: `Doanh thu bán hàng, ${e.party || 'khách lẻ'}`,
         lines: [dr(e.cash ? '111' : '131', total), cr('511', e.net), cr('33311', e.vat)],
       });
     }
@@ -287,7 +287,7 @@ export function postEvent(e: LedgerEvent, regime: Regime): JournalEntry {
       return journalEntry({
         ...base,
         kind: 'BANK',
-        description: counter === '131' ? `Thu tiền · ${e.party || 'khách hàng'}` : `Thu tiền · ${e.text}`,
+        description: counter === '131' ? `Thu tiền, ${e.party || 'khách hàng'}` : `Thu tiền, ${e.text}`,
         lines: [dr(e.via === 'CASH' ? '111' : '112', e.amount), cr(counter, e.amount)],
       });
     }
@@ -301,7 +301,7 @@ export function postEvent(e: LedgerEvent, regime: Regime): JournalEntry {
       return journalEntry({
         ...base,
         kind: 'DOCUMENT',
-        description: `${c.group === 'INVENTORY' ? 'Mua' : 'Chi phí'} · ${e.party || e.text}`,
+        description: `${c.group === 'INVENTORY' ? 'Mua' : 'Chi phí'}, ${e.party || e.text}`,
         lines: [
           dr(c.account, e.net, tags),
           dr('1331', e.vat),
@@ -314,7 +314,7 @@ export function postEvent(e: LedgerEvent, regime: Regime): JournalEntry {
       return journalEntry({
         ...base,
         kind: 'BANK',
-        description: `Chi tiền · ${e.party || e.text}`,
+        description: `Chi tiền, ${e.party || e.text}`,
         lines: [dr(p.account, e.amount, p.tags), cr('112', e.amount)],
       });
     }

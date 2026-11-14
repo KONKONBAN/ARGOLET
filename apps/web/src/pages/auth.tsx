@@ -47,7 +47,7 @@ export function LoginPage() {
       <p className="auth-sub">Đăng nhập vào không gian làm việc của bạn.</p>
       {demo && (
         <div className="demo-box mb-16">
-          <b>Bản trải nghiệm:</b> đã điền sẵn tài khoản {demo.email} · mật khẩu <b>{demo.password}</b>. Bấm{' '}
+          <b>Bản trải nghiệm:</b> đã điền sẵn tài khoản {demo.email}, mật khẩu <b>{demo.password}</b>. Bấm{' '}
           <b>Đăng nhập</b> để vào.
         </div>
       )}
@@ -284,7 +284,7 @@ export function VerifyPage() {
       </p>
       {devCode && (
         <div className="demo-box">
-          Môi trường thử nghiệm chưa gửi email thật · mã xác minh: <b>{devCode}</b>
+          Môi trường thử nghiệm chưa gửi email thật, mã xác minh: <b>{devCode}</b>
         </div>
       )}
     </AuthLayout>
@@ -376,7 +376,7 @@ export function ResetPage() {
           </div>
           {devCode && (
             <div className="demo-box">
-              Môi trường thử nghiệm · mã đặt lại: <b>{devCode}</b>
+              Môi trường thử nghiệm, mã đặt lại: <b>{devCode}</b>
             </div>
           )}
         </form>
@@ -401,7 +401,7 @@ export function WorkspacesPage() {
     <AuthLayout>
       <h1 className="auth-title">Chọn không gian làm việc</h1>
       <p className="auth-sub">Mỗi tổ chức có dữ liệu và quyền truy cập riêng.</p>
-      {list.loading && <p className="muted">Đang tải…</p>}
+      {list.loading && <p className="muted">Đang tải</p>}
       {list.data?.length === 0 && (
         <Alert tone="info">Bạn chưa thuộc tổ chức nào. Tạo tổ chức mới hoặc nhập mã mời.</Alert>
       )}
@@ -425,7 +425,7 @@ export function WorkspacesPage() {
           <span>
             <div className="choice-title">{w.name}</div>
             <div className="choice-sub">
-              {w.roleLabel} · {w.scopeLabel}
+              {w.roleLabel}, {w.scopeLabel}
             </div>
           </span>
           {busy === w.tenantId ? (

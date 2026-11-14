@@ -83,7 +83,7 @@ export function DailyClosePage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G1 · Vận hành"
+        eyebrow="G1 Vận hành"
         title="Chốt ca & chốt ngày"
         subtitle="Tổng hợp tiền bán hàng tại từng cơ sở."
         period={period}
@@ -213,7 +213,7 @@ export function DailyClosePage() {
         {shift?.lines.map((l) => (
           <MoneyInput
             key={l.channel}
-            label={`${l.channel} · hệ thống ${l.systemLabel}`}
+            label={`${l.channel}, hệ thống ${l.systemLabel}`}
             value={counted[l.channel] ?? ''}
             onChange={(v) => setCounted({ ...counted, [l.channel]: v })}
           />
@@ -347,7 +347,7 @@ export function InventoryPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G1 · Vận hành"
+        eyebrow="G1 Vận hành"
         title="Kho & giá thành"
         subtitle="Theo dõi nguyên liệu, công thức và hao hụt."
         period={period}
@@ -376,7 +376,7 @@ export function InventoryPage() {
       <ModuleTabs tabs={G1_TABS} current="/inventory" />
       <KpiRow items={d.kpis} />
       <Card
-        title="Kho nguyên liệu · Định mức và hao hụt"
+        title="Kho nguyên liệu: định mức và hao hụt"
         actions={
           <div className="row wrap card-actions">
             {d.recipes.length > 1 && (
@@ -454,7 +454,7 @@ export function InventoryPage() {
       <Modal
         open={recipeOpen}
         onClose={() => setRecipeOpen(false)}
-        title={`Công thức · ${d.recipe?.name ?? ''}`}
+        title={`Công thức ${d.recipe?.name ?? ''}`}
         width={560}
       >
         {d.recipe && (
@@ -680,7 +680,7 @@ export function InventoryPage() {
       <Modal
         open={!!counting}
         onClose={() => setCounting(null)}
-        title={`Kiểm kê · ${counting?.name ?? ''}`}
+        title={`Kiểm kê ${counting?.name ?? ''}`}
         footer={
           <Button
             variant="primary"
@@ -733,7 +733,7 @@ export function PurchasingPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G1 · Vận hành"
+        eyebrow="G1 Vận hành"
         title="Mua hàng & công nợ"
         subtitle="Theo dõi mua vào, hạn trả và chứng từ đi kèm."
         period={period}
@@ -838,7 +838,7 @@ export function BooksPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G1 · Vận hành"
+        eyebrow="G1 Vận hành"
         title="Sổ sách & thuế"
         subtitle="Số liệu và hồ sơ thuế theo kỳ."
         period={period}
@@ -880,7 +880,7 @@ export function BooksPage() {
             try {
               const f = await backend.call('modules.exportBooks', {});
               downloadBase64(f.filename, f.contentBase64, f.mime);
-              toast('success', `Đã xuất ${f.filename} · ${f.forms.join(', ')}`);
+              toast('success', `Đã xuất ${f.filename}, ${f.forms.join(', ')}`);
             } catch (e) {
               toast('error', e instanceof Error ? e.message : 'Không xuất được sổ');
             } finally {

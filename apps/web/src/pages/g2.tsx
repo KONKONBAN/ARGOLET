@@ -55,7 +55,7 @@ export function ClientsPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G2 · Doanh nghiệp"
+        eyebrow="G2 Doanh nghiệp"
         title="Không gian khách hàng"
         subtitle="Quản lý hồ sơ theo từng phạm vi ủy quyền."
         period={period}
@@ -190,7 +190,7 @@ export function SalesPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G2 · Doanh nghiệp"
+        eyebrow="G2 Doanh nghiệp"
         title="Bán hàng & thu nợ"
         subtitle="Nối cơ hội, hợp đồng, giao nhận và thu tiền."
         period={period}

@@ -50,7 +50,7 @@ export function AuthenticityPanel({ result }: { result: AuthenticityResult }) {
             )}
             <span>
               <span className="strong">{c.label}</span>
-              <span className="muted small"> — {c.detail}</span>
+              <span className="muted small">: {c.detail}</span>
             </span>
           </li>
         ))}
@@ -63,7 +63,7 @@ export function AuthenticityPanel({ result }: { result: AuthenticityResult }) {
               <li key={c.code} className="na" data-check={c.code}>
                 <CircleMinus size={16} aria-label="Không áp dụng" />
                 <span className="muted">
-                  {c.label} — {c.detail}
+                  {c.label}: {c.detail}
                 </span>
               </li>
             ))}

@@ -111,7 +111,7 @@ describe('partner snapshots', () => {
         customer: 'Khách lẻ',
         branch: 'Chi nhánh trung tâm',
         channel: '',
-        payments: 'Tiền mặt 200.000 · Chuyển khoản 150.000',
+        payments: 'Tiền mặt 200.000, Chuyển khoản 150.000',
       },
     ]);
   });

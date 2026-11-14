@@ -23,22 +23,27 @@ const FLAT_CONTRAST = 10;
 const FLAT_DETAIL = 100;
 const BLURRY = 25;
 
-/**
- * Checks a photo of a document before it is sent: enough pixels to read the text, not too dark
- * or washed out, not blurred. Runs entirely in the browser on a downscaled copy.
- */
-export async function analyzePhoto(blob: Blob): Promise<PhotoQuality> {
-  const bitmap = await createImageBitmap(blob);
-  const { width, height } = bitmap;
+/** Light and detail measured on a downscaled grey copy of an image or a live camera frame. */
+export interface FrameStats {
+  brightness: number;
+  contrast: number;
+  sharpness: number;
+  /** The grey pixels (for comparing two frames: is the phone held still?). */
+  grey: Float32Array;
+}
+
+let scratch: HTMLCanvasElement | null = null;
+
+/** Measures a picture or the current video frame, scaled so its long side is at most 480 px. */
+export function measureFrame(source: CanvasImageSource, width: number, height: number): FrameStats {
   const scale = Math.min(1, 480 / Math.max(width, height));
   const w = Math.max(1, Math.round(width * scale));
   const h = Math.max(1, Math.round(height * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  bitmap.close?.();
+  scratch ??= document.createElement('canvas');
+  scratch.width = w;
+  scratch.height = h;
+  const ctx = scratch.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(source, 0, 0, w, h);
   const { data } = ctx.getImageData(0, 0, w, h);
   const grey = new Float32Array(w * h);
   let sum = 0;
@@ -63,12 +68,45 @@ export async function analyzePhoto(blob: Blob): Promise<PhotoQuality> {
       n++;
     }
   const sharpness = n ? lapSq / n - (lapSum / n) ** 2 : 0;
+  return { brightness, contrast, sharpness, grey };
+}
+
+/** Mean difference between two frames (0 = identical): high while the phone is moving. */
+export function frameMotion(a: Float32Array, b: Float32Array): number {
+  if (a.length !== b.length || !a.length) return 255;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d += Math.abs(a[i]! - b[i]!);
+  return d / a.length;
+}
+
+export type LiveState = 'dark' | 'glare' | 'blurry' | 'moving' | 'ready';
+
+/** What the live camera frame needs before it can be captured. */
+export function liveState(s: FrameStats, motion: number): LiveState {
+  if (s.brightness < DARK) return 'dark';
+  if (s.contrast < FLAT_CONTRAST && s.sharpness < FLAT_DETAIL) return 'glare';
+  if (motion > 6) return 'moving';
+  if (s.sharpness < BLURRY) return 'blurry';
+  return 'ready';
+}
+
+export const MIN_PHOTO_SIDE = MIN_LONG_SIDE;
+
+/**
+ * Checks a photo of a document before it is sent: enough pixels to read the text, not too dark
+ * or washed out, not blurred. Runs entirely in the browser on a downscaled copy.
+ */
+export async function analyzePhoto(blob: Blob): Promise<PhotoQuality> {
+  const bitmap = await createImageBitmap(blob);
+  const { width, height } = bitmap;
+  const { brightness, contrast, sharpness } = measureFrame(bitmap, width, height);
+  bitmap.close?.();
   const washedOut = contrast < FLAT_CONTRAST && sharpness < FLAT_DETAIL;
   const checks = [
     {
-      label: `Độ phân giải ${width}×${height}`,
+      label: `Độ phân giải ${((width * height) / 1e6).toFixed(1).replace('.', ',')} MP`,
       ok: Math.max(width, height) >= MIN_LONG_SIDE,
-      hint: 'Ảnh nhỏ, chữ có thể không đọc được — đưa máy gần hơn hoặc dùng camera sau.',
+      hint: 'Ảnh nhỏ, chữ có thể không đọc được, đưa máy gần hơn hoặc dùng camera sau.',
     },
     {
       // White paper is bright by nature: judge light by darkness, and glare by a flat image.
@@ -96,7 +134,7 @@ export function QualityList({ q }: { q: PhotoQuality }) {
           {c.ok ? <CircleCheck size={16} aria-hidden /> : <CircleAlert size={16} aria-hidden />}
           <span>
             {c.label}
-            {!c.ok && c.hint && <span className="muted small"> — {c.hint}</span>}
+            {!c.ok && c.hint && <span className="muted small">: {c.hint}</span>}
           </span>
         </li>
       ))}

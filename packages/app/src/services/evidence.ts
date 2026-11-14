@@ -252,13 +252,13 @@ export class EvidenceService {
               { label: 'Mã lô bằng chứng', value: receipt?.batchCode ?? 'Đang tạo' },
               {
                 label: 'Người xác nhận',
-                value: `${current.confirmedByName}${confirmer ? ' · ' + confirmer.title : ''}`,
+                value: `${current.confirmedByName}${confirmer ? ', ' + confirmer.title : ''}`,
               },
               { label: 'Dấu vân tay dữ liệu', value: shortHash(current.fingerprint) },
               {
                 label: 'Phiên bản trước',
                 value: prev
-                  ? `${String(prev.version).padStart(2, '0')} · ${formatTimeDate(prev.confirmedAt).split(' · ').reverse().join(', ')}`
+                  ? `${String(prev.version).padStart(2, '0')}, lúc ${formatTimeDate(prev.confirmedAt)}`
                   : 'Không có',
               },
             ]
@@ -325,7 +325,7 @@ export class EvidenceService {
           code: 'B1',
           label: 'Bản gốc ngoài chuỗi',
           ok: !!art,
-          detail: art ? `Dùng bản gốc lưu trữ · ${art.filename}` : 'Không có tệp gốc',
+          detail: art ? `Dùng bản gốc lưu trữ, ${art.filename}` : 'Không có tệp gốc',
         });
       }
       const payload = documentPayload(ws.tenantId, doc, v, art?.rawSha256 ?? null);
@@ -469,8 +469,8 @@ export class EvidenceService {
         b.createdAt.localeCompare(a.createdAt),
       )[0];
       return {
-        title: `Hồ sơ ${doc.code} · Phiên bản ${String(v?.version ?? 0).padStart(2, '0')}`,
-        subtitle: `Bản gốc lưu ngoài chuỗi · ${receipt?.batchCode ?? 'chưa neo'}`,
+        title: `Hồ sơ ${doc.code}, phiên bản ${String(v?.version ?? 0).padStart(2, '0')}`,
+        subtitle: `Bản gốc lưu ngoài chuỗi, ${receipt?.batchCode ?? 'chưa neo'}`,
         status: last ? (last.ok ? 'VERIFIED' : 'FAILED') : 'PENDING',
         statusLabel: last
           ? last.ok
@@ -480,15 +480,15 @@ export class EvidenceService {
         rows: [
           {
             label: 'Định dạng bản gốc',
-            value: doc.sourceKind === 'XML_EINVOICE' ? 'XML · Hóa đơn điện tử' : SOURCE_LABEL[doc.sourceKind],
+            value: doc.sourceKind === 'XML_EINVOICE' ? 'Hóa đơn điện tử XML' : SOURCE_LABEL[doc.sourceKind],
           },
           { label: 'Cách tạo dấu vân tay', value: 'SHA-256 có muối theo phiên bản' },
-          { label: 'Dấu vân tay bản ghi', value: v ? shortHash(v.fingerprint) : '—' },
-          { label: 'Gốc Merkle của lô', value: receipt ? shortHash(receipt.merkleRoot) : '—' },
+          { label: 'Dấu vân tay bản ghi', value: v ? shortHash(v.fingerprint) : 'Chưa có' },
+          { label: 'Gốc Merkle của lô', value: receipt ? shortHash(receipt.merkleRoot) : 'Chưa có' },
           {
             label: 'Mạng có cấp quyền',
             value: receipt
-              ? `Hyperledger Fabric · khối #${receipt.blockNumber} · ${receipt.validationCode}`
+              ? `Hyperledger Fabric, khối số ${receipt.blockNumber}, ${receipt.validationCode}`
               : 'Chưa kết nối',
           },
         ],

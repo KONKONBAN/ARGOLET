@@ -97,7 +97,7 @@ describe('e-invoice XML (TT78 / QĐ 1450)', () => {
     );
     expect(inv.inconsistencies).toHaveLength(2);
     expect(inv.inconsistencies.join(' ')).toMatch(
-      /Thuế suất 10%: 2500000 × 10% = 250000, hóa đơn ghi 200000/,
+      /Thuế suất 10%: tiền thuế đúng là 250000, hóa đơn ghi 200000/,
     );
     expect(inv.inconsistencies.join(' ')).toMatch(/khác tổng thanh toán/);
   });

@@ -106,7 +106,7 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
     <AuthFrame title="Đăng nhập" subtitle="Đăng nhập vào không gian làm việc của bạn.">
       {demo && (
         <Notice tone="info">
-          Bản trải nghiệm: đã điền sẵn tài khoản {demo.email} · mật khẩu {demo.password}. Chạm Đăng nhập để
+          Bản trải nghiệm: đã điền sẵn tài khoản {demo.email}, mật khẩu {demo.password}. Chạm Đăng nhập để
           vào.
           {demo.freshAfterSignOut && ' Khi đăng xuất, dữ liệu mẫu trở về như ban đầu để người sau dùng thử.'}
         </Notice>
@@ -216,7 +216,7 @@ export function ServerScreen() {
     <ScrollView contentContainerStyle={{ padding: 16 }}>
       <Text style={T.muted}>
         {IS_PRODUCTION
-          ? 'Nhập địa chỉ máy chủ ARGOLET riêng của tổ chức (https://…). Để trống để dùng máy chủ mặc định của bản cài đặt.'
+          ? 'Nhập địa chỉ máy chủ ARGOLET riêng của tổ chức (bắt đầu bằng https://). Để trống để dùng máy chủ mặc định của bản cài đặt.'
           : 'Nhập địa chỉ máy chủ ARGOLET của tổ chức (ví dụ https://api.argolet.vn). Để trống để dùng dữ liệu mẫu trên thiết bị (bản thử nghiệm).'}
       </Text>
       <Gap />
@@ -372,7 +372,7 @@ export function VerifyScreen({ route }: ScreenProps<'Verify'>) {
       <Text style={[T.small, { marginTop: 18 }]}>
         Quyền truy cập tổ chức được xác định theo lời mời hoặc ủy quyền.
       </Text>
-      {devCode ? <Notice tone="info">{`Môi trường thử nghiệm · mã xác minh: ${devCode}`}</Notice> : null}
+      {devCode ? <Notice tone="info">{`Môi trường thử nghiệm, mã xác minh: ${devCode}`}</Notice> : null}
     </AuthFrame>
   );
 }
@@ -440,7 +440,7 @@ export function ResetScreen({ navigation }: ScreenProps<'Reset'>) {
               if (r) setDone(true);
             }}
           />
-          {devCode ? <Notice tone="info">{`Môi trường thử nghiệm · mã đặt lại: ${devCode}`}</Notice> : null}
+          {devCode ? <Notice tone="info">{`Môi trường thử nghiệm, mã đặt lại: ${devCode}`}</Notice> : null}
         </>
       )}
       <Gap />
@@ -465,7 +465,7 @@ export function WorkspacesScreen({ navigation }: ScreenProps<'Workspaces'>) {
           <Row
             icon={<Building2 size={18} color={C.action} />}
             title={w.name}
-            subtitle={`${w.roleLabel} · ${w.scopeLabel}`}
+            subtitle={`${w.roleLabel}, ${w.scopeLabel}`}
             chevron
             onPress={async () => {
               setBusy(w.tenantId);
@@ -477,7 +477,7 @@ export function WorkspacesScreen({ navigation }: ScreenProps<'Workspaces'>) {
                 setBusy(null);
               }
             }}
-            right={busy === w.tenantId ? <Text style={T.small}>…</Text> : undefined}
+            right={busy === w.tenantId ? <Text style={T.small}>Đang mở</Text> : undefined}
           />
         </Card>
       ))}

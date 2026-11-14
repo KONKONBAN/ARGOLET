@@ -43,12 +43,12 @@ import {
 } from 'lucide-react-native';
 import { C, G, R, font } from './theme';
 
-/** A note such as "Tại quầy 248,6 triệu · Nền tảng 180 triệu" wraps only between its parts. */
+/** A note such as "Tại quầy 248,6 triệu, nền tảng 180 triệu" wraps only between its parts. */
 const keepPhrases = (note: string) =>
   note
-    .split(' · ')
+    .split(', ')
     .map((part) => part.replace(/ /g, '\u00a0'))
-    .join(' · ');
+    .join(', ');
 
 /** Money figures stay on one line: with large text they shrink to fit rather than wrap mid-number. */
 const FIT = { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.5 } as const;
@@ -609,7 +609,7 @@ export function Pager({
       {btn(-1)}
       <View style={{ alignItems: 'center' }}>
         <Text style={[T.body, T.strong]}>{`Trang ${page} / ${pageCount}`}</Text>
-        <Text style={[T.small, { marginTop: 2 }]}>{`${from}–${to} trên ${total} ${unit}`}</Text>
+        <Text style={[T.small, { marginTop: 2 }]}>{`${from} đến ${to} trên ${total} ${unit}`}</Text>
       </View>
       {btn(1)}
     </View>
@@ -694,7 +694,7 @@ export function Loading() {
       style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg, padding: 24 }}
     >
       <ActivityIndicator color={C.action} />
-      <Text style={[T.small, { marginTop: 10 }]}>Đang tải…</Text>
+      <Text style={[T.small, { marginTop: 10 }]}>Đang tải</Text>
     </View>
   );
 }

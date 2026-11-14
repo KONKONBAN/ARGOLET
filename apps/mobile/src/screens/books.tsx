@@ -13,13 +13,13 @@ import { Choice } from './modules';
 type Unit = 'TIMES' | 'PERCENT' | 'DAYS';
 export const ratioText = (r: { value: string | null; unit: Unit }) =>
   r.value === null
-    ? '—'
+    ? 'Không xác định'
     : r.unit === 'PERCENT'
       ? formatPercent(r.value, 2)
       : r.unit === 'DAYS'
         ? `${formatNumber(D(r.value), 1)} ngày`
         : `${formatNumber(D(r.value), 2)} lần`;
-const money = (v: string) => (D(v).isZero() ? '–' : formatNumber(D(v)));
+const money = (v: string) => formatNumber(D(v));
 
 export function FinanceBooksScreen() {
   const [view, setView] = useState('ratios');
@@ -84,21 +84,19 @@ export function FinanceBooksScreen() {
         ))}
       {view === 'income' && (
         <Card title={b.regime === 'TT99' ? 'B02-DN' : 'B02-DNN'} subtitle="Đơn vị: đồng">
-          <KV
-            rows={b.income.lines.map((l) => ({ label: `${l.code} · ${l.label}`, value: money(l.value) }))}
-          />
+          <KV rows={b.income.lines.map((l) => ({ label: `${l.code} ${l.label}`, value: money(l.value) }))} />
         </Card>
       )}
       {view === 'position' && (
         <>
-          <Card title="Tài sản" subtitle="Cuối kỳ · đồng">
+          <Card title="Tài sản" subtitle="Cuối kỳ (đồng)">
             <KV
               rows={b.balance.end.lines
                 .slice(0, split)
                 .map((l) => ({ label: l.label, value: money(l.value) }))}
             />
           </Card>
-          <Card title="Nguồn vốn" subtitle="Cuối kỳ · đồng">
+          <Card title="Nguồn vốn" subtitle="Cuối kỳ (đồng)">
             <KV
               rows={b.balance.end.lines.slice(split).map((l) => ({ label: l.label, value: money(l.value) }))}
             />

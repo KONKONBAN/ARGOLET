@@ -152,7 +152,7 @@ test.describe('core business flows', () => {
       await confirm.click();
       await expect(page.getByText(/Đã xác nhận kết quả đối soát|Đã gửi nhóm/).first()).toBeVisible();
     }
-    await expect(page.getByText(/DS-1032 · (Đã xác nhận|Khớp, chờ duyệt)/)).toBeVisible();
+    await expect(page.getByText(/DS-1032, (Đã xác nhận|Khớp, chờ duyệt)/)).toBeVisible();
     await expectClean(w, info);
   });
 
@@ -195,9 +195,9 @@ test.describe('core business flows', () => {
     await login(page);
     await go(page, 'finance', /Phân tích tài chính|Thẩm định/);
     await expect(page.getByText('137,24 triệu').first()).toBeVisible();
-    await page.getByLabel('Dòng tiền thuần / năm · triệu đ').fill('320');
+    await page.getByLabel('Dòng tiền thuần / năm (triệu đ)').fill('320');
     await page.getByRole('button', { name: 'Tính lại kịch bản' }).click();
-    await expect(page.getByText(/Đã tính lại · CalcRun/)).toBeVisible();
+    await expect(page.getByText(/Đã tính lại, mã lần tính/)).toBeVisible();
     await expect(page.getByText('213,05 triệu').first()).toBeVisible();
     await expectClean(w, info);
   });

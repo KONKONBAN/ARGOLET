@@ -143,7 +143,7 @@ export function ProjectsPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G3 · Dự án"
+        eyebrow="G3 Dự án"
         title="Dự án & công việc"
         subtitle="Tiến độ, ngân sách và công việc theo WBS."
         period={period}
@@ -390,7 +390,7 @@ export function ProjectsPage() {
                 });
                 toast(
                   r.overBudget ? 'error' : 'success',
-                  r.overBudget ? 'Đã ghi nhận · tổng chi phí vượt ngân sách dự án' : 'Đã ghi nhận chi phí',
+                  r.overBudget ? 'Đã ghi nhận, tổng chi phí vượt ngân sách dự án' : 'Đã ghi nhận chi phí',
                 );
                 setCostOpen(false);
               } catch {
@@ -456,37 +456,37 @@ function AssumptionFields({ form, setForm }: { form: AssumptionForm; setForm: (f
   return (
     <div className="field-grid">
       <TextInput
-        label="Đầu tư ban đầu · triệu đ"
+        label="Đầu tư ban đầu (triệu đ)"
         inputMode="decimal"
         value={fmtThousands(form.investment)}
         onChange={(e) => setForm({ ...form, investment: digits(e.target.value) })}
       />
       <TextInput
-        label="Dòng tiền thuần / năm · triệu đ"
+        label="Dòng tiền thuần / năm (triệu đ)"
         inputMode="decimal"
         value={fmtThousands(form.annualCashflow)}
         onChange={(e) => setForm({ ...form, annualCashflow: e.target.value.replace(/[^\d-]/g, '') })}
       />
       <TextInput
-        label="Thời gian phân tích · năm"
+        label="Thời gian phân tích (năm)"
         inputMode="numeric"
         value={form.years}
         onChange={(e) => setForm({ ...form, years: digits(e.target.value) })}
       />
       <TextInput
-        label="Suất chiết khấu · % / năm"
+        label="Suất chiết khấu (% / năm)"
         inputMode="decimal"
         value={form.discountRatePct}
         onChange={(e) => setForm({ ...form, discountRatePct: e.target.value.replace(/[^\d.,]/g, '') })}
       />
       <TextInput
-        label="Trả nợ / năm · triệu đ"
+        label="Trả nợ / năm (triệu đ)"
         inputMode="decimal"
         value={fmtThousands(form.annualDebtService)}
         onChange={(e) => setForm({ ...form, annualDebtService: digits(e.target.value) })}
       />
       <TextInput
-        label="Giá trị thanh lý cuối dự án · triệu đ (nếu có)"
+        label="Giá trị thanh lý cuối dự án (triệu đ, nếu có)"
         inputMode="decimal"
         value={fmtThousands(form.salvageValue ?? '')}
         onChange={(e) => setForm({ ...form, salvageValue: digits(e.target.value) })}
@@ -605,7 +605,7 @@ export function FinancePage() {
     return (
       <div className="page">
         <PageHeader
-          eyebrow="G3 · Dự án"
+          eyebrow="G3 Dự án"
           title="Phân tích tài chính"
           subtitle="Hiệu quả đầu tư của dự án."
           period={period}
@@ -643,7 +643,7 @@ export function FinancePage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G3 · Dự án"
+        eyebrow="G3 Dự án"
         title="Phân tích tài chính"
         subtitle="Hiệu quả đầu tư của dự án."
         period={period}
@@ -676,7 +676,7 @@ export function FinancePage() {
       <div className="grid split-side">
         <Card
           title="Giả định đầu vào"
-          subtitle={`${d.project.name} · ${d.project.scenarioName}`}
+          subtitle={`${d.project.name}, ${d.project.scenarioName}`}
           actions={
             books && d.canRun ? (
               <Button
@@ -697,10 +697,7 @@ export function FinancePage() {
                   projectId: d.project.id,
                   assumptions: toAssumptions(form),
                 });
-                toast(
-                  'success',
-                  `Đã tính lại · CalcRun ${res.calcRun.id.slice(-8)} · ${res.calcRun.engineVersion}`,
-                );
+                toast('success', `Đã tính lại, mã lần tính ${res.calcRun.id.slice(-8)}`);
                 setEdits(null);
               } catch {
                 /* inline */
@@ -765,7 +762,7 @@ function CalcRunHistory() {
           {
             key: 'd',
             header: 'Mã kiểm tra',
-            render: (r) => <code className="mono-wrap">{r.inputSnapshotDigest.slice(0, 16)}…</code>,
+            render: (r) => <code className="mono-wrap">{r.inputSnapshotDigest.slice(0, 16)}</code>,
           },
         ]}
       />
@@ -791,7 +788,7 @@ export function ScenariosPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G3 · Dự án"
+        eyebrow="G3 Dự án"
         title="So sánh kịch bản"
         subtitle="Hiểu tác động của thay đổi giả định."
         period={period}
@@ -894,7 +891,7 @@ export function AssetsPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G3 · Dự án"
+        eyebrow="G3 Dự án"
         title="Tài sản & đo lường"
         subtitle="Theo dõi vận hành và kiểm chứng hiệu quả."
         period={period}
@@ -1017,7 +1014,7 @@ export function AssetsPage() {
           onChange={(v) => setForm({ ...form, kind: v })}
           options={[
             { value: 'ASSET', label: 'Tài sản / thiết bị (lịch bảo trì)' },
-            { value: 'METRIC', label: 'Chỉ số đo lường (điện, nước, sản lượng…)' },
+            { value: 'METRIC', label: 'Chỉ số đo lường (điện, nước, sản lượng)' },
           ]}
         />
         <TextInput
@@ -1068,7 +1065,7 @@ export function AssetsPage() {
       <Modal
         open={!!maint}
         onClose={() => setMaint(null)}
-        title={`Đã bảo trì · ${maint?.name ?? ''}`}
+        title={`Đã bảo trì: ${maint?.name ?? ''}`}
         footer={
           <Button
             variant="primary"
@@ -1190,13 +1187,13 @@ function CreateShipmentModal({
           label="Tuyến"
           value={f.route}
           onChange={(e) => setF({ ...f, route: e.target.value })}
-          placeholder="Cát Lái → Kho Thủ Đức"
+          placeholder="Cát Lái đến Kho Thủ Đức"
         />
         <TextInput
           label="Container / phương tiện"
           value={f.container}
           onChange={(e) => setF({ ...f, container: e.target.value })}
-          placeholder="1×40HC"
+          placeholder="1x40HC"
         />
       </div>
       <div className="grid grid-3">
@@ -1320,7 +1317,7 @@ export function LogisticsPage() {
   const s = d.shipment;
   const header = (
     <PageHeader
-      eyebrow="G3 · Dự án"
+      eyebrow="G3 Dự án"
       title="Hồ sơ logistics"
       subtitle="Nối sự kiện lô hàng với hồ sơ và người phụ trách."
       period={period}
@@ -1478,7 +1475,7 @@ export function LogisticsPage() {
               label="Chi tiết"
               value={ev.detail}
               onChange={(e) => setEv({ ...ev, detail: e.target.value })}
-              placeholder="EIR-1031 · đính kèm biên bản"
+              placeholder="EIR-1031, đính kèm biên bản"
             />
             <SelectInput
               label="Trạng thái lô hàng"
@@ -1525,7 +1522,7 @@ export function LogisticsFinancePage() {
     return (
       <div className="page">
         <PageHeader
-          eyebrow="G3 · Dự án"
+          eyebrow="G3 Dự án"
           title="Tài chính logistics"
           subtitle="Xem biểu phí, giá vốn và lợi nhuận theo lô."
           period={period}
@@ -1546,7 +1543,7 @@ export function LogisticsFinancePage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="G3 · Dự án"
+        eyebrow="G3 Dự án"
         title="Tài chính logistics"
         subtitle="Xem biểu phí, giá vốn và lợi nhuận theo lô."
         period={period}
