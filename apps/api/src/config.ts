@@ -42,10 +42,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     path.resolve(process.cwd(), 'apps/web/dist'),
   ].filter(Boolean) as string[];
   const webDist = candidates.find((p) => existsSync(path.join(p, 'index.html'))) ?? null;
-  const demoSeed = bool(env.DEMO_SEED, true);
+  // Sample data only where asked for: a production server starts empty unless DEMO_SEED=true.
+  const demoSeed = bool(env.DEMO_SEED, !production);
   const pepper = env.PEPPER ?? '';
   if (production && pepper.length < 32) {
     throw new Error('PEPPER (>= 32 ký tự ngẫu nhiên) là bắt buộc khi NODE_ENV=production');
+  }
+  // A real deployment must deliver verification codes by e-mail, or nobody can sign up.
+  if (production && !demoSeed && !env.SMTP_URL && !bool(env.EXPOSE_DEV_CODES, false)) {
+    throw new Error(
+      'SMTP_URL là bắt buộc khi NODE_ENV=production (người dùng nhận mã xác minh qua email). Máy chủ trải nghiệm: đặt DEMO_SEED=true',
+    );
   }
   return {
     port: Number(env.PORT ?? 8080),

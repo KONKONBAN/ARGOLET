@@ -93,11 +93,19 @@ E2E cần build trước (`pnpm build`) và Chromium của Playwright (`pnpm --f
 docker build -t argolet .
 ```
 
+Máy chủ cho doanh nghiệp thật (cơ sở dữ liệu bắt đầu trống, đồng hồ thật — mặc định khi `NODE_ENV=production`):
+
 ```bash
-docker run -d -p 8080:8080 -e PEPPER="$(openssl rand -hex 32)" -v argolet-data:/data argolet
+docker run -d -p 8080:8080 -e PEPPER="$(openssl rand -hex 32)" -e ARGOLET_SECRET_KEY="$(openssl rand -base64 32)" -e SMTP_URL="smtps://user:mat-khau@smtp.example.com:465" -e MAIL_FROM="ARGOLET <no-reply@ten-mien.vn>" -e DATABASE_URL="postgres://…" argolet
 ```
 
-Cho doanh nghiệp thật: đặt `DEMO_SEED=false` (cơ sở dữ liệu bắt đầu trống, đồng hồ thật), `SMTP_URL` + `MAIL_FROM` để người dùng nhận mã qua email, và dùng PostgreSQL (`DATABASE_URL=postgres://…`) có sao lưu định kỳ. Người tạo tổ chức có quyền quản trị và kế toán trưởng; mời thêm người duyệt để tách người lập và người duyệt.
+Thiếu `SMTP_URL` thì máy chủ từ chối khởi động (người dùng cần nhận mã xác minh qua email). Dùng PostgreSQL có sao lưu định kỳ; giữ `PEPPER` và `ARGOLET_SECRET_KEY` cố định và sao lưu an toàn. Người tạo tổ chức có quyền quản trị và kế toán trưởng; mời thêm người duyệt để tách người lập và người duyệt.
+
+Máy chủ trải nghiệm có dữ liệu mẫu:
+
+```bash
+docker run -d -p 8080:8080 -e PEPPER="$(openssl rand -hex 32)" -e DEMO_SEED=true -v argolet-data:/data argolet
+```
 
 Image chạy bằng người dùng không phải root, phục vụ cả API lẫn web trên cổng 8080, lưu dữ liệu PGlite ở volume `/data` (hoặc trỏ `DATABASE_URL` tới PostgreSQL). Đặt sau reverse proxy có HTTPS (cookie phiên `Secure` khi `NODE_ENV=production`). Chạy được trên Render, Fly.io, Railway, Google Cloud Run, VPS…; gắn tên miền riêng tại nhà cung cấp đó.
 
@@ -106,7 +114,7 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 | `PEPPER`                       | —                                                                               | **Bắt buộc ở production**, ≥ 32 ký tự ngẫu nhiên (khóa bí mật để băm mã xác minh và tham chiếu lô bằng chứng)                                                                                                       |
 | `DATABASE_URL`                 | `pglite:/data/pglite` (Docker)                                                  | `postgres://…` hoặc `pglite:<thư mục>` / `pglite:memory`                                                                                                                                                            |
 | `PORT`, `HOST`                 | `8080`, `0.0.0.0`                                                               | Cổng lắng nghe                                                                                                                                                                                                      |
-| `DEMO_SEED`                    | `true`                                                                          | Tạo dữ liệu mẫu Minh An Commerce khi CSDL trống                                                                                                                                                                     |
+| `DEMO_SEED`                    | `false` khi `NODE_ENV=production`, `true` khi chạy thử                          | Tạo dữ liệu mẫu Minh An Commerce khi CSDL trống — chỉ dùng cho máy chủ trải nghiệm                                                                                                                                  |
 | `DEMO_CLOCK`                   | theo `DEMO_SEED`                                                                | Đồng hồ bắt đầu từ 31/10/2026 09:40 để khớp dữ liệu mẫu                                                                                                                                                             |
 | `SMTP_URL`                     | —                                                                               | Máy chủ gửi email, ví dụ `smtps://user:mat-khau@smtp.example.com:465` (Amazon SES, SendGrid, Mailgun, Google Workspace, Zoho…). Bật gửi mã xác minh, mã đặt lại mật khẩu, mã xác thực bổ sung và thư mời thành viên |
 | `MAIL_FROM`                    | `ARGOLET <no-reply@argolet.local>`                                              | Người gửi hiển thị trong email                                                                                                                                                                                      |

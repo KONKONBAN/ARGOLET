@@ -74,12 +74,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build -t argolet:ci .
-      - name: Run the production image and check API + web
+      - name: A real-company server refuses to start without e-mail delivery
         run: |
-          docker run -d --name argolet -p 8080:8080 -e PEPPER="$(openssl rand -hex 32)" -e COOKIE_SECURE=false argolet:ci
+          if docker run --rm -e PEPPER="$(openssl rand -hex 32)" argolet:ci > refused.log 2>&1; then
+            echo "the server started without SMTP_URL"; cat refused.log; exit 1
+          fi
+          grep -q 'SMTP_URL là bắt buộc' refused.log
+      - name: Run the production image (empty company server) and check API + web
+        run: |
+          docker run -d --name argolet -p 8080:8080 -e PEPPER="$(openssl rand -hex 32)" -e ARGOLET_SECRET_KEY="$(openssl rand -base64 32)" -e SMTP_URL=smtp://mail.invalid:25 -e COOKIE_SECURE=false argolet:ci
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:8080/healthz && break; sleep 2; done
           curl -sf http://127.0.0.1:8080/healthz
+          # No sample data and no sample account on a production server.
           curl -sf http://127.0.0.1:8080/v1/meta | grep -q '"name":"ARGOLET"'
+          curl -sf http://127.0.0.1:8080/v1/meta | grep -q '"demo":null'
           curl -sf http://127.0.0.1:8080/ | grep -q '<div id="root">'
           docker exec argolet node -v
           docker inspect --format '{{.State.Health.Status}}' argolet
