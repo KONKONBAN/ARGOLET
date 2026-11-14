@@ -146,6 +146,26 @@ export const operations = {
     '/v1/integrations/:integrationId',
     (a, c, p: ParamsOf<Svc['org']['setIntegration']>) => a.org.setIntegration(c, p),
   ),
+  // Kết nối API đối tác (ARGOLET gọi sang SePay, KiotViet…)
+  'connections.list': op('GET', '/v1/connections', (a, c) => a.connections.list(c)),
+  'connections.connect': op('POST', '/v1/connections', (a, c, p: ParamsOf<Svc['connections']['connect']>) =>
+    a.connections.connect(c, p),
+  ),
+  'connections.test': op(
+    'POST',
+    '/v1/connections/:connectionId/test',
+    (a, c, p: ParamsOf<Svc['connections']['test']>) => a.connections.test(c, p),
+  ),
+  'connections.sync': op(
+    'POST',
+    '/v1/connections/:connectionId/sync',
+    (a, c, p: ParamsOf<Svc['connections']['sync']>) => a.connections.sync(c, p),
+  ),
+  'connections.disconnect': op(
+    'DELETE',
+    '/v1/connections/:connectionId',
+    (a, c, p: ParamsOf<Svc['connections']['disconnect']>) => a.connections.disconnect(c, p),
+  ),
 
   // 05 · Tiếp nhận và chuẩn hóa chứng từ
   'documents.intake': op('POST', '/v1/import-batches', (a, c, p: ParamsOf<Svc['documents']['intake']>) =>

@@ -12,6 +12,7 @@ export * from './documents';
 export * from './einvoice';
 export * from './imagemeta';
 export * from './invoiceqr';
+export * from './connectors';
 export * from './authenticity';
 export * from './rbac';
 export * from './approvals';

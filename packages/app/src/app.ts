@@ -4,9 +4,11 @@ import {
   DEFAULT_CONFIG,
   type AppConfig,
   type AppDeps,
+  type HttpFetch,
   type LlmClient,
   type Notifier,
   type PasswordHasher,
+  type SecretBox,
 } from './runtime';
 import type { Store } from './store';
 import { AuthService } from './services/auth';
@@ -20,6 +22,7 @@ import { DashboardService } from './services/dashboard';
 import { FinanceService } from './services/finance';
 import { ModuleService } from './services/modules';
 import { AssistantService } from './services/assistant';
+import { ConnectionService } from './services/connections';
 import { onMatchResolvedValidateDocuments } from './services/consumers';
 import { ManualEntryExtractionProvider } from './extraction';
 import { ScryptHasher } from './hashers';
@@ -32,6 +35,10 @@ export interface ArgoletAppOptions {
   llm?: LlmClient | null;
   clock?: () => Date;
   config?: Partial<AppConfig>;
+  secrets?: SecretBox | null;
+  http?: HttpFetch | null;
+  connectorEndpoints?: AppDeps['connectorEndpoints'];
+  connectorPaceMs?: number;
 }
 
 export type ArgoletApp = ReturnType<typeof createArgoletApp>;
@@ -45,6 +52,10 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
     llm: opts.llm ?? null,
     clock: opts.clock ?? (() => new Date()),
     config: { ...DEFAULT_CONFIG, ...opts.config },
+    secrets: opts.secrets ?? null,
+    http: opts.http ?? null,
+    connectorEndpoints: opts.connectorEndpoints ?? {},
+    connectorPaceMs: opts.connectorPaceMs ?? 400,
   };
   const core = new AppCore(deps);
   const auth = new AuthService(core);
@@ -58,6 +69,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
   const finance = new FinanceService(core);
   const modules = new ModuleService(core);
   const assistant = new AssistantService(core);
+  const connections = new ConnectionService(core, documents);
 
   // Event consumers (idempotent via inbox, processed in outbox commit order).
   core.relay.on('DocumentValidated', 'evidence-documents', (e, tx, em) =>
@@ -84,5 +96,6 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
     finance,
     modules,
     assistant,
+    connections,
   };
 }

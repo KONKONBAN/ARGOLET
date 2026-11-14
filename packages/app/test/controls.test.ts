@@ -8,6 +8,8 @@ import { buildInvoiceQr } from '@argolet/core';
 import { DEMO_EMAIL, DEMO_TENANT } from '../src';
 import { expectAppError, loginAs, seededApp } from './helpers';
 
+const b64 = (bytes: number[]) => btoa(String.fromCharCode(...bytes));
+
 describe('controls', () => {
   it('keeps every organisation’s data to itself', async () => {
     const { app } = await seededApp();
@@ -159,7 +161,7 @@ describe('controls', () => {
       total: '1650000',
     });
     // A tiny JPEG stands in for the photo; the client read the QR printed on it.
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64');
+    const jpeg = b64([0xff, 0xd8, 0xff, 0xd9]);
     const r = await app.documents.intake(acct, {
       files: [{ name: 'hoa-don-sua-xanh.jpg', mime: 'image/jpeg', contentBase64: jpeg, qr }],
     });
@@ -190,7 +192,7 @@ describe('controls', () => {
         {
           name: 'anh-2.jpg',
           mime: 'image/jpeg',
-          contentBase64: Buffer.from([0xff, 0xd8, 0x00, 0xff, 0xd9]).toString('base64'),
+          contentBase64: b64([0xff, 0xd8, 0x00, 0xff, 0xd9]),
           qr: qr.slice(0, -4) + '0000',
         },
       ],

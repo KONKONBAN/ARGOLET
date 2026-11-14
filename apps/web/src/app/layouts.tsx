@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   Search,
+  Plug,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -163,6 +164,11 @@ export function AppShell() {
         </nav>
         <div className="nav-sep" />
         <nav className="nav" style={{ marginBottom: 24 }}>
+          <NavLink to="/connections" className={({ isActive: a }) => (a ? 'active' : '')}>
+            <Plug size={20} aria-hidden />
+            <span>Kết nối API</span>
+            <span />
+          </NavLink>
           <NavLink
             to="/settings"
             className={() =>

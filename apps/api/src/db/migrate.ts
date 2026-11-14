@@ -3,6 +3,7 @@ import { sha256Hex } from '@argolet/core';
 import { planFor, upsertRow } from './codec';
 import type { SqlClient, SqlDriver } from './drivers';
 import { sql as relationalSchema } from './migrations/0001_relational_schema';
+import { sql as connections } from './migrations/0002_connections';
 
 export interface Migration {
   version: number;
@@ -14,6 +15,7 @@ export interface Migration {
 
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: 'relational_schema', sql: relationalSchema, after: importLegacyJsonStore },
+  { version: 2, name: 'connections', sql: connections },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

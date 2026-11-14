@@ -113,6 +113,21 @@ export const DEFAULT_CONFIG: AppConfig = {
   publicBaseUrl: 'http://localhost:5173',
 };
 
+/**
+ * Seals partners' credentials with the server key (AES-256-GCM) before they are stored. Absent
+ * where no server key exists (the in-browser app), which keeps partner keys off the browser.
+ */
+export interface SecretBox {
+  seal(plaintext: string): Promise<string>;
+  open(sealed: string): Promise<string>;
+}
+
+/** Minimal fetch used to call partners' APIs (server side only). */
+export type HttpFetch = (
+  url: string,
+  init: { method: 'GET' | 'POST'; headers: Record<string, string>; body?: string; signal?: AbortSignal },
+) => Promise<{ status: number; headers: { get(name: string): string | null }; text(): Promise<string> }>;
+
 export interface AppDeps {
   store: Store;
   hasher: PasswordHasher;
@@ -121,6 +136,12 @@ export interface AppDeps {
   llm: LlmClient | null;
   clock: () => Date;
   config: AppConfig;
+  secrets: SecretBox | null;
+  http: HttpFetch | null;
+  /** Partner API base URLs (tests point them to a local stand-in); defaults to the real ones. */
+  connectorEndpoints: Partial<Record<'SEPAY' | 'KIOTVIET' | 'KIOTVIET_TOKEN', string>>;
+  /** Pause between partner requests and before a 429 retry (tests set 0). */
+  connectorPaceMs: number;
 }
 
 /** Caller identity as seen by the transport (cookie / bearer). */

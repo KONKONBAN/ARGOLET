@@ -61,6 +61,9 @@ const MembersPage = lazy(() => import('../pages/admin').then((m) => ({ default: 
 const SettingsPage = lazy(() => import('../pages/admin').then((m) => ({ default: m.SettingsPage })));
 const SecurityPage = lazy(() => import('../pages/admin').then((m) => ({ default: m.SecurityPage })));
 const ModulesPage = lazy(() => import('../pages/admin').then((m) => ({ default: m.ModulesPage })));
+const ConnectionsPage = lazy(() =>
+  import('../pages/connections').then((m) => ({ default: m.ConnectionsPage })),
+);
 
 function Gate({ need, children }: { need: 'anon' | 'auth' | 'workspace'; children: ReactNode }) {
   const { status } = useSession();
@@ -115,6 +118,7 @@ const appRoutes: [string, ReactNode][] = [
   ['settings', <SettingsPage />],
   ['security', <SecurityPage />],
   ['modules', <ModulesPage />],
+  ['connections', <ConnectionsPage />],
 ];
 
 export function App() {

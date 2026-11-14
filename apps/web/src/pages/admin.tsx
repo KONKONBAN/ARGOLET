@@ -262,9 +262,8 @@ export function SettingsPage() {
   const { refresh } = useSession();
   const data = useQuery('org.settings');
   const update = useMutation('org.updateSettings', { silent: true });
-  const setInt = useMutation('org.setIntegration');
   const location = useLocation();
-  const [panel, setPanel] = useState<null | 'org' | 'integrations' | 'audit' | 'backup' | 'privacy'>(
+  const [panel, setPanel] = useState<null | 'org' | 'audit' | 'backup' | 'privacy'>(
     location.hash === '#co-cau' ? 'org' : null,
   );
   const [regime, setRegime] = useState<string>('');
@@ -302,9 +301,9 @@ export function SettingsPage() {
     },
     {
       icon: Plug,
-      title: 'Kết nối dữ liệu',
-      desc: 'Ngân hàng, POS và tệp nhập',
-      act: () => setPanel('integrations'),
+      title: 'Kết nối API',
+      desc: 'Ngân hàng (SePay), POS (KiotViet), iPOS',
+      act: () => navigate('/connections'),
     },
     {
       icon: Bell,
@@ -475,40 +474,6 @@ export function SettingsPage() {
           </div>
         )}
         {addEntity.error && <ErrorNote error={addEntity.error} />}
-      </Modal>
-      <Modal
-        open={panel === 'integrations'}
-        onClose={() => setPanel(null)}
-        title="Kết nối dữ liệu"
-        width={620}
-      >
-        {d.integrations.map((i) => (
-          <div key={i.id} className="list-item" style={{ gridTemplateColumns: '1fr auto' }}>
-            <span>
-              <div className="li-title">{i.name}</div>
-              <div className="li-sub">
-                {i.description} · {i.scope}
-              </div>
-            </span>
-            {d.canManage ? (
-              <Button
-                size="sm"
-                variant={i.status === 'CONNECTED' ? 'default' : 'primary'}
-                loading={setInt.loading}
-                onClick={async () => {
-                  await setInt.mutate({ integrationId: i.id, connect: i.status !== 'CONNECTED' });
-                  toast('success', i.status === 'CONNECTED' ? `Đã ngắt ${i.name}` : `Đã kết nối ${i.name}`);
-                }}
-              >
-                {i.status === 'CONNECTED' ? 'Ngắt kết nối' : 'Kết nối'}
-              </Button>
-            ) : (
-              <Chip tone={i.status === 'CONNECTED' ? 'success' : 'neutral'}>
-                {i.status === 'CONNECTED' ? 'Đã kết nối' : 'Chưa kết nối'}
-              </Chip>
-            )}
-          </div>
-        ))}
       </Modal>
       <Modal open={panel === 'audit'} onClose={() => setPanel(null)} title="Nhật ký hoạt động" width={720}>
         <DataTable

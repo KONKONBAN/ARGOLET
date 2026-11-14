@@ -7,6 +7,7 @@ export * from './hashers';
 export * from './extraction';
 export * from './seed';
 export * from './contract';
+export { PROVIDERS, type ProviderInfo, type ProviderField } from './connectors';
 export { toPublicUser, type PublicUser, type SessionInfo } from './services/auth';
 export type { WorkspaceContext, WorkspaceSummary } from './services/org';
 export type { IntakeFile } from './services/documents';

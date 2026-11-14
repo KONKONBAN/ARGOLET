@@ -13,6 +13,10 @@ import {
   assessAuthenticity,
   readImageMeta,
   readQrContent,
+  readSepayTransactions,
+  readKiotVietInvoices,
+  isConnectorSnapshot,
+  type ConnectorSnapshot,
   type ExtractionField,
   type ImageMeta,
   parsePosCsv,
@@ -390,6 +394,74 @@ export class DocumentService {
               rowKind: isPos ? 'POS' : 'BANK',
               extraction: null,
               issues: [],
+              kind: 'STATEMENT',
+            };
+          } else if (fmt === 'JSON' && snapshotOf(text)) {
+            // Data pulled from a partner's API (SePay, KiotViet…), stored verbatim as the artifact.
+            const snap = snapshotOf(text)!;
+            let rows: StructuredRow[];
+            let note = '';
+            if (snap.provider === 'SEPAY') {
+              rows = readSepayTransactions(snap.pages).map((t, n) => ({
+                lineNo: n + 1,
+                code: t.reference,
+                date: t.date,
+                amount: t.amount,
+                fee: '0',
+                refund: '0',
+                discount: '0',
+                reference: t.reference,
+                payoutBatch: extractBatchRef(t.description),
+                counterparty: [t.bank, t.account].filter(Boolean).join(' · '),
+                channel: 'Ngân hàng',
+                description: t.description,
+              }));
+            } else {
+              const r = readKiotVietInvoices(snap.pages);
+              rows = r.sales.map((x, n) => ({
+                lineNo: n + 1,
+                code: x.code,
+                date: x.date,
+                amount: x.total,
+                fee: '0',
+                refund: '0',
+                discount: '0',
+                reference: '',
+                payoutBatch: '',
+                counterparty: x.customer,
+                channel: x.channel || x.branch || 'KiotViet',
+                description: x.payments,
+              }));
+              if (r.skipped.cancelled || r.skipped.pending)
+                note = `Bỏ qua ${r.skipped.cancelled} hóa đơn đã hủy, ${r.skipped.pending} hóa đơn chưa hoàn thành`;
+            }
+            const known = new Set(snap.alreadyImported ?? []);
+            rows = rows.filter((r) => !known.has(r.code)).map((r, n) => ({ ...r, lineNo: n + 1 }));
+            if (rows.length === 0) throw new Error('Dữ liệu từ đối tác không có giao dịch mới');
+            const bank = snap.provider === 'SEPAY';
+            const dates = rows.map((r) => r.date).sort();
+            const total = dec(sum(rows.map((r) => r.amount)));
+            const label = bank ? 'Giao dịch ngân hàng · SePay' : 'Hóa đơn bán hàng · KiotViet';
+            const fields = {
+              supplier: label,
+              documentNo: f.name.replace(/\.[^.]+$/, ''),
+              documentDate: dates[dates.length - 1]!,
+              total,
+            };
+            doc = {
+              ...common,
+              title: label,
+              counterparty: label,
+              sourceKind: bank ? 'BANK' : 'POS',
+              date: fields.documentDate,
+              amount: total,
+              status: 'EXTRACTED',
+              fields,
+              lines: [],
+              rows,
+              rowKind: bank ? 'BANK' : 'POS',
+              extraction: null,
+              issues: note ? [{ field: 'total', severity: 'warning', message: note }] : [],
               kind: 'STATEMENT',
             };
           } else if (fmt === 'EXCEL' || fmt === 'JSON') {
@@ -1025,6 +1097,17 @@ function vndLines(inv: ReturnType<typeof parseEInvoiceXml>): { description: stri
 
 function withVat(lines: { description: string; amount: string }[], vat: string | undefined) {
   return vat && !D(vat).isZero() ? [...lines, { description: 'Thuế GTGT', amount: vat }] : lines;
+}
+
+/** A partner API snapshot (core/connectors), or null for any other JSON. */
+function snapshotOf(text: string | null): ConnectorSnapshot | null {
+  if (!text) return null;
+  try {
+    const v: unknown = JSON.parse(text);
+    return isConnectorSnapshot(v) ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 function extractBatchRef(description: string): string {

@@ -373,6 +373,74 @@ describe.each(KINDS)('relational schema · %s', (kind) => {
     expect((await store.read((tx) => tx.get('audit', 't1', 'aud_1')))!.detail).toBe('');
   });
 
+  it('stores partner connections with sealed credentials and an append-only sync log', async () => {
+    const store = await open(kind);
+    await seedTenants(store, ['t1']);
+    await store.transaction((tx) =>
+      tx.put('entities', {
+        id: 'site_a',
+        tenantId: 't1',
+        name: 'Cơ sở A',
+        shortName: 'A',
+        code: 'CS-01',
+        kind: 'SITE',
+        parentId: null,
+        baseCurrency: 'VND',
+        timezone: 'Asia/Ho_Chi_Minh',
+      }),
+    );
+    const conn = {
+      id: 'conn_1',
+      tenantId: 't1',
+      provider: 'SEPAY' as const,
+      label: 'Ngân hàng qua SePay',
+      status: 'ACTIVE' as const,
+      config: {},
+      secretSealed: 'v1.aXY=.Y2lwaGVy',
+      secretHint: '…K7Q2',
+      cursor: null,
+      entityId: 'site_a',
+      connectedBy: 'usr_fixture',
+      connectedByName: 'Người kiểm thử',
+      connectedAt: '2026-11-14T02:00:00.000Z',
+      lastSyncAt: null,
+      lastError: null,
+    };
+    await store.transaction((tx) => tx.put('connections', conn));
+    // An active connection always has its sealed credentials.
+    await expect(
+      store.transaction((tx) => tx.put('connections', { ...conn, id: 'conn_2', secretSealed: null })),
+    ).rejects.toMatchObject({ code: '23514' });
+    const run = {
+      id: 'crun_1',
+      tenantId: 't1',
+      connectionId: 'conn_1',
+      provider: 'SEPAY' as const,
+      trigger: 'MANUAL' as const,
+      startedAt: '2026-11-14T02:01:00.000Z',
+      finishedAt: '2026-11-14T02:01:02.000Z',
+      status: 'NO_CHANGE' as const,
+      fetched: 0,
+      imported: 0,
+      requests: 1,
+      documentId: null,
+      documentCode: null,
+      message: 'Không có dữ liệu mới từ đối tác',
+      actorId: 'usr_fixture',
+      actorName: 'Người kiểm thử',
+    };
+    await store.transaction((tx) => tx.put('connectionRuns', run));
+    expect(await store.read((tx) => tx.get('connectionRuns', 't1', 'crun_1'))).toMatchObject(run);
+    expect(await store.read((tx) => tx.get('connections', 't1', 'conn_1'))).toMatchObject(conn);
+    await expect(
+      store.transaction((tx) => tx.put('connectionRuns', { ...run, status: 'SUCCESS' as const })),
+    ).rejects.toMatchObject({ code: '23001' });
+    // Disconnecting forgets the credentials.
+    await store.transaction((tx) =>
+      tx.put('connections', { ...conn, status: 'DISCONNECTED', secretSealed: null }),
+    );
+  });
+
   it('records migrations with checksums, refuses edited or newer schemas, and is idempotent', async () => {
     const { store, sql } = await sqlFor(kind);
     expect(await store.migrate()).toEqual({

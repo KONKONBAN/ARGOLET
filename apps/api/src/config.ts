@@ -20,6 +20,10 @@ export interface ApiConfig {
   webDist: string | null;
   publicBaseUrl: string;
   trustProxy: boolean;
+  /** Key sealing partners' credentials (connections); connections are off without it. */
+  secretKey: string | null;
+  /** Partner API base URLs, for a test stand-in only (production uses the partners' own URLs). */
+  connectorEndpoints: Partial<Record<'SEPAY' | 'KIOTVIET' | 'KIOTVIET_TOKEN', string>>;
 }
 
 const bool = (v: string | undefined, dflt: boolean) =>
@@ -62,5 +66,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     webDist,
     publicBaseUrl: env.PUBLIC_BASE_URL ?? `http://localhost:${env.PORT ?? 8080}`,
     trustProxy: bool(env.TRUST_PROXY, production),
+    secretKey: env.ARGOLET_SECRET_KEY || null,
+    connectorEndpoints: production ? {} : parseEndpoints(env.ARGOLET_CONNECTOR_ENDPOINTS),
   };
+}
+
+function parseEndpoints(v: string | undefined): ApiConfig['connectorEndpoints'] {
+  if (!v) return {};
+  const parsed = JSON.parse(v) as Record<string, string>;
+  const out: ApiConfig['connectorEndpoints'] = {};
+  for (const k of ['SEPAY', 'KIOTVIET', 'KIOTVIET_TOKEN'] as const)
+    if (typeof parsed[k] === 'string') out[k] = parsed[k];
+  return out;
 }

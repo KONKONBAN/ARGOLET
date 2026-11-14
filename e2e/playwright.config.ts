@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
@@ -14,6 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STATIC_PORT = Number(process.env.E2E_STATIC_PORT ?? 4310);
 const API_PORT = Number(process.env.E2E_API_PORT ?? 4320);
 const FRESH_PORT = Number(process.env.E2E_FRESH_PORT ?? 4340);
+const PARTNER_PORT = Number(process.env.E2E_PARTNER_PORT ?? 4360);
 
 export default defineConfig({
   testDir: './tests',
@@ -61,6 +63,14 @@ export default defineConfig({
   ],
   webServer: [
     {
+      // Stand-in for the partners' APIs (SePay) that the API server connects to.
+      command: 'node partner-standin.mjs',
+      cwd: path.join(root, 'e2e'),
+      url: `http://127.0.0.1:${PARTNER_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      env: { PARTNER_PORT: String(PARTNER_PORT) },
+    },
+    {
       command: `npx vite preview --port ${STATIC_PORT} --strictPort --host 127.0.0.1`,
       cwd: path.join(root, 'apps/web'),
       url: `http://127.0.0.1:${STATIC_PORT}/`,
@@ -81,6 +91,9 @@ export default defineConfig({
         EXPOSE_DEV_CODES: 'true',
         WEB_DIST: path.join(root, 'apps/web/dist'),
         PUBLIC_BASE_URL: `http://127.0.0.1:${API_PORT}`,
+        // A throw-away key per run; partner calls go to the local stand-in.
+        ARGOLET_SECRET_KEY: randomBytes(32).toString('base64'),
+        ARGOLET_CONNECTOR_ENDPOINTS: JSON.stringify({ SEPAY: `http://127.0.0.1:${PARTNER_PORT}` }),
       },
     },
     {

@@ -4,6 +4,7 @@ import { serverHasher } from './hasher';
 import { ClaudeLlmClient, ClaudeVisionExtractionProvider } from './claude';
 import { PgStore, pgDriver, pgliteDriver } from './db';
 import { createMailNotifier } from './mailer';
+import { aesGcmBox, parseSecretKey } from './secrets';
 
 export interface Runtime {
   app: ArgoletApp;
@@ -43,7 +44,12 @@ export async function createRuntime(
       exposeDevCodes: config.exposeDevCodes,
       publicBaseUrl: config.publicBaseUrl,
     },
+    // Partner APIs are called from here only, with credentials sealed by the server key.
+    secrets: config.secretKey ? aesGcmBox(parseSecretKey(config.secretKey)) : null,
+    http: config.secretKey ? (url, init) => fetch(url, init) : null,
+    connectorEndpoints: config.connectorEndpoints,
   });
+  if (!config.secretKey) log('[connections] ARGOLET_SECRET_KEY chưa đặt: tắt kết nối API đối tác');
   if (config.demoSeed) {
     const r = await seedDemo(app);
     if (r.seeded) log('[seed] Demo dataset "Minh An Commerce" created');

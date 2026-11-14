@@ -445,6 +445,45 @@ export interface IntegrationRow extends BaseRow {
   scope: string;
   connectedAt: string | null;
 }
+export type ConnectorProviderCode = 'SEPAY' | 'KIOTVIET';
+/** ARGOLET's connection to a partner's API. */
+export interface ConnectionRow extends BaseRow {
+  provider: ConnectorProviderCode;
+  label: string;
+  status: 'ACTIVE' | 'ERROR' | 'DISCONNECTED';
+  /** Non-secret settings (e.g. the KiotViet shop name). */
+  config: Record<string, string>;
+  /** Credentials sealed with the server key (AES-256-GCM); never sent to a client. */
+  secretSealed: string | null;
+  /** Last characters of the key, to recognise it. */
+  secretHint: string;
+  /** Where the next sync resumes (SePay: last transaction id · KiotViet: last purchase date). */
+  cursor: string | null;
+  /** Site that receives the data. */
+  entityId: string;
+  connectedBy: string;
+  connectedByName: string;
+  connectedAt: string;
+  lastSyncAt: string | null;
+  lastError: string | null;
+}
+/** One test or sync with a partner (append-only). */
+export interface ConnectionRunRow extends BaseRow {
+  connectionId: string;
+  provider: ConnectorProviderCode;
+  trigger: 'MANUAL' | 'SCHEDULE' | 'TEST';
+  startedAt: string;
+  finishedAt: string;
+  status: 'SUCCESS' | 'NO_CHANGE' | 'FAILED';
+  fetched: number;
+  imported: number;
+  requests: number;
+  documentId: string | null;
+  documentCode: string | null;
+  message: string;
+  actorId: string;
+  actorName: string;
+}
 export interface AggregateSeqRow extends BaseRow {
   seq: number;
 }
@@ -601,6 +640,8 @@ export interface Collections {
   inbox: InboxRow;
   projections: ProjectionRow;
   integrations: IntegrationRow;
+  connections: ConnectionRow;
+  connectionRuns: ConnectionRunRow;
   aggregateSeqs: AggregateSeqRow;
   inventoryItems: InventoryItemRow;
   recipes: RecipeRow;
@@ -650,6 +691,8 @@ export const COLLECTIONS: CollectionName[] = [
   'inbox',
   'projections',
   'integrations',
+  'connections',
+  'connectionRuns',
   'aggregateSeqs',
   'inventoryItems',
   'recipes',

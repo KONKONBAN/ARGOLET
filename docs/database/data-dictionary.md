@@ -1,6 +1,6 @@
 # Từ điển dữ liệu ARGOLET
 
-> Sinh tự động từ lược đồ `argolet` (phiên bản 1) bằng `pnpm --filter @argolet/api db:docs`. Không sửa tay.
+> Sinh tự động từ lược đồ `argolet` (phiên bản 2) bằng `pnpm --filter @argolet/api db:docs`. Không sửa tay.
 
 ## Kiểu miền (domain)
 
@@ -28,6 +28,8 @@
 | [`calc_runs`](#calc_runs) | Lần tính toán tài chính có thể tái lập: giả định, phương pháp, phiên bản động cơ và kết quả (bất biến) |
 | [`clients`](#clients) | G2 · Khách hàng dịch vụ kế toán: tiến độ hồ sơ, hạn chốt, uỷ quyền |
 | [`close_snapshots`](#close_snapshots) | Ảnh chụp chốt kỳ (bất biến trừ trạng thái neo bằng chứng): manifest các bản ghi, nguồn, phê duyệt và tổng số; digest được neo |
+| [`connection_runs`](#connection_runs) | Nhật ký từng lần kiểm tra / đồng bộ với đối tác: số bản ghi nhận, chứng từ tạo ra, lỗi (chỉ ghi thêm) |
+| [`connections`](#connections) | Kết nối từ ARGOLET tới API của đối tác (ngân hàng qua SePay, POS qua KiotViet…); khóa truy cập được mã hóa AES-256-GCM bằng khóa máy chủ |
 | [`credentials`](#credentials) | Mật khẩu đã băm (Argon2id / scrypt) – tách khỏi bảng người dùng |
 | [`daily_closes`](#daily_closes) | G1 · Chốt ca / chốt ngày: số hệ thống và số thực kiểm theo kênh thu |
 | [`deals`](#deals) | G2 · Cơ hội / hợp đồng bán hàng theo giai đoạn: cơ hội → báo giá → hợp đồng → giao → hoá đơn → thu tiền |
@@ -620,6 +622,130 @@ Chỉ mục:
 - `close_snapshots_previous_idx`: `argolet.close_snapshots USING btree (tenant_id, previous_close_id)`
 
 Trigger: `close_snapshots_append_only` (chỉ ghi thêm).
+
+### connection_runs
+
+Nhật ký từng lần kiểm tra / đồng bộ với đối tác: số bản ghi nhận, chứng từ tạo ra, lỗi (chỉ ghi thêm)
+
+| Cột | Kiểu | Bắt buộc |
+| --- | --- | --- |
+| `tenant_id` | text | có |
+| `id` | text | có |
+| `connection_id` | text | có |
+| `provider` | text | có |
+| `trigger` | text | có |
+| `started_at` | timestamp with time zone | có |
+| `finished_at` | timestamp with time zone | có |
+| `status` | text | có |
+| `fetched` | integer | có |
+| `imported` | integer | có |
+| `requests` | integer | có |
+| `document_id` | text |  |
+| `document_code` | text |  |
+| `message` | text | có |
+| `actor_id` | text | có |
+| `actor_name` | text | có |
+| `rev` | integer | có |
+| `created_at` | timestamp with time zone | có |
+| `updated_at` | timestamp with time zone | có |
+
+| Ràng buộc | Loại | Định nghĩa |
+| --- | --- | --- |
+| `connection_runs_pkey` | Khoá chính | `PRIMARY KEY (tenant_id, id)` |
+| `connection_runs_actor_fk` | Khoá ngoại | `FOREIGN KEY (actor_id) REFERENCES argolet.users(id) DEFERRABLE INITIALLY DEFERRED` |
+| `connection_runs_connection_fk` | Khoá ngoại | `FOREIGN KEY (tenant_id, connection_id) REFERENCES argolet.connections(tenant_id, id) DEFERRABLE INITIALLY DEFERRED` |
+| `connection_runs_document_fk` | Khoá ngoại | `FOREIGN KEY (tenant_id, document_id) REFERENCES argolet.documents(tenant_id, id) DEFERRABLE INITIALLY DEFERRED` |
+| `connection_runs_actor_id_not_null` | n | `NOT NULL actor_id` |
+| `connection_runs_actor_name_not_null` | n | `NOT NULL actor_name` |
+| `connection_runs_check` | Kiểm tra | `CHECK ((finished_at >= started_at))` |
+| `connection_runs_check1` | Kiểm tra | `CHECK (((document_id IS NULL) = (document_code IS NULL)))` |
+| `connection_runs_connection_id_not_null` | n | `NOT NULL connection_id` |
+| `connection_runs_created_at_not_null` | n | `NOT NULL created_at` |
+| `connection_runs_fetched_check` | Kiểm tra | `CHECK ((fetched >= 0))` |
+| `connection_runs_fetched_not_null` | n | `NOT NULL fetched` |
+| `connection_runs_finished_at_not_null` | n | `NOT NULL finished_at` |
+| `connection_runs_id_not_null` | n | `NOT NULL id` |
+| `connection_runs_imported_check` | Kiểm tra | `CHECK ((imported >= 0))` |
+| `connection_runs_imported_not_null` | n | `NOT NULL imported` |
+| `connection_runs_message_not_null` | n | `NOT NULL message` |
+| `connection_runs_provider_check` | Kiểm tra | `CHECK ((provider = ANY (ARRAY['SEPAY'::text, 'KIOTVIET'::text])))` |
+| `connection_runs_provider_not_null` | n | `NOT NULL provider` |
+| `connection_runs_requests_check` | Kiểm tra | `CHECK ((requests >= 0))` |
+| `connection_runs_requests_not_null` | n | `NOT NULL requests` |
+| `connection_runs_rev_check` | Kiểm tra | `CHECK ((rev >= 1))` |
+| `connection_runs_rev_not_null` | n | `NOT NULL rev` |
+| `connection_runs_started_at_not_null` | n | `NOT NULL started_at` |
+| `connection_runs_status_check` | Kiểm tra | `CHECK ((status = ANY (ARRAY['SUCCESS'::text, 'NO_CHANGE'::text, 'FAILED'::text])))` |
+| `connection_runs_status_not_null` | n | `NOT NULL status` |
+| `connection_runs_tenant_id_not_null` | n | `NOT NULL tenant_id` |
+| `connection_runs_trigger_check` | Kiểm tra | `CHECK ((trigger = ANY (ARRAY['MANUAL'::text, 'SCHEDULE'::text, 'TEST'::text])))` |
+| `connection_runs_trigger_not_null` | n | `NOT NULL trigger` |
+| `connection_runs_updated_at_not_null` | n | `NOT NULL updated_at` |
+
+Chỉ mục:
+
+- `connection_runs_actor_idx`: `argolet.connection_runs USING btree (actor_id)`
+- `connection_runs_connection_idx`: `argolet.connection_runs USING btree (tenant_id, connection_id, started_at DESC)`
+- `connection_runs_document_idx`: `argolet.connection_runs USING btree (tenant_id, document_id)`
+
+Trigger: `connection_runs_append_only` (chỉ ghi thêm).
+
+### connections
+
+Kết nối từ ARGOLET tới API của đối tác (ngân hàng qua SePay, POS qua KiotViet…); khóa truy cập được mã hóa AES-256-GCM bằng khóa máy chủ
+
+| Cột | Kiểu | Bắt buộc |
+| --- | --- | --- |
+| `tenant_id` | text | có |
+| `id` | text | có |
+| `provider` | text | có |
+| `label` | text | có |
+| `status` | text | có |
+| `config` | jsonb | có |
+| `secret_sealed` | text |  |
+| `secret_hint` | text | có |
+| `cursor` | text |  |
+| `entity_id` | text | có |
+| `connected_by` | text | có |
+| `connected_by_name` | text | có |
+| `connected_at` | timestamp with time zone | có |
+| `last_sync_at` | timestamp with time zone |  |
+| `last_error` | text |  |
+| `rev` | integer | có |
+| `created_at` | timestamp with time zone | có |
+| `updated_at` | timestamp with time zone | có |
+
+| Ràng buộc | Loại | Định nghĩa |
+| --- | --- | --- |
+| `connections_pkey` | Khoá chính | `PRIMARY KEY (tenant_id, id)` |
+| `connections_connected_by_fk` | Khoá ngoại | `FOREIGN KEY (connected_by) REFERENCES argolet.users(id) DEFERRABLE INITIALLY DEFERRED` |
+| `connections_entity_fk` | Khoá ngoại | `FOREIGN KEY (tenant_id, entity_id) REFERENCES argolet.legal_entities(tenant_id, id) DEFERRABLE INITIALLY DEFERRED` |
+| `connections_tenant_fk` | Khoá ngoại | `FOREIGN KEY (tenant_id) REFERENCES argolet.tenants(id) DEFERRABLE INITIALLY DEFERRED` |
+| `connections_check` | Kiểm tra | `CHECK (((status = 'DISCONNECTED'::text) OR (secret_sealed IS NOT NULL)))` |
+| `connections_config_check` | Kiểm tra | `CHECK ((jsonb_typeof(config) = 'object'::text))` |
+| `connections_config_not_null` | n | `NOT NULL config` |
+| `connections_connected_at_not_null` | n | `NOT NULL connected_at` |
+| `connections_connected_by_name_not_null` | n | `NOT NULL connected_by_name` |
+| `connections_connected_by_not_null` | n | `NOT NULL connected_by` |
+| `connections_created_at_not_null` | n | `NOT NULL created_at` |
+| `connections_entity_id_not_null` | n | `NOT NULL entity_id` |
+| `connections_id_not_null` | n | `NOT NULL id` |
+| `connections_label_check` | Kiểm tra | `CHECK ((btrim(label) <> ''::text))` |
+| `connections_label_not_null` | n | `NOT NULL label` |
+| `connections_provider_check` | Kiểm tra | `CHECK ((provider = ANY (ARRAY['SEPAY'::text, 'KIOTVIET'::text])))` |
+| `connections_provider_not_null` | n | `NOT NULL provider` |
+| `connections_rev_check` | Kiểm tra | `CHECK ((rev >= 1))` |
+| `connections_rev_not_null` | n | `NOT NULL rev` |
+| `connections_secret_hint_not_null` | n | `NOT NULL secret_hint` |
+| `connections_status_check` | Kiểm tra | `CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'ERROR'::text, 'DISCONNECTED'::text])))` |
+| `connections_status_not_null` | n | `NOT NULL status` |
+| `connections_tenant_id_not_null` | n | `NOT NULL tenant_id` |
+| `connections_updated_at_not_null` | n | `NOT NULL updated_at` |
+
+Chỉ mục:
+
+- `connections_connected_by_idx`: `argolet.connections USING btree (connected_by)`
+- `connections_entity_idx`: `argolet.connections USING btree (tenant_id, entity_id)`
 
 ### credentials
 
