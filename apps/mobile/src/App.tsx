@@ -15,6 +15,7 @@ import { Button, Loading, Notice, T } from './ui';
 import * as A from './screens/auth';
 import * as M from './screens/main';
 import * as X from './screens/modules';
+import { FinanceToolsScreen } from './screens/tools';
 
 type TabParams = { Overview: undefined; Inbox: undefined; Documents: undefined; More: undefined };
 type RootParams = {
@@ -49,6 +50,7 @@ type RootParams = {
   Sales: undefined;
   Projects: undefined;
   Finance: undefined;
+  FinanceTools: undefined;
   Scenarios: undefined;
   Assets: undefined;
   Logistics: undefined;
@@ -272,6 +274,11 @@ function Navigator() {
             name="Finance"
             component={X.FinanceScreen}
             options={{ title: 'Phân tích tài chính' }}
+          />
+          <Stack.Screen
+            name="FinanceTools"
+            component={FinanceToolsScreen}
+            options={{ title: 'Công cụ tính toán' }}
           />
           <Stack.Screen
             name="Scenarios"

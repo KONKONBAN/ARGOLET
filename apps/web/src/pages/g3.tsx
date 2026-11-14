@@ -424,6 +424,7 @@ interface AssumptionForm {
   years: string;
   discountRatePct: string;
   annualDebtService: string;
+  salvageValue?: string;
 }
 const fmtThousands = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const toAssumptions = (f: AssumptionForm) => ({
@@ -432,6 +433,7 @@ const toAssumptions = (f: AssumptionForm) => ({
   years: Number(f.years || 0),
   discountRate: String(Number((f.discountRatePct || '0').replace(',', '.')) / 100),
   annualDebtService: f.annualDebtService.replace(/\./g, ''),
+  salvageValue: (f.salvageValue ?? '').replace(/\./g, ''),
 });
 
 function AssumptionFields({ form, setForm }: { form: AssumptionForm; setForm: (f: AssumptionForm) => void }) {
@@ -466,6 +468,12 @@ function AssumptionFields({ form, setForm }: { form: AssumptionForm; setForm: (f
         inputMode="decimal"
         value={fmtThousands(form.annualDebtService)}
         onChange={(e) => setForm({ ...form, annualDebtService: digits(e.target.value) })}
+      />
+      <TextInput
+        label="Giá trị thanh lý cuối dự án · triệu đ (nếu có)"
+        inputMode="decimal"
+        value={fmtThousands(form.salvageValue ?? '')}
+        onChange={(e) => setForm({ ...form, salvageValue: digits(e.target.value) })}
       />
     </>
   );
@@ -608,6 +616,7 @@ export function FinancePage() {
           years: String(a.years),
           discountRatePct: a.discountRatePct,
           annualDebtService: a.annualDebtService,
+          salvageValue: a.salvageValue ?? '',
         };
   const setForm = (f: AssumptionForm) => setEdits({ id: d.project.id, form: f });
   return (
@@ -691,6 +700,30 @@ export function FinancePage() {
             <Kpi label="Thời gian hoàn vốn" value={r.paybackLabel} note="Chưa chiết khấu" />
             <Kpi label="DSCR" value={r.dscrLabel} note={r.dscrNote} />
           </div>
+          <Card
+            title="Các chỉ tiêu bổ sung"
+            subtitle="Theo chuẩn thẩm định dự án (NPV, IRR, MIRR, PI, hoàn vốn)"
+          >
+            <div className="kv">
+              <div className="kv-row">
+                <span className="k">MIRR (tái đầu tư theo suất chiết khấu)</span>
+                <span className="v strong num">{r.mirrLabel}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">Chỉ số sinh lời PI</span>
+                <span className="v strong num">{r.piLabel}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">Thời gian hoàn vốn có chiết khấu</span>
+                <span className="v strong num">{r.discountedPaybackLabel}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">Dòng tiền đều tương đương / năm (EAA)</span>
+                <span className="v strong num">{r.eaaLabel}</span>
+              </div>
+            </div>
+            <p className="small muted mt-8">{r.piNote}</p>
+          </Card>
           <p className="small muted">{r.footnote}</p>
         </div>
       </div>

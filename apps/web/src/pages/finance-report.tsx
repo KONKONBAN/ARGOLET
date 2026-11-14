@@ -20,6 +20,7 @@ export const FINANCE_TABS = [
   { to: '/finance-report', label: 'Báo cáo tài chính' },
   { to: '/finance', label: 'Thẩm định dự án' },
   { to: '/scenarios', label: 'So sánh kịch bản' },
+  { to: '/finance-tools', label: 'Công cụ tính toán' },
 ];
 
 const RANGES = [

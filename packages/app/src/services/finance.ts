@@ -36,6 +36,10 @@ function validateAssumptions(a: ProjectAssumptions): ProjectAssumptions {
     years: Number(num(a.years, 'Thời gian phân tích', 1, 50)),
     discountRate: D(num(a.discountRate, 'Suất chiết khấu', 0, 1)).toFixed(),
     annualDebtService: num(a.annualDebtService, 'Trả nợ / năm', 0.001, 1e9),
+    // Giá trị thanh lý cuối dự án (optional): added to the last year's cash flow.
+    ...(a.salvageValue !== undefined && String(a.salvageValue).trim() !== ''
+      ? { salvageValue: num(a.salvageValue, 'Giá trị thanh lý', 0, 1e9) }
+      : {}),
   };
 }
 
@@ -60,10 +64,23 @@ export class FinanceService {
         irrLabel: r.irr ? formatPercent(r.irr) : 'Không xác định',
         paybackLabel: years(r.payback),
         dscrLabel: `${formatNumber(D(r.dscr), 2)} lần`,
+        mirrLabel: r.mirr ? formatPercent(r.mirr) : 'Không xác định',
+        piLabel: r.pi ? `${formatNumber(D(r.pi), 2)} lần` : 'Không xác định',
+        discountedPaybackLabel: years(r.discountedPayback),
+        eaaLabel: formatMillions(r.eaa),
+        piNote: r.pi
+          ? D(r.pi).gte(1)
+            ? 'PI ≥ 1: hiện giá dòng tiền vượt vốn đầu tư'
+            : 'PI < 1: hiện giá dòng tiền chưa bù đủ vốn đầu tư'
+          : 'Chưa có vốn đầu tư',
         npvNote: `Chiết khấu ${formatNumber(D(p.assumptions.discountRate).times(100), 0)}% / năm`,
         irrNote: `So với suất chiết khấu ${formatNumber(D(p.assumptions.discountRate).times(100), 0)}%`,
         dscrNote: `CFADS ${formatNumber(p.assumptions.annualCashflow)} / Trả nợ ${formatNumber(p.assumptions.annualDebtService)}`,
-        footnote: `CF0 = ${formatNumber(D(r.cashflows[0]!))} · CF1–CF${p.assumptions.years} = +${formatNumber(D(p.assumptions.annualCashflow))} · Không có giá trị thanh lý`,
+        footnote: `CF0 = ${formatNumber(D(r.cashflows[0]!))} · CF1–CF${p.assumptions.years} = +${formatNumber(D(p.assumptions.annualCashflow))} · ${
+          p.assumptions.salvageValue && !D(p.assumptions.salvageValue).isZero()
+            ? `Giá trị thanh lý ${formatNumber(D(p.assumptions.salvageValue))} cộng vào năm ${p.assumptions.years}`
+            : 'Không có giá trị thanh lý'
+        } · MIRR tái đầu tư theo suất chiết khấu`,
       },
       lastCalcRunId: p.lastCalcRunId,
     };
@@ -178,7 +195,7 @@ export class FinanceService {
       rulesVersion: 'finance-rules-2026.10',
       assumptions,
       method:
-        'NPV/IRR (chiết khấu cuối kỳ), hoàn vốn giản đơn nội suy tuyến tính, DSCR = CFADS / nghĩa vụ nợ',
+        'NPV/IRR/MIRR (chiết khấu cuối kỳ), PI = PV dòng tiền / vốn đầu tư, hoàn vốn giản đơn và có chiết khấu nội suy tuyến tính, EAA, DSCR = CFADS / nghĩa vụ nợ',
       result,
       createdAt: now,
     });

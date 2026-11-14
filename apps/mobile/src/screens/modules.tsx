@@ -70,7 +70,7 @@ function ListCard<R>({
 }
 
 /** Single-choice chips (units, shifts, stages, statuses…). */
-function Choice({
+export function Choice({
   label,
   value,
   options,
@@ -101,7 +101,15 @@ function Choice({
   );
 }
 
-function Money({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function Money({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <Input
       label={label}
@@ -1169,6 +1177,7 @@ interface AssumptionForm {
   years: string;
   rate: string;
   debt: string;
+  salvage?: string;
 }
 const toAssumptions = (f: AssumptionForm) => ({
   investment: f.investment,
@@ -1176,6 +1185,7 @@ const toAssumptions = (f: AssumptionForm) => ({
   years: Number(f.years || 0),
   discountRate: String(Number((f.rate || '0').replace(',', '.')) / 100),
   annualDebtService: f.debt,
+  salvageValue: f.salvage ?? '',
 });
 
 function AssumptionInputs({ f, setF }: { f: AssumptionForm; setF: (f: AssumptionForm) => void }) {
@@ -1210,6 +1220,12 @@ function AssumptionInputs({ f, setF }: { f: AssumptionForm; setF: (f: Assumption
         keyboardType="number-pad"
         value={f.debt}
         onChangeText={(v) => setF({ ...f, debt: digits(v) })}
+      />
+      <Input
+        label="Giá trị thanh lý cuối dự án · triệu đ (nếu có)"
+        keyboardType="number-pad"
+        value={f.salvage ?? ''}
+        onChangeText={(v) => setF({ ...f, salvage: digits(v) })}
       />
     </>
   );
@@ -1281,6 +1297,7 @@ export function FinanceScreen({ navigation }: ScreenProps<'Finance'>) {
           years: String(a.years),
           rate: a.discountRatePct,
           debt: a.annualDebtService,
+          salvage: a.salvageValue ?? '',
         };
   return (
     <Screen
@@ -1325,6 +1342,17 @@ export function FinanceScreen({ navigation }: ScreenProps<'Finance'>) {
           <Kpi label="DSCR" value={r.dscrLabel} />
         </View>
       </View>
+      <Card title="Các chỉ tiêu bổ sung">
+        <KV
+          rows={[
+            { label: 'MIRR', value: r.mirrLabel },
+            { label: 'Chỉ số sinh lời PI', value: r.piLabel },
+            { label: 'Hoàn vốn có chiết khấu', value: r.discountedPaybackLabel },
+            { label: 'Dòng tiền đều tương đương (EAA)', value: r.eaaLabel },
+          ]}
+        />
+        <Text style={[T.small, { marginTop: 6 }]}>{r.piNote}</Text>
+      </Card>
       <Card title="Giả định đầu vào" subtitle={d.project.name}>
         <AssumptionInputs f={f} setF={(nf2) => setEdits({ id: d.project.id, f: nf2 })} />
         {recalc.error && <Notice tone="danger">{recalc.error.message}</Notice>}

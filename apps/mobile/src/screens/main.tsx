@@ -36,6 +36,7 @@ import {
   Upload,
   Users,
   Zap,
+  Calculator,
 } from 'lucide-react-native';
 import { D, formatDate, formatSignedVnd, formatVnd, formatShortDateTime, readQrContent } from '@argolet/core';
 import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
@@ -492,6 +493,7 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
       items: [
         { icon: FolderKanban, label: 'Dự án & công việc', to: 'Projects' },
         { icon: ChartColumn, label: 'Phân tích tài chính', to: 'Finance' },
+        { icon: Calculator, label: 'Công cụ tính toán', to: 'FinanceTools' },
         { icon: Grid2x2, label: 'So sánh kịch bản', to: 'Scenarios' },
         { icon: Zap, label: 'Tài sản & đo lường', to: 'Assets' },
         { icon: Truck, label: 'Hồ sơ logistics', to: 'Logistics' },

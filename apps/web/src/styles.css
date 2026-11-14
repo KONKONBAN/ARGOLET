@@ -894,6 +894,36 @@ table.table {
   margin: 0 auto 18px;
   line-height: 1.6;
 }
+/* Financial calculators: inputs beside results. */
+.tool-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 20px;
+  align-items: start;
+}
+.tool-note {
+  display: block;
+  margin-top: 2px;
+}
+.tool-more {
+  margin-top: 6px;
+}
+.tool-more summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--action-strong);
+  padding: 8px 0;
+}
+.report-table.tool-table tbody th {
+  min-width: 48px;
+  width: 56px;
+  text-align: center;
+}
+@media (max-width: 1180px) {
+  .tool-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 /* Income statement: indicators down, periods across; the indicator column stays pinned. */
 .report-table {
   font-size: 13px;

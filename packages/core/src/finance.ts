@@ -7,7 +7,7 @@ import { sha256Hex } from './hash';
  * Every result carries assumptions, method and the input snapshot digest so that
  * AI can only *explain* numbers produced here, never invent them.
  */
-export const ENGINE_VERSION = 'finance-engine-1.4.0';
+export const ENGINE_VERSION = 'finance-engine-1.5.0';
 
 // ───────────────────────── G3 · investment appraisal ─────────────────────────
 
@@ -65,6 +65,103 @@ export function discountedPayback(rate: DecimalInput, cashflows: DecimalInput[])
   return paybackPeriod(cashflows.map((cf, t) => D(cf).div(r.plus(1).pow(t))));
 }
 
+/** Chỉ số sinh lời PI = hiện giá dòng tiền tương lai / vốn đầu tư ban đầu. */
+export function profitabilityIndex(rate: DecimalInput, cashflows: DecimalInput[]): Decimal | null {
+  const invest = D(cashflows[0] ?? 0).neg();
+  if (invest.lte(0)) return null;
+  return npv(rate, [0, ...cashflows.slice(1)]).div(invest);
+}
+
+/**
+ * MIRR (as Excel): negative flows discounted at the finance rate, positive flows compounded to the
+ * end at the reinvestment rate; MIRR = (FV₊ / −PV₋)^(1/n) − 1.
+ */
+export function mirr(
+  cashflows: DecimalInput[],
+  financeRate: DecimalInput,
+  reinvestRate: DecimalInput,
+): Decimal | null {
+  const n = cashflows.length - 1;
+  if (n < 1) return null;
+  let pvNeg = D(0);
+  let fvPos = D(0);
+  cashflows.forEach((cf, t) => {
+    const c = D(cf);
+    if (c.isNeg()) pvNeg = pvNeg.plus(c.div(D(1).plus(financeRate).pow(t)));
+    else
+      fvPos = fvPos.plus(
+        c.times(
+          D(1)
+            .plus(reinvestRate)
+            .pow(n - t),
+        ),
+      );
+  });
+  if (pvNeg.isZero() || fvPos.isZero()) return null;
+  return fvPos.div(pvNeg.neg()).pow(D(1).div(n)).minus(1);
+}
+
+/** Dòng tiền đều tương đương hằng năm (EAA): NPV × r / (1 − (1 + r)⁻ⁿ), to compare unequal lives. */
+export function equivalentAnnualAnnuity(npvValue: DecimalInput, rate: DecimalInput, years: number): Decimal {
+  const r = D(rate);
+  if (r.isZero()) return D(npvValue).div(years);
+  return D(npvValue)
+    .times(r)
+    .div(D(1).minus(D(1).plus(r).pow(-years)));
+}
+
+/** Dòng tiền hoạt động (OCF) = (Doanh thu − Chi phí bằng tiền − Khấu hao)(1 − t) + Khấu hao. */
+export function operatingCashFlow(p: {
+  revenue: DecimalInput;
+  cashCosts: DecimalInput;
+  depreciation: DecimalInput;
+  taxRate: DecimalInput;
+}): Decimal {
+  const ebit = D(p.revenue).minus(p.cashCosts).minus(p.depreciation);
+  return ebit.times(D(1).minus(p.taxRate)).plus(p.depreciation);
+}
+
+/** Chi phí vốn chủ theo CAPM: rₑ = r_f + β (r_m − r_f). */
+export function capmCostOfEquity(
+  riskFree: DecimalInput,
+  beta: DecimalInput,
+  marketReturn: DecimalInput,
+): Decimal {
+  return D(riskFree).plus(D(beta).times(D(marketReturn).minus(riskFree)));
+}
+
+/**
+ * Chi phí sử dụng vốn bình quân (WACC) = wₑ rₑ + wₚ rₚ + w_d r_d (1 − t), weights from the market
+ * (or book) values of each source.
+ */
+export function wacc(p: {
+  equity: DecimalInput;
+  debt: DecimalInput;
+  preferred?: DecimalInput;
+  costOfEquity: DecimalInput;
+  costOfDebt: DecimalInput;
+  costOfPreferred?: DecimalInput;
+  taxRate: DecimalInput;
+}) {
+  const E = D(p.equity);
+  const Dv = D(p.debt);
+  const P = D(p.preferred ?? 0);
+  const V = E.plus(Dv).plus(P);
+  if (V.lte(0)) throw new RangeError('Tổng nguồn vốn phải lớn hơn 0');
+  const afterTaxDebt = D(p.costOfDebt).times(D(1).minus(p.taxRate));
+  const value = E.div(V)
+    .times(p.costOfEquity)
+    .plus(P.div(V).times(p.costOfPreferred ?? 0))
+    .plus(Dv.div(V).times(afterTaxDebt));
+  return {
+    wacc: dec(value),
+    weightEquity: dec(E.div(V)),
+    weightDebt: dec(Dv.div(V)),
+    weightPreferred: dec(P.div(V)),
+    afterTaxCostOfDebt: dec(afterTaxDebt),
+  };
+}
+
 /** Debt service coverage ratio = CFADS / debt service. */
 export function dscr(cfads: DecimalInput, debtService: DecimalInput): Decimal {
   if (D(debtService).isZero()) throw new RangeError('Nghĩa vụ trả nợ phải khác 0');
@@ -84,8 +181,14 @@ export interface ProjectAppraisal {
   cashflows: string[];
   npv: string;
   irr: string | null;
+  /** MIRR with financing and reinvestment at the discount rate. */
+  mirr: string | null;
+  /** Chỉ số sinh lời PI. */
+  pi: string | null;
   payback: string | null;
   discountedPayback: string | null;
+  /** Dòng tiền đều tương đương hằng năm. */
+  eaa: string;
   dscr: string;
 }
 
@@ -98,12 +201,18 @@ export function appraiseProject(a: ProjectAssumptions): ProjectAppraisal {
   const i = irr(flows);
   const pb = paybackPeriod(flows);
   const dpb = discountedPayback(a.discountRate, flows);
+  const value = npv(a.discountRate, flows);
+  const m = mirr(flows, a.discountRate, a.discountRate);
+  const pi = profitabilityIndex(a.discountRate, flows);
   return {
     cashflows: flows.map((f) => dec(f)),
-    npv: dec(npv(a.discountRate, flows)),
+    npv: dec(value),
     irr: i ? dec(i) : null,
+    mirr: m ? dec(m) : null,
+    pi: pi ? dec(pi) : null,
     payback: pb ? dec(pb) : null,
     discountedPayback: dpb ? dec(dpb) : null,
+    eaa: dec(equivalentAnnualAnnuity(value, a.discountRate, a.years)),
     dscr: dec(dscr(a.annualCashflow, a.annualDebtService)),
   };
 }
