@@ -376,3 +376,31 @@ describe('thẩm định dự án theo giáo trình (Ross ch.9, TCDN1 ch.6)', ()
     ).toBe('340');
   });
 });
+
+describe('khấu hao tài sản cố định (Thông tư 45/2013/TT-BTC)', () => {
+  it('straight line, declining balance with adjustment and switch, units of production', async () => {
+    const { depreciationSchedule, decliningCoefficient } = await import('../src');
+    // Phụ lục 2 of the circular: nguyên giá 50 trđ, 5 năm, hệ số 2 → 40%; switches in year 4.
+    const dec = depreciationSchedule({ cost: 50_000_000, years: 5, method: 'DECLINING' });
+    expect(dec.map((r) => r.depreciation)).toEqual(['20000000', '12000000', '7200000', '5400000', '5400000']);
+    expect(dec.at(-1)!.closing).toBe('0');
+    expect([1, 4, 5, 6, 7, 10].map((y) => decliningCoefficient(y).toFixed())).toEqual([
+      '1.5',
+      '1.5',
+      '2',
+      '2',
+      '2.5',
+      '2.5',
+    ]);
+    const sl = depreciationSchedule({ cost: 100_000_000, years: 3, method: 'STRAIGHT_LINE' });
+    expect(sl.map((r) => r.depreciation)).toEqual(['33333333', '33333333', '33333334']);
+    const units = depreciationSchedule({
+      cost: 90_000_000,
+      years: 0,
+      method: 'UNITS',
+      unitsPerYear: [1000, 2000, 3000],
+    });
+    expect(units.map((r) => r.depreciation)).toEqual(['15000000', '30000000', '45000000']);
+    expect(() => depreciationSchedule({ cost: 0, years: 5, method: 'STRAIGHT_LINE' })).toThrow();
+  });
+});

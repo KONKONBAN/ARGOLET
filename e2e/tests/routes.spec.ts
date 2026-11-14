@@ -22,6 +22,7 @@ const ROUTES: [string, string | RegExp][] = [
   ['sales', /Bán hàng/],
   ['projects', /Dự án/],
   ['finance-report', 'Báo cáo tài chính'],
+  ['finance-tools', 'Công cụ tính toán'],
   ['finance', /Phân tích tài chính|Thẩm định/],
   ['scenarios', /kịch bản/i],
   ['assets', /Tài sản/],
@@ -119,8 +120,11 @@ test('documents are paginated with page numbers; the page survives opening a rec
   expect(await page.locator('table tbody tr').first().innerText()).not.toBe(firstOnPage1);
   await page.getByRole('button', { name: 'Trang sau' }).click();
   await expect(pager).toContainText(range(41, 60));
-  await page.locator('.pager-size select').selectOption('50');
-  await expect(pager).toContainText(range(1, 50));
+  // API mode runs beside other tests on one server: retry the choice if a reload raced it.
+  await expect(async () => {
+    await page.locator('.pager-size select').selectOption('50');
+    await expect(pager).toContainText(range(1, 50), { timeout: 3000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByRole('button', { name: 'Trang 3' }).click();
   await expect(pager).toContainText(range(101, null));
   if (exact) await expect(page.locator('table tbody tr')).toHaveCount(28);

@@ -12,6 +12,8 @@ import {
   compoundFutureValue,
   D,
   daysBetween,
+  decliningCoefficient,
+  depreciationSchedule,
   dupont,
   effectiveAnnualRate,
   formatNumber,
@@ -27,6 +29,7 @@ import {
   totalLeverage,
   wacc,
   XLSX_MIME,
+  type DepreciationMethod,
   type LoanSchedule,
   type RepaymentMethod,
   type XCell,
@@ -469,6 +472,7 @@ function LeverageTool() {
           inputMode="decimal"
           value={f.tax}
           onChange={(e) => set({ tax: e.target.value })}
+          hint="Phổ thông 20%; doanh nghiệp doanh thu năm ≤ 3 tỷ: 15%, trên 3 đến 50 tỷ: 17%"
         />
         <MoneyInput label="Tổng tài sản" value={f.assets} onChange={(v) => set({ assets: v })} />
         <MoneyInput label="Vốn chủ sở hữu" value={f.equity} onChange={(v) => set({ equity: v })} />
@@ -945,11 +949,120 @@ function AnnuityTool() {
   );
 }
 
+// ───────── 5 · Khấu hao tài sản cố định ─────────
+function DepreciationTool() {
+  const [f, setF] = useState({
+    cost: '',
+    years: '5',
+    method: 'STRAIGHT_LINE' as DepreciationMethod,
+    units: '',
+  });
+  const years = Number(f.years);
+  const units = f.units
+    .split(/[;\n]+/)
+    .map((u) => u.replace(/[^\d]/g, ''))
+    .filter(Boolean);
+  const ready = money(f.cost) !== '' && (f.method === 'UNITS' ? units.length > 0 : years > 0);
+  const r = ready
+    ? attempt(() =>
+        depreciationSchedule({
+          cost: money(f.cost),
+          years,
+          method: f.method,
+          ...(f.method === 'UNITS' ? { unitsPerYear: units } : {}),
+        }),
+      )
+    : null;
+  return (
+    <div className="tool-grid">
+      <Card title="Tài sản cố định" subtitle="Theo Thông tư 45/2013/TT-BTC về trích khấu hao tài sản cố định">
+        <MoneyInput label="Nguyên giá" value={f.cost} onChange={(v) => setF({ ...f, cost: v })} />
+        <SelectInput
+          label="Phương pháp khấu hao"
+          value={f.method}
+          onChange={(v) => setF({ ...f, method: v as DepreciationMethod })}
+          options={[
+            { value: 'STRAIGHT_LINE', label: 'Đường thẳng' },
+            { value: 'DECLINING', label: 'Số dư giảm dần có điều chỉnh' },
+            { value: 'UNITS', label: 'Theo số lượng, khối lượng sản phẩm' },
+          ]}
+        />
+        {f.method === 'UNITS' ? (
+          <TextInput
+            label="Sản lượng dự kiến từng năm"
+            value={f.units}
+            onChange={(e) => setF({ ...f, units: e.target.value })}
+            placeholder="1000; 2000; 3000"
+            hint="Ngăn cách các năm bằng dấu chấm phẩy"
+          />
+        ) : (
+          <TextInput
+            label="Thời gian trích khấu hao · năm"
+            inputMode="numeric"
+            value={f.years}
+            onChange={(e) => setF({ ...f, years: e.target.value.replace(/[^\d]/g, '') })}
+            hint={
+              f.method === 'DECLINING' && years > 0
+                ? `Hệ số điều chỉnh ${formatNumber(decliningCoefficient(years), 1)} · tỷ lệ khấu hao nhanh ${formatPercent(D(1).div(years).times(decliningCoefficient(years)).toFixed(), 2)}/năm`
+                : undefined
+            }
+          />
+        )}
+        <p className="small muted" style={{ lineHeight: 1.6 }}>
+          Số dư giảm dần: khấu hao năm = giá trị còn lại × tỷ lệ khấu hao nhanh; khi mức này thấp hơn giá trị
+          còn lại chia số năm còn lại thì chuyển sang chia đều cho các năm còn lại.
+        </p>
+      </Card>
+      <Card title="Lịch khấu hao" subtitle="Đơn vị: đồng · năm cuối trích nốt phần còn lại">
+        {!r ? (
+          <p className="muted">Nhập nguyên giá và thời gian trích khấu hao.</p>
+        ) : r.value === null ? (
+          <Problem>{r.error}</Problem>
+        ) : (
+          <div className="table-wrap">
+            <table className="table report-table tool-table">
+              <thead>
+                <tr>
+                  <th scope="col">Năm</th>
+                  <th scope="col" className="right">
+                    Giá trị còn lại đầu năm
+                  </th>
+                  <th scope="col" className="right">
+                    Mức khấu hao
+                  </th>
+                  <th scope="col" className="right">
+                    Khấu hao lũy kế
+                  </th>
+                  <th scope="col" className="right">
+                    Giá trị còn lại cuối năm
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.value.map((x) => (
+                  <tr key={x.year}>
+                    <th scope="row">{x.year}</th>
+                    <td className="right num">{formatNumber(D(x.opening))}</td>
+                    <td className="right num">{formatNumber(D(x.depreciation))}</td>
+                    <td className="right num">{formatNumber(D(x.accumulated))}</td>
+                    <td className="right num">{formatNumber(D(x.closing))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 const TOOLS = [
   { key: 'loan', label: 'Vay vốn' },
   { key: 'leverage', label: 'Đòn bẩy & chỉ số' },
   { key: 'interest', label: 'Lãi suất & chiết khấu' },
   { key: 'annuity', label: 'Chuỗi tiền tệ & WACC' },
+  { key: 'depreciation', label: 'Khấu hao TSCĐ' },
 ] as const;
 
 /** Công cụ tính toán tài chính: vay vốn, đòn bẩy, lãi suất, chiết khấu, chuỗi tiền tệ, WACC. */
@@ -961,7 +1074,7 @@ export function FinanceToolsPage() {
       <PageHeader
         eyebrow="Tài chính"
         title="Công cụ tính toán"
-        subtitle="Vay vốn, đòn bẩy, lãi suất, chiết khấu, chuỗi tiền tệ và chi phí vốn theo chuẩn tài chính doanh nghiệp."
+        subtitle="Vay vốn, đòn bẩy, lãi suất, chiết khấu, chuỗi tiền tệ, chi phí vốn và khấu hao theo chuẩn tài chính – kế toán."
         period={period}
       />
       <ModuleTabs tabs={FINANCE_TABS} current="/finance-tools" />
@@ -983,6 +1096,7 @@ export function FinanceToolsPage() {
       {tool === 'leverage' && <LeverageTool />}
       {tool === 'interest' && <InterestTool />}
       {tool === 'annuity' && <AnnuityTool />}
+      {tool === 'depreciation' && <DepreciationTool />}
       <p className="small muted mt-16" style={{ lineHeight: 1.6 }}>
         Kết quả tính chính xác theo số thập phân; tiền làm tròn đến đồng. Lãi theo ngày thực tế tính trên 365
         ngày theo Thông tư 14/2017/TT-NHNN; lãi suất quá hạn không vượt 150% lãi suất trong hạn.

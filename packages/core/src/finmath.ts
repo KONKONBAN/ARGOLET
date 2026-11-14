@@ -672,3 +672,76 @@ export function factoring(p: {
     remaining: dec(D(p.receivable).minus(advance).minus(interest).minus(fee).minus(other)),
   };
 }
+
+// ───────────────────────── Khấu hao tài sản cố định ─────────────────────────
+
+export type DepreciationMethod =
+  /** Đường thẳng: nguyên giá / số năm sử dụng. */
+  | 'STRAIGHT_LINE'
+  /** Số dư giảm dần có điều chỉnh (Thông tư 45/2013/TT-BTC). */
+  | 'DECLINING'
+  /** Theo số lượng, khối lượng sản phẩm. */
+  | 'UNITS';
+
+export interface DepreciationRow {
+  year: number;
+  opening: string;
+  depreciation: string;
+  accumulated: string;
+  closing: string;
+}
+
+/** Hệ số điều chỉnh của phương pháp số dư giảm dần: ≤ 4 năm 1,5; > 4 đến 6 năm 2,0; > 6 năm 2,5. */
+export function decliningCoefficient(years: number): Decimal {
+  return D(years <= 4 ? '1.5' : years <= 6 ? '2' : '2.5');
+}
+
+/**
+ * Lịch khấu hao năm. Declining balance: remaining value × (1 / years × coefficient), switching to
+ * remaining value / remaining years once that is larger (as Thông tư 45/2013 prescribes). Units of
+ * production: cost / total units × units of the year. Amounts are whole đồng; the last year takes
+ * what remains so the asset is fully depreciated.
+ */
+export function depreciationSchedule(p: {
+  cost: DecimalInput;
+  years: number;
+  method: DepreciationMethod;
+  /** UNITS only: expected output of each year (its sum is the total output). */
+  unitsPerYear?: DecimalInput[];
+}): DepreciationRow[] {
+  const cost = roundVnd(p.cost);
+  if (cost.lte(0)) throw new RangeError('Nguyên giá phải lớn hơn 0');
+  const years = p.method === 'UNITS' ? (p.unitsPerYear?.length ?? 0) : p.years;
+  if (!Number.isInteger(years) || years < 1 || years > 50)
+    throw new RangeError('Thời gian sử dụng phải từ 1 đến 50 năm');
+  const rows: DepreciationRow[] = [];
+  let remaining = cost;
+  let accumulated = D(0);
+  const totalUnits = p.method === 'UNITS' ? sum(p.unitsPerYear ?? []) : D(0);
+  if (p.method === 'UNITS' && totalUnits.lte(0)) throw new RangeError('Tổng sản lượng phải lớn hơn 0');
+  const fastRate = ONE.div(years).times(decliningCoefficient(years));
+  for (let y = 1; y <= years; y++) {
+    const left = years - y + 1;
+    let amount: Decimal;
+    if (y === years) amount = remaining;
+    else if (p.method === 'STRAIGHT_LINE') amount = roundVnd(cost.div(years));
+    else if (p.method === 'UNITS') amount = roundVnd(cost.times(p.unitsPerYear![y - 1]!).div(totalUnits));
+    else {
+      const declining = roundVnd(remaining.times(fastRate));
+      const even = roundVnd(remaining.div(left));
+      amount = declining.lt(even) ? even : declining;
+    }
+    amount = min(amount, remaining);
+    const opening = remaining;
+    remaining = remaining.minus(amount);
+    accumulated = accumulated.plus(amount);
+    rows.push({
+      year: y,
+      opening: dec(opening),
+      depreciation: dec(amount),
+      accumulated: dec(accumulated),
+      closing: dec(remaining),
+    });
+  }
+  return rows;
+}

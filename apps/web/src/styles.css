@@ -801,6 +801,8 @@ table.table {
 /* ───────── finance report: a one-screen dashboard ───────── */
 .seg {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 2px;
   padding: 3px;
   background: var(--soft);

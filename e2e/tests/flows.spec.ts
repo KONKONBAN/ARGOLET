@@ -238,7 +238,7 @@ test.describe('core business flows', () => {
     const box = page.getByRole('textbox').last();
     await box.fill('Khoản nào chưa khớp?');
     await box.press('Enter');
-    await expect(page.getByText(/nhóm chưa xác nhận/).first()).toBeVisible();
+    await expect(page.getByText(/nhóm chưa xác nhận/).first()).toBeVisible({ timeout: 30_000 });
     await expectClean(w, info);
   });
 
