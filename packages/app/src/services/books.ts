@@ -1,0 +1,312 @@
+/**
+ * Accounting books of a period from confirmed records, as a real Excel workbook:
+ *  - households (HKD): the forms of Thông tư 152/2025/TT-BTC chosen by their tax method;
+ *  - companies (TT133 / TT99): the journal (Nhật ký chung) needs a debit/credit posting per
+ *    transaction, which ARGOLET does not record yet — they get the confirmed source records,
+ *    titled as such, rather than a journal with guessed accounts.
+ * Every line comes from a confirmed document (or a record entered by a person), cited by code.
+ */
+import {
+  buildXlsx,
+  D,
+  dec,
+  hkdForms,
+  sheetS1a,
+  sheetS2a,
+  sheetS2b,
+  sheetS2c,
+  sheetS2e,
+  XLSX_MIME,
+  type BookLine,
+  type BusinessLineBook,
+  type CostCategory,
+  type HkdHeader,
+  type MoneyAccount,
+  type XCell,
+  type XSheet,
+} from '@argolet/core';
+import type { WorkspaceState } from '../runtime';
+import type { Tx } from '../store';
+import type { BusinessRecordRow, DocumentRow, TenantRow } from '../types';
+import { scoped } from './documents';
+import { scopeLabel } from './org';
+
+const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const monthLabel = (periodId: string) => `Tháng ${periodId.slice(5)}/${periodId.slice(0, 4)}`;
+
+/** S2c-HKD cost caption for an expense, from the supplier / description (reviewed by a person). */
+export function costCategory(text: string): CostCategory {
+  const t = text.toLowerCase();
+  if (/lãi vay|lãi tiền vay|tiền lãi/.test(t)) return 'dd';
+  if (/lương|tiền công|bảo hiểm xã hội|bhxh/.test(t)) return 'b';
+  if (/khấu hao/.test(t)) return 'c';
+  if (
+    /điện lực|tiền điện|cấp nước|tiền nước|viễn thông|internet|điện thoại|vận tải|vận chuyển|giao hàng|thuê|mặt bằng|nhà đất|sửa chữa|bảo dưỡng|bảo trì/.test(
+      t,
+    )
+  )
+    return 'd';
+  if (
+    /nguyên liệu|vật liệu|nhiên liệu|xăng|dầu|hàng hóa|bột|sữa|cà phê|đường|thực phẩm|bao bì|nông sản/.test(t)
+  )
+    return 'a';
+  return 'e';
+}
+
+interface Source {
+  tenant: TenantRow;
+  periodId: string;
+  records: BusinessRecordRow[];
+  docs: Map<string, DocumentRow>;
+  location: string;
+}
+
+async function load(tx: Tx, ws: WorkspaceState, tenant: TenantRow, periodId: string): Promise<Source> {
+  const docs = new Map((await scoped(tx, ws, 'documents')).map((d) => [d.id, d]));
+  // Only what a person confirmed: records of validated documents, or entered directly.
+  const records = (await scoped(tx, ws, 'records'))
+    .filter((r) => r.periodId === periodId)
+    .filter((r) => !r.documentId || docs.get(r.documentId)?.status === 'VALIDATED')
+    .sort((a, b) => a.date.localeCompare(b.date) || a.code.localeCompare(b.code));
+  const scope = await scopeLabel(tx, ws.tenantId, ws.entityId);
+  return { tenant, periodId, records, docs, location: scope === 'Tất cả cơ sở' ? tenant.name : scope };
+}
+
+const docCode = (s: Source, r: BusinessRecordRow) =>
+  r.documentId ? (s.docs.get(r.documentId)?.code ?? r.code) : r.code;
+
+/** Sales of the period: POS / platform orders by document, day and channel; invoices one by one. */
+function revenueLines(s: Source): BookLine[] {
+  const out: BookLine[] = [];
+  const groups = new Map<
+    string,
+    { docNo: string; date: string; channel: string; n: number; amount: string; refund: string }
+  >();
+  for (const r of s.records) {
+    if (r.kind === 'REVENUE') {
+      const d = r.documentId ? s.docs.get(r.documentId) : undefined;
+      const invoice = d?.sourceKind === 'XML_EINVOICE';
+      const no = d?.fields.documentNo
+        ? invoice
+          ? ` số ${d.fields.series ? `${d.fields.series}/` : ''}${d.fields.documentNo}`
+          : ` (${d.fields.documentNo})`
+        : '';
+      // Only an e-invoice is called an invoice; POS / sales summaries are described as sales.
+      out.push({
+        docNo: docCode(s, r),
+        date: r.date,
+        description: `${invoice ? 'Hóa đơn bán ra' : `Doanh thu bán hàng ngày ${ddmm(r.date)}`}${no}${r.counterparty ? ` · ${r.counterparty}` : ''}`,
+        amount: r.amount,
+      });
+    } else if (r.kind === 'ORDER') {
+      const key = `${r.documentId ?? ''}|${r.date}|${r.channel}`;
+      const g = groups.get(key) ?? {
+        docNo: docCode(s, r),
+        date: r.date,
+        channel: r.channel || 'Bán hàng',
+        n: 0,
+        amount: '0',
+        refund: '0',
+      };
+      g.n++;
+      g.amount = dec(D(g.amount).plus(r.amount));
+      g.refund = dec(D(g.refund).plus(r.refund || '0'));
+      groups.set(key, g);
+    }
+  }
+  for (const g of groups.values()) {
+    out.push({
+      docNo: g.docNo,
+      date: g.date,
+      description: `Doanh thu bán hàng ngày ${ddmm(g.date)} · ${g.channel} (${g.n} đơn)`,
+      amount: g.amount,
+    });
+    if (D(g.refund).gt(0))
+      out.push({
+        docNo: g.docNo,
+        date: g.date,
+        description: `Hoàn tiền cho khách ngày ${ddmm(g.date)} · ${g.channel}`,
+        amount: dec(D(g.refund).neg()),
+      });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date) || a.docNo.localeCompare(b.docNo));
+}
+
+function costLines(s: Source): Partial<Record<CostCategory, BookLine[]>> {
+  const out: Partial<Record<CostCategory, BookLine[]>> = {};
+  const add = (k: CostCategory, l: BookLine) => (out[k] ??= []).push(l);
+  const fees = new Map<string, BookLine>();
+  for (const r of s.records) {
+    if (r.kind === 'EXPENSE') {
+      const d = r.documentId ? s.docs.get(r.documentId) : undefined;
+      const what = [r.counterparty, d?.title, r.description].filter(Boolean).join(' · ');
+      add(costCategory(what), {
+        docNo: docCode(s, r),
+        date: r.date,
+        description: `${r.counterparty || d?.title || 'Chi phí'}${d?.fields.documentNo ? ` · số ${d.fields.documentNo}` : ''}`,
+        amount: r.amount,
+      });
+    } else if (r.kind === 'ORDER' && D(r.fee || '0').gt(0)) {
+      // Commission and fees withheld by delivery platforms.
+      const key = `${r.documentId ?? ''}|${r.date}|${r.channel}`;
+      const f = fees.get(key) ?? {
+        docNo: docCode(s, r),
+        date: r.date,
+        description: `Phí nền tảng ${r.channel} ngày ${ddmm(r.date)}`,
+        amount: '0',
+      };
+      f.amount = dec(D(f.amount).plus(r.fee));
+      fees.set(key, f);
+    }
+  }
+  for (const f of fees.values()) add('e', f);
+  return out;
+}
+
+function moneyAccounts(s: Source): MoneyAccount[] {
+  const cash: MoneyAccount = { name: 'Tiền mặt', kind: 'CASH', lines: [] };
+  const banks = new Map<string, MoneyAccount>();
+  for (const r of s.records) {
+    const line = {
+      docNo: r.reference || docCode(s, r),
+      date: r.date,
+      description: r.description || r.counterparty || 'Giao dịch',
+      amount: r.amount,
+    };
+    if (r.kind === 'CASH') cash.lines.push(line);
+    else if (r.kind === 'BANK_TXN') {
+      const d = r.documentId ? s.docs.get(r.documentId) : undefined;
+      const name =
+        r.counterparty && r.counterparty.includes('·')
+          ? r.counterparty
+          : d?.fields.documentNo || d?.title || 'Tài khoản thanh toán';
+      const acc = banks.get(name) ?? { name, kind: 'BANK' as const, lines: [] };
+      acc.lines.push(line);
+      banks.set(name, acc);
+    }
+  }
+  return [cash, ...banks.values()];
+}
+
+function header(s: Source): HkdHeader {
+  return {
+    name: s.tenant.name,
+    address: s.tenant.settings.address ?? '',
+    taxCode: s.tenant.taxCode ?? '',
+    location: s.location,
+    period: monthLabel(s.periodId),
+  };
+}
+
+function businessLines(s: Source, revenue: BookLine[]): BusinessLineBook[] {
+  const declared = s.tenant.settings.hkd?.lines ?? [];
+  const first = declared[0] ?? { name: 'Hoạt động kinh doanh' };
+  // Until sales are tagged by business line, every sale goes to the first declared line.
+  return [{ ...first, lines: revenue }, ...declared.slice(1).map((l) => ({ ...l, lines: [] }))];
+}
+
+/** Confirmed records of a company, for its accountant (not a statutory form). */
+function sourceListing(s: Source): XSheet {
+  const head: XCell[] = ['Ngày', 'Chứng từ', 'Loại', 'Đối tác / nội dung', 'Số tiền'].map((v) => ({
+    v,
+    s: 'head',
+  }));
+  const kind: Record<BusinessRecordRow['kind'], string> = {
+    ORDER: 'Doanh thu bán hàng',
+    REVENUE: 'Hóa đơn bán ra',
+    EXPENSE: 'Chi phí, mua vào',
+    BANK_TXN: 'Giao dịch ngân hàng',
+    CASH: 'Tiền mặt',
+  };
+  const regime =
+    s.tenant.settings.accountingRegime === 'TT99'
+      ? 'S03a-DN (Thông tư 99/2025/TT-BTC)'
+      : 'S03a-DNN (Thông tư 133/2016/TT-BTC)';
+  const rows: (XCell | null)[][] = [
+    [{ v: `Đơn vị: ${s.tenant.name}`, s: 'unit' }],
+    [{ v: `Mã số thuế: ${s.tenant.taxCode ?? ''}`, s: 'unit' }],
+    [],
+    [{ v: 'BẢNG KÊ CHỨNG TỪ ĐÃ XÁC NHẬN', s: 'title' }],
+    [{ v: `${monthLabel(s.periodId)} · ${s.location}`, s: 'subtitle' }],
+    [{ v: 'Đơn vị tính: đồng', s: 'unitNote' }],
+    head,
+    ...s.records.map((r): XCell[] => [
+      { v: `${r.date.slice(8, 10)}/${r.date.slice(5, 7)}/${r.date.slice(0, 4)}`, s: 'date' },
+      { v: docCode(s, r), s: 'cellCenter' },
+      { v: kind[r.kind], s: 'cell' },
+      { v: [r.counterparty, r.description].filter(Boolean).join(' · ') || r.channel, s: 'cell' },
+      { v: Number(r.amount), s: 'money' },
+    ]),
+    [],
+    [
+      {
+        v: `Ghi chú: đây là dữ liệu nguồn để lập sổ. Sổ Nhật ký chung mẫu ${regime} cần định khoản Nợ/Có cho từng nghiệp vụ — kế toán định khoản trước khi ghi sổ.`,
+        s: 'note',
+      },
+    ],
+  ];
+  const n = rows.length;
+  return {
+    name: 'Bảng kê chứng từ',
+    cols: [13, 13, 22, 50, 18],
+    rows,
+    merges: ['A1:E1', 'A2:E2', 'A4:E4', 'A5:E5', 'A6:E6', `A${n}:E${n}`],
+    heights: { 4: 24, [n]: 36 },
+  };
+}
+
+export interface BooksFile {
+  filename: string;
+  mime: string;
+  contentBase64: string;
+  forms: string[];
+  note: string;
+}
+
+export async function buildBooks(
+  tx: Tx,
+  ws: WorkspaceState,
+  tenant: TenantRow,
+  periodId: string,
+  now: Date,
+): Promise<BooksFile> {
+  const s = await load(tx, ws, tenant, periodId);
+  const hkd = tenant.settings.accountingRegime === 'HKD';
+  let sheets: XSheet[];
+  let forms: string[];
+  let note: string;
+  if (hkd) {
+    const method = tenant.settings.hkd?.method;
+    forms = hkdForms(method ?? 'EXEMPT');
+    const h = header(s);
+    const revenue = revenueLines(s);
+    sheets = forms.map((f) => {
+      if (f === 'S1a-HKD') return sheetS1a(h, revenue);
+      if (f === 'S2a-HKD') return sheetS2a(h, businessLines(s, revenue));
+      if (f === 'S2b-HKD') return sheetS2b(h, businessLines(s, revenue));
+      if (f === 'S2c-HKD') return sheetS2c(h, revenue, costLines(s), tenant.settings.hkd?.incomePitRate);
+      return sheetS2e(h, moneyAccounts(s));
+    });
+    note = method
+      ? `Mẫu ${forms.join(', ')} theo Thông tư 152/2025/TT-BTC.`
+      : 'Chưa chọn phương pháp nộp thuế: xuất mẫu S1a-HKD. Chọn phương pháp trong Cài đặt để có đúng bộ sổ.';
+  } else {
+    forms = ['Bảng kê chứng từ'];
+    sheets = [sourceListing(s)];
+    note = 'Doanh nghiệp: bảng kê chứng từ đã xác nhận để kế toán định khoản và ghi Sổ Nhật ký chung.';
+  }
+  const bytes = buildXlsx(sheets, {
+    title: `Sổ kế toán ${monthLabel(periodId)}`,
+    author: 'ARGOLET',
+    created: now,
+  });
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return {
+    filename: `${hkd ? 'so-ke-toan-hkd' : 'bang-ke-chung-tu'}-${periodId}.xlsx`,
+    mime: XLSX_MIME,
+    contentBase64: btoa(bin),
+    forms,
+    note,
+  };
+}

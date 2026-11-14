@@ -19,6 +19,7 @@ import {
   type IntegrationRow,
   type LegalEntityRow,
   type MembershipRow,
+  type HkdSettings,
   type TenantRow,
 } from '../types';
 
@@ -189,7 +190,8 @@ export class OrgService {
           currency: 'VND',
           timezone: 'Asia/Ho_Chi_Minh',
           periodType: 'MONTH',
-          accountingRegime: 'TT133',
+          // Households keep the books of Thông tư 152/2025; companies those of Thông tư 133.
+          accountingRegime: /hộ kinh doanh|cá nhân kinh doanh/i.test(orgType) ? 'HKD' : 'TT133',
           packages: ['G1'],
           currentPeriod: now.slice(0, 7),
           dataLocation: 'Việt Nam',
@@ -507,6 +509,8 @@ export class OrgService {
       accountingRegime?: TenantRow['settings']['accountingRegime'];
       packages?: TenantRow['settings']['packages'];
       currentPeriod?: string;
+      address?: string;
+      hkd?: HkdSettings;
     },
   ) {
     return this.core.command(call, async (tx, em) => {
@@ -514,11 +518,18 @@ export class OrgService {
       const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
       const next = { ...t, settings: { ...t.settings } };
       if (p.name !== undefined) next.name = requireText(p.name, 'Tên tổ chức', 120);
-      if (p.accountingRegime) {
-        if (!['TT133', 'TT200', 'HKD'].includes(p.accountingRegime))
+      if (p.accountingRegime && p.accountingRegime !== t.settings.accountingRegime) {
+        if (p.accountingRegime === 'TT200')
+          throw new AppError(
+            'VALIDATION',
+            'Thông tư 200/2014 hết hiệu lực từ 01/01/2026 — chọn Thông tư 99/2025/TT-BTC',
+          );
+        if (!['TT133', 'TT99', 'HKD'].includes(p.accountingRegime))
           throw new AppError('VALIDATION', 'Chế độ kế toán không hợp lệ');
         next.settings.accountingRegime = p.accountingRegime;
       }
+      if (p.address !== undefined) next.settings.address = String(p.address).trim().slice(0, 250);
+      if (p.hkd !== undefined) next.settings.hkd = validHkd(p.hkd);
       if (p.packages) {
         if (p.packages.length === 0 || p.packages.some((x) => !['G1', 'G2', 'G3', 'G4'].includes(x)))
           throw new AppError('VALIDATION', 'Gói nghiệp vụ không hợp lệ');
@@ -595,6 +606,27 @@ export class OrgService {
       return next;
     });
   }
+}
+
+const RATE = /^\d{1,2}(\.\d{1,2})?$/;
+
+/** Checks the household's tax set-up: rates are percentages as declared, never invented. */
+function validHkd(h: HkdSettings): HkdSettings {
+  if (!h || !['EXEMPT', 'PERCENT', 'INCOME'].includes(h.method))
+    throw new AppError('VALIDATION', 'Chọn phương pháp nộp thuế của hộ kinh doanh');
+  const rate = (v: unknown, label: string) => {
+    const s = v === undefined || v === null ? '' : String(v).trim().replace(',', '.');
+    if (!s) return undefined;
+    if (!RATE.test(s) || Number(s) > 100)
+      throw new AppError('VALIDATION', `${label} phải là phần trăm, ví dụ 1 hoặc 0.5`);
+    return s;
+  };
+  const lines = (Array.isArray(h.lines) ? h.lines : []).slice(0, 10).map((l, i) => ({
+    name: requireText(l?.name, `Tên ngành nghề ${i + 1}`, 120),
+    vatRate: rate(l?.vatRate, `Tỷ lệ GTGT ngành nghề ${i + 1}`),
+    pitRate: rate(l?.pitRate, `Tỷ lệ TNCN ngành nghề ${i + 1}`),
+  }));
+  return { method: h.method, lines, incomePitRate: rate(h.incomePitRate, 'Thuế suất TNCN') };
 }
 
 function describePermissions(role: Role): string {

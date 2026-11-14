@@ -1,4 +1,5 @@
 // Stand-in for SePay API v2 during end-to-end tests (shapes from developer.sepay.vn).
+/* global process, URL */
 import { createServer } from 'node:http';
 
 const PORT = Number(process.env.PARTNER_PORT ?? 4360);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, Share, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { scanFromURLAsync } from 'expo-camera';
@@ -63,6 +63,7 @@ import {
 } from '../ui';
 import type { ScreenProps } from '../App';
 import { AuthenticityCard } from '../authenticity';
+import { shareFile } from '../share';
 
 const toneOf = (s: string) =>
   s === 'VALIDATED' ? 'success' : s === 'NEEDS_REVIEW' || s === 'NEEDS_RECON' ? 'warning' : 'neutral';
@@ -1467,7 +1468,11 @@ export function DecisionPackScreen() {
         <Button
           title={d.status === 'CLOSED' ? 'Chia sẻ Decision Pack' : 'Chia sẻ Decision Pack nháp'}
           variant="primary"
-          onPress={() => void Share.share({ title: d.export.filename, message: d.export.csv })}
+          onPress={() =>
+            void shareFile(d.export.filename, d.export.contentBase64, d.export.mime).catch((e: Error) =>
+              Alert.alert('Không chia sẻ được', e.message),
+            )
+          }
         />
       }
     >

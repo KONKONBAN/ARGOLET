@@ -36,6 +36,7 @@ import {
 import { AppError, type CallContext, type WorkspaceState } from '../runtime';
 import type { Tx } from '../store';
 import type { AssetRow, DealRow, IntercompanyRow, PurchaseOrderRow, ShipmentRow, WbsTask } from '../types';
+import { buildBooks } from './books';
 import { defaultSite, scoped } from './documents';
 import { localDate, addDays } from './approvals';
 import { scopeLabel } from './org';
@@ -432,16 +433,21 @@ export class ModuleService {
           },
         ],
         note: 'Phương pháp và quy tắc thuế cần được chuyên môn xác nhận trước khi áp dụng.',
-        export: {
-          filename: `so-ke-toan-${periodId}.csv`,
-          csv: [
-            'Ngày;Mã;Loại;Đối tác;Số tiền',
-            ...records
-              .sort((a, b) => a.date.localeCompare(b.date))
-              .map((r) => `${r.date};${r.code};${r.kind};${r.counterparty.replace(/;/g, ',')};${r.amount}`),
-          ].join('\n'),
-        },
+        regime: tenant.settings.accountingRegime,
+        hkdMethod: tenant.settings.hkd?.method ?? null,
       };
+    });
+  }
+
+  /** Sổ kế toán của kỳ dưới dạng tệp Excel (.xlsx) theo mẫu của Bộ Tài chính. */
+  async exportBooks(call: CallContext, p: { periodId?: string } = {}) {
+    return this.core.query(async (tx) => {
+      const ws = await this.core.requireWorkspace(tx, call, 'report.export');
+      const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      const periodId = p.periodId ?? tenant.settings.currentPeriod;
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodId))
+        throw new AppError('VALIDATION', 'Kỳ phải có dạng YYYY-MM');
+      return buildBooks(tx, ws, tenant, periodId, this.core.deps.clock());
     });
   }
 

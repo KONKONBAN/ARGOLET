@@ -805,7 +805,6 @@ export function Avatar({ name }: { name: string }) {
   );
 }
 
-/** Trigger a client-side download of generated content. */
 /** Saves text as a file. Exports get a BOM so Excel reads UTF-8; originals pass bom: false (or their own BOM) to stay byte-exact. */
 export function downloadText(
   filename: string,
@@ -815,6 +814,19 @@ export function downloadText(
 ) {
   const blob = new Blob([(opts.bom ?? true) ? '﻿' + content : content], { type: mime });
   const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Saves a binary file produced by the app (e.g. an .xlsx workbook) exactly as built. */
+export function downloadBase64(filename: string, contentBase64: string, mime: string) {
+  const bytes = Uint8Array.from(atob(contentBase64), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;

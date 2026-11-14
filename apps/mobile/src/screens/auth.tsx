@@ -22,7 +22,7 @@ import {
   Upload,
 } from 'lucide-react-native';
 import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
-import { saveServer, getSavedServer } from '../backend';
+import { IS_PRODUCTION, saveServer, getSavedServer } from '../backend';
 import { useSession } from '../session';
 import { C, font } from '../theme';
 import { Button, Card, Gap, Input, KV, Notice, OtpInput, Row, T } from '../ui';
@@ -200,6 +200,7 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
 // Cấu hình máy chủ (API) cho bản cài đặt doanh nghiệp
 export function ServerScreen() {
   const [url, setUrl] = useState('');
+  const [invalid, setInvalid] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   useEffect(() => {
     getSavedServer().then((s) => {
@@ -210,8 +211,9 @@ export function ServerScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16 }}>
       <Text style={T.muted}>
-        Nhập địa chỉ máy chủ ARGOLET của tổ chức (ví dụ https://api.argolet.vn). Để trống để dùng dữ liệu mẫu
-        trên thiết bị.
+        {IS_PRODUCTION
+          ? 'Nhập địa chỉ máy chủ ARGOLET riêng của tổ chức (https://…). Để trống để dùng máy chủ mặc định của bản cài đặt.'
+          : 'Nhập địa chỉ máy chủ ARGOLET của tổ chức (ví dụ https://api.argolet.vn). Để trống để dùng dữ liệu mẫu trên thiết bị (bản thử nghiệm).'}
       </Text>
       <Gap />
       <Input
@@ -225,13 +227,21 @@ export function ServerScreen() {
         title="Lưu & khởi động lại kết nối"
         variant="primary"
         onPress={async () => {
-          await saveServer(url.trim() || null);
-          setSaved(url.trim() || null);
+          const next = url.trim();
+          if (next && IS_PRODUCTION && !next.startsWith('https://')) {
+            setInvalid('Máy chủ phải dùng kết nối bảo mật (https://)');
+            return;
+          }
+          setInvalid(null);
+          await saveServer(next || null);
+          setSaved(next || null);
         }}
       />
+      {invalid && <Notice tone="danger">{invalid}</Notice>}
       {saved !== null && (
         <Notice tone="info">
-          Đã lưu. Đóng và mở lại ứng dụng để áp dụng máy chủ {saved || '(dữ liệu mẫu)'}.
+          Đã lưu. Đóng và mở lại ứng dụng để áp dụng máy chủ{' '}
+          {saved || (IS_PRODUCTION ? '(mặc định của bản cài đặt)' : '(dữ liệu mẫu)')}.
         </Notice>
       )}
     </ScrollView>

@@ -228,7 +228,7 @@ export async function seedDemo(app: ArgoletApp): Promise<{ seeded: boolean }> {
         currency: 'VND',
         timezone: 'Asia/Ho_Chi_Minh',
         periodType: 'MONTH',
-        accountingRegime: 'TT200',
+        accountingRegime: 'TT99',
         packages: ['G3'],
         currentPeriod: '2026-10',
         dataLocation: 'Việt Nam',

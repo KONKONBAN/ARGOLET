@@ -256,6 +256,114 @@ export function MembersPage() {
 }
 
 // ───────── 35 · Cài đặt & tích hợp ─────────
+type HkdForm = {
+  method: 'EXEMPT' | 'PERCENT' | 'INCOME' | '';
+  lines: { name: string; vatRate?: string; pitRate?: string }[];
+  incomePitRate?: string;
+};
+const hkdForm = (h?: {
+  method: 'EXEMPT' | 'PERCENT' | 'INCOME';
+  lines: { name: string; vatRate?: string | undefined; pitRate?: string | undefined }[];
+  incomePitRate?: string | undefined;
+}): HkdForm => ({
+  method: h?.method ?? '',
+  lines: h?.lines.length
+    ? h.lines.map((l) => ({ name: l.name, vatRate: l.vatRate ?? '', pitRate: l.pitRate ?? '' }))
+    : [{ name: '', vatRate: '', pitRate: '' }],
+  incomePitRate: h?.incomePitRate ?? '',
+});
+
+/** How the household pays VAT / PIT decides its books (Thông tư 152/2025/TT-BTC, Điều 4–6). */
+function HkdTaxSettings({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: HkdForm;
+  onChange: (v: HkdForm) => void;
+  disabled: boolean;
+}) {
+  const methods = [
+    { k: 'EXEMPT', t: 'Không chịu thuế GTGT, không nộp thuế TNCN', s: 'Sổ S1a-HKD' },
+    { k: 'PERCENT', t: 'Nộp thuế GTGT và TNCN theo tỷ lệ % trên doanh thu', s: 'Sổ S2a-HKD' },
+    {
+      k: 'INCOME',
+      t: 'Thuế GTGT theo % doanh thu, thuế TNCN trên thu nhập tính thuế',
+      s: 'Sổ S2b, S2c, S2e-HKD',
+    },
+  ] as const;
+  const setLine = (i: number, patch: Partial<HkdForm['lines'][number]>) =>
+    onChange({ ...value, lines: value.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) });
+  return (
+    <fieldset className="hkd-tax" disabled={disabled}>
+      <legend>Phương pháp nộp thuế (quyết định bộ sổ phải mở)</legend>
+      {methods.map((m) => (
+        <label key={m.k} className="radio-row">
+          <input
+            type="radio"
+            name="hkd-method"
+            checked={value.method === m.k}
+            onChange={() => onChange({ ...value, method: m.k })}
+          />
+          <span>
+            {m.t} <span className="muted small">· {m.s}</span>
+          </span>
+        </label>
+      ))}
+      {value.method && value.method !== 'EXEMPT' && (
+        <>
+          <p className="muted small">
+            Ngành nghề và tỷ lệ % tính thuế theo thông báo của cơ quan thuế / quy định hiện hành. ARGOLET
+            không tự đặt tỷ lệ: ô để trống thì sổ để trống phần thuế.
+          </p>
+          {value.lines.map((l, i) => (
+            <div className="grid hkd-line" key={i}>
+              <TextInput
+                label={`Ngành nghề ${i + 1}`}
+                value={l.name}
+                onChange={(e) => setLine(i, { name: e.target.value })}
+              />
+              <TextInput
+                label="Tỷ lệ GTGT (%)"
+                inputMode="decimal"
+                value={l.vatRate ?? ''}
+                onChange={(e) => setLine(i, { vatRate: e.target.value })}
+              />
+              {value.method === 'PERCENT' && (
+                <TextInput
+                  label="Tỷ lệ TNCN (%)"
+                  inputMode="decimal"
+                  value={l.pitRate ?? ''}
+                  onChange={(e) => setLine(i, { pitRate: e.target.value })}
+                />
+              )}
+            </div>
+          ))}
+          {value.lines.length < 10 && (
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() =>
+                onChange({ ...value, lines: [...value.lines, { name: '', vatRate: '', pitRate: '' }] })
+              }
+            >
+              + Thêm ngành nghề
+            </button>
+          )}
+          {value.method === 'INCOME' && (
+            <TextInput
+              label="Thuế suất thuế TNCN trên thu nhập tính thuế (%)"
+              inputMode="decimal"
+              value={value.incomePitRate ?? ''}
+              onChange={(e) => onChange({ ...value, incomePitRate: e.target.value })}
+            />
+          )}
+        </>
+      )}
+    </fieldset>
+  );
+}
+
 export function SettingsPage() {
   const navigate = useNavigate();
   const toast = useToast();
@@ -267,6 +375,8 @@ export function SettingsPage() {
     location.hash === '#co-cau' ? 'org' : null,
   );
   const [regime, setRegime] = useState<string>('');
+  const [address, setAddress] = useState<string | null>(null);
+  const [hkd, setHkd] = useState<HkdForm | null>(null);
   const [periodEdit, setPeriodEdit] = useState<string>('');
   const addEntity = useMutation('org.addEntity', { silent: true });
   const [entityForm, setEntityForm] = useState({ kind: 'SITE', name: '' });
@@ -362,8 +472,20 @@ export function SettingsPage() {
               loading={update.loading}
               onClick={async () => {
                 try {
+                  const nextRegime = (regime || d.tenant.settings.accountingRegime) as 'TT133';
+                  const form = hkd ?? hkdForm(d.tenant.settings.hkd);
                   await update.mutate({
-                    accountingRegime: (regime || d.tenant.settings.accountingRegime) as 'TT133',
+                    accountingRegime: nextRegime,
+                    ...(address !== null ? { address } : {}),
+                    ...(nextRegime === ('HKD' as string) && form.method
+                      ? {
+                          hkd: {
+                            method: form.method,
+                            lines: form.lines.filter((l) => l.name.trim()),
+                            incomePitRate: form.incomePitRate,
+                          },
+                        }
+                      : {}),
                     ...(periodEdit && periodEdit !== d.tenant.settings.currentPeriod
                       ? { currentPeriod: periodEdit }
                       : {}),
@@ -403,11 +525,29 @@ export function SettingsPage() {
             value={regime || d.tenant.settings.accountingRegime}
             onChange={(e) => setRegime(e.target.value)}
           >
-            <option value="TT133">Thông tư 133 (DN nhỏ và vừa)</option>
-            <option value="TT200">Thông tư 200</option>
-            <option value="HKD">Hộ kinh doanh</option>
+            <option value="TT133">Thông tư 133/2016 (doanh nghiệp nhỏ và vừa)</option>
+            <option value="TT99">Thông tư 99/2025 (doanh nghiệp, thay Thông tư 200 từ 01/01/2026)</option>
+            <option value="HKD">Hộ kinh doanh · Thông tư 152/2025</option>
+            {d.tenant.settings.accountingRegime === 'TT200' && (
+              <option value="TT200" disabled>
+                Thông tư 200/2014 (hết hiệu lực từ 01/01/2026)
+              </option>
+            )}
           </select>
         </div>
+        <TextInput
+          label="Địa chỉ (in trên sổ kế toán)"
+          value={address ?? d.tenant.settings.address ?? ''}
+          onChange={(e) => setAddress(e.target.value)}
+          disabled={!d.canManage}
+        />
+        {(regime || d.tenant.settings.accountingRegime) === 'HKD' && (
+          <HkdTaxSettings
+            value={hkd ?? hkdForm(d.tenant.settings.hkd)}
+            onChange={setHkd}
+            disabled={!d.canManage}
+          />
+        )}
         <TextInput
           label="Kỳ làm việc hiện tại"
           type="month"

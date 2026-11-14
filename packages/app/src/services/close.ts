@@ -1,4 +1,7 @@
 import {
+  buildXlsx,
+  XLSX_MIME,
+  type XCell,
   buildSnapshotManifest,
   closeChecklist,
   formatPeriod,
@@ -343,18 +346,21 @@ export class CloseService {
           },
         ],
         pendingApprovals: g.approvals.length,
-        export: {
-          filename: `decision-pack-${periodId}${closed ? '' : '-nhap'}.csv`,
-          csv: [
-            'Nội dung;Giá trị;Nguồn',
-            `Doanh thu;${revenue.toFixed()};Chứng từ · POS`,
-            `Chi phí;${expense.toFixed()};Chứng từ · ngân hàng`,
-            `Dòng tiền thuần;${net.toFixed()};Tính toán`,
-            `Chứng từ đã soát;${validated}/${g.docs.length};Hồ sơ xác nhận`,
-            `Nhóm đối soát;${confirmed};Đơn · tiền · phí`,
-            `Trạng thái;${closed ? 'Đã chốt' : 'Bản nháp'};${label}`,
-          ].join('\n'),
-        },
+        export: decisionPackXlsx({
+          periodId,
+          closed,
+          tenantName: tenant.name,
+          scope: label,
+          rows: [
+            ['Doanh thu', revenue.toFixed(), 'Chứng từ · POS'],
+            ['Chi phí', expense.toFixed(), 'Chứng từ · ngân hàng'],
+            ['Dòng tiền thuần', net.toFixed(), 'Tính toán = doanh thu − chi phí'],
+            ['Chứng từ đã soát', `${validated}/${g.docs.length}`, 'Hồ sơ xác nhận'],
+            ['Nhóm đối soát đã xác nhận', String(confirmed), 'Đơn · tiền · phí'],
+            ['Trạng thái', closed ? 'Đã chốt' : 'Bản nháp', label],
+          ],
+          now: this.core.deps.clock(),
+        }),
       };
     });
   }
@@ -364,4 +370,52 @@ export function compact(v: ReturnType<typeof sum>): string {
   const m = v.div(1_000_000);
   const s = m.toDecimalPlaces(1).toFixed().replace('.', ',');
   return `${s.endsWith(',0') ? s.slice(0, -2) : s} triệu`;
+}
+
+/** Decision Pack as a real Excel file (a management report, not a statutory form). */
+function decisionPackXlsx(p: {
+  periodId: string;
+  closed: boolean;
+  tenantName: string;
+  scope: string;
+  rows: [string, string, string][];
+  now: Date;
+}) {
+  const month = `Tháng ${p.periodId.slice(5)}/${p.periodId.slice(0, 4)}`;
+  const cells: (XCell | null)[][] = [
+    [{ v: p.tenantName, s: 'unit' }],
+    [],
+    [{ v: `BỘ HỒ SƠ QUYẾT ĐỊNH (DECISION PACK)${p.closed ? '' : ' · BẢN NHÁP'}`, s: 'title' }],
+    [{ v: `${month} · ${p.scope}`, s: 'subtitle' }],
+    [{ v: 'Đơn vị tính: đồng', s: 'unitNote' }],
+    [
+      { v: 'Nội dung', s: 'head' },
+      { v: 'Giá trị', s: 'head' },
+      { v: 'Nguồn', s: 'head' },
+    ],
+    ...p.rows.map(([k, v, src]): XCell[] => [
+      { v: k, s: 'cellBold' },
+      /^-?\d+$/.test(v) ? { v: Number(v), s: 'money' } : { v, s: 'cellCenter' },
+      { v: src, s: 'cell' },
+    ]),
+  ];
+  const bytes = buildXlsx(
+    [
+      {
+        name: 'Decision Pack',
+        cols: [34, 22, 36],
+        rows: cells,
+        merges: ['A1:C1', 'A3:C3', 'A4:C4', 'A5:C5'],
+        heights: { 3: 24 },
+      },
+    ],
+    { title: `Decision Pack ${month}`, author: 'ARGOLET', created: p.now },
+  );
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return {
+    filename: `decision-pack-${p.periodId}${p.closed ? '' : '-nhap'}.xlsx`,
+    mime: XLSX_MIME,
+    contentBase64: btoa(bin),
+  };
 }

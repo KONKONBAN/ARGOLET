@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Linking, Pressable, Share, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import {
   CircleCheck,
   FileText,
@@ -12,7 +12,7 @@ import {
   Wrench,
 } from 'lucide-react-native';
 import { formatShortDateTime } from '@argolet/core';
-import { useMutation, useQuery, type OpResult } from '@argolet/client';
+import { useBackend, useMutation, useQuery, type OpResult } from '@argolet/client';
 import { useSession } from '../session';
 import { C, font } from '../theme';
 import {
@@ -37,6 +37,7 @@ import {
   T,
 } from '../ui';
 import type { ScreenProps } from '../App';
+import { shareFile } from '../share';
 
 type Kpis = { label: string; value: string; note?: string | undefined; highlight?: boolean | undefined }[];
 
@@ -712,17 +713,28 @@ export function PurchasingScreen({ navigation }: ScreenProps<'Purchasing'>) {
 // ───────── 23 · Sổ sách & thuế ─────────
 export function BooksScreen() {
   const data = useQuery('modules.booksTax');
+  const { backend } = useBackend();
+  const [exporting, setExporting] = useState(false);
   if (!data.data) return data.error ? <ErrorView error={data.error} /> : <Loading />;
   const d = data.data;
   return (
     <Screen
       footer={
         <Button
-          title="Rà soát trước khi xuất"
+          title={d.regime === 'HKD' ? 'Xuất sổ kế toán (Excel)' : 'Xuất bảng kê chứng từ (Excel)'}
           variant="primary"
-          onPress={() =>
-            void Share.share({ title: d.export.filename, message: d.export.csv.slice(0, 50_000) })
-          }
+          loading={exporting}
+          onPress={async () => {
+            setExporting(true);
+            try {
+              const f = await backend.call('modules.exportBooks', {});
+              await shareFile(f.filename, f.contentBase64, f.mime);
+            } catch (e) {
+              Alert.alert('Không xuất được sổ', e instanceof Error ? e.message : 'Thử lại sau');
+            } finally {
+              setExporting(false);
+            }
+          }}
         />
       }
     >
@@ -2287,9 +2299,9 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
           label="Chế độ kế toán"
           value={sf.regime}
           options={[
-            { value: 'HKD', label: 'Hộ kinh doanh' },
+            { value: 'HKD', label: 'Hộ kinh doanh · TT152/2025' },
             { value: 'TT133', label: 'TT133 (DN nhỏ và vừa)' },
-            { value: 'TT200', label: 'TT200' },
+            { value: 'TT99', label: 'TT99/2025 (thay TT200)' },
           ]}
           onChange={(v) => setSf({ ...sf, regime: v })}
         />

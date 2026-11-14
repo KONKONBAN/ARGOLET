@@ -333,6 +333,11 @@ export const operations = {
     (a, c, p: ParamsOf<Svc['modules']['createPurchaseOrder']>) => a.modules.createPurchaseOrder(c, p),
   ),
   'modules.booksTax': op('GET', '/v1/g1/books', (a, c) => a.modules.booksTax(c)),
+  'modules.exportBooks': op(
+    'GET',
+    '/v1/g1/books/export',
+    (a, c, p: ParamsOf<Svc['modules']['exportBooks']>) => a.modules.exportBooks(c, p),
+  ),
   'modules.clients': op('GET', '/v1/g2/clients', (a, c, p: ParamsOf<Svc['modules']['clients']>) =>
     a.modules.clients(c, p),
   ),

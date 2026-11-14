@@ -19,7 +19,7 @@ import {
   PageHeader,
   PageLoading,
   Timeline,
-  downloadText,
+  downloadBase64,
   useToast,
 } from '../ui/components';
 import { PageFoot, usePeriodLabel } from './overview';
@@ -405,7 +405,7 @@ export function DecisionPackPage() {
             variant="primary"
             icon={<Download size={18} />}
             onClick={() => {
-              downloadText(d.export.filename, d.export.csv);
+              downloadBase64(d.export.filename, d.export.contentBase64, d.export.mime);
               toast('success', `Đã xuất ${d.export.filename}`);
             }}
           >

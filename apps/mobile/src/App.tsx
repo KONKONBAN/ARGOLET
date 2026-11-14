@@ -10,7 +10,7 @@ import { BackendProvider, type Backend } from '@argolet/client';
 import { createMobileBackend } from './backend';
 import { SessionProvider, useSession } from './session';
 import { C, font } from './theme';
-import { Loading, Notice, T } from './ui';
+import { Button, Loading, Notice, T } from './ui';
 import * as A from './screens/auth';
 import * as M from './screens/main';
 import * as X from './screens/modules';
@@ -316,11 +316,13 @@ function Navigator() {
 export default function App() {
   const [backend, setBackend] = useState<Backend | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    setError(null);
     createMobileBackend().then(setBackend, (e: unknown) =>
       setError(e instanceof Error ? e.message : 'Không khởi động được'),
     );
-  }, []);
+  }, [attempt]);
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
@@ -341,7 +343,10 @@ export default function App() {
             accessibilityLabel="ARGOLET"
           />
           {error ? (
-            <Notice tone="danger">{error}</Notice>
+            <View style={{ alignSelf: 'stretch' }}>
+              <Notice tone="danger">{error}</Notice>
+              <Button title="Thử lại" variant="primary" onPress={() => setAttempt((n) => n + 1)} />
+            </View>
           ) : (
             <Text style={[T.small, { marginTop: 16 }]}>Đang khởi động…</Text>
           )}

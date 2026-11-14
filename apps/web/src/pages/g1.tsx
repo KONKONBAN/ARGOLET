@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, ClipboardCheck, Plus, Send } from 'lucide-react';
-import { useMutation, useQuery } from '../api/hooks';
+import { BookOpen, FileSpreadsheet, Plus, Send } from 'lucide-react';
+import { useBackend, useMutation, useQuery } from '../api/hooks';
 import {
   Alert,
   Button,
@@ -16,7 +16,7 @@ import {
   PageLoading,
   SelectInput,
   TextInput,
-  downloadText,
+  downloadBase64,
   useToast,
 } from '../ui/components';
 import { PageFoot, usePeriodLabel } from './overview';
@@ -824,6 +824,8 @@ export function BooksPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const data = useQuery('modules.booksTax');
+  const { backend } = useBackend();
+  const [exporting, setExporting] = useState(false);
   const period = usePeriodLabel();
   if (!data.data)
     return data.error ? (
@@ -865,16 +867,31 @@ export function BooksPage() {
         />
       </Card>
       <div className="row-between wrap mt-24">
-        <span className="small muted">{d.note}</span>
+        <span className="small muted">
+          {d.regime === 'HKD'
+            ? d.hkdMethod
+              ? 'Sổ theo mẫu Thông tư 152/2025/TT-BTC, lập từ chứng từ đã xác nhận.'
+              : 'Chọn phương pháp nộp thuế trong Cài đặt để xuất đúng bộ sổ theo Thông tư 152/2025/TT-BTC.'
+            : 'Doanh nghiệp: bảng kê chứng từ đã xác nhận để kế toán định khoản và ghi Sổ Nhật ký chung.'}
+        </span>
         <Button
           variant="primary"
-          icon={<ClipboardCheck size={18} />}
-          onClick={() => {
-            downloadText(d.export.filename, d.export.csv);
-            toast('success', 'Đã xuất dữ liệu sổ để rà soát');
+          icon={<FileSpreadsheet size={18} />}
+          loading={exporting}
+          onClick={async () => {
+            setExporting(true);
+            try {
+              const f = await backend.call('modules.exportBooks', {});
+              downloadBase64(f.filename, f.contentBase64, f.mime);
+              toast('success', `Đã xuất ${f.filename} · ${f.forms.join(', ')}`);
+            } catch (e) {
+              toast('error', e instanceof Error ? e.message : 'Không xuất được sổ');
+            } finally {
+              setExporting(false);
+            }
           }}
         >
-          Rà soát trước khi xuất
+          {d.regime === 'HKD' ? 'Xuất sổ kế toán (Excel)' : 'Xuất bảng kê chứng từ (Excel)'}
         </Button>
       </div>
       <div className="mt-16">

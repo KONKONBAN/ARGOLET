@@ -74,11 +74,25 @@ export interface SessionRow extends BaseRow {
   revokedAt: string | null;
   stepUpAt: string | null;
 }
+/** How a household business pays VAT and PIT — decides its books (Thông tư 152/2025/TT-BTC). */
+export interface HkdSettings {
+  /** EXEMPT: không chịu GTGT, không nộp TNCN (S1a) · PERCENT: GTGT và TNCN theo % doanh thu (S2a) ·
+   * INCOME: GTGT theo % doanh thu, TNCN trên thu nhập tính thuế (S2b, S2c, S2e). */
+  method: 'EXEMPT' | 'PERCENT' | 'INCOME';
+  /** Business lines with their rates (% on revenue), as declared by the household. */
+  lines: { name: string; vatRate?: string | undefined; pitRate?: string | undefined }[];
+  /** PIT rate on taxable income for INCOME (S2c line 4). */
+  incomePitRate?: string | undefined;
+}
 export interface TenantSettings {
   currency: string;
   timezone: string;
   periodType: 'MONTH';
-  accountingRegime: 'TT133' | 'TT200' | 'HKD';
+  /** TT200 is kept for data recorded before 2026; Thông tư 99/2025 replaces it from 01/01/2026. */
+  accountingRegime: 'TT133' | 'TT99' | 'TT200' | 'HKD';
+  /** Registered address, printed on the accounting books. */
+  address?: string | undefined;
+  hkd?: HkdSettings | undefined;
   packages: ('G1' | 'G2' | 'G3' | 'G4')[];
   currentPeriod: string;
   dataLocation: string;

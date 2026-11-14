@@ -41,27 +41,38 @@ export async function saveServer(url: string | null): Promise<void> {
   await secureSet(SERVER_KEY, url ? url.replace(/\/$/, '') : null);
 }
 
+const extra = (Constants.expoConfig?.extra ?? {}) as { apiUrl?: string | null; appEnv?: string };
+
+/** Store builds (APP_ENV=production) only ever talk to an ARGOLET server — never to sample data. */
+export const IS_PRODUCTION = extra.appEnv === 'production';
+
 /**
  * Transport selection:
- *  1. a server URL saved in settings or EXPO_PUBLIC_API_URL / app.json extra.apiUrl → that API (Bearer token),
- *  2. otherwise → the full ARGOLET application runs on the device with demo data (offline).
+ *  1. a server URL saved in settings, or the build's EXPO_PUBLIC_API_URL → that API (Bearer token);
+ *  2. production: no server reachable → an error the start screen shows with "Thử lại";
+ *  3. preview / development only: the full application on the device with labelled sample data.
  */
 export async function createMobileBackend(): Promise<Backend> {
-  const configured =
-    (await getSavedServer()) ??
-    process.env.EXPO_PUBLIC_API_URL ??
-    ((Constants.expoConfig?.extra as { apiUrl?: string | null } | undefined)?.apiUrl || null);
+  const configured = (await getSavedServer()) ?? (process.env.EXPO_PUBLIC_API_URL || extra.apiUrl || null);
   if (configured) {
-    const info = await probeServer(configured, 4000);
+    if (IS_PRODUCTION && !configured.startsWith('https://'))
+      throw new Error('Máy chủ ARGOLET phải dùng kết nối bảo mật (https://)');
+    const info = await probeServer(configured, 8000);
     if (info) return new HttpBackend({ baseUrl: configured, info, auth: tokenStore });
   }
+  if (IS_PRODUCTION)
+    throw new Error(
+      configured
+        ? `Chưa kết nối được máy chủ ARGOLET (${configured.replace(/^https?:\/\//, '')}). Kiểm tra mạng rồi thử lại.`
+        : 'Bản cài đặt chưa có địa chỉ máy chủ ARGOLET.',
+    );
   const { createLocalBackend } = await import('@argolet/client/local');
   return createLocalBackend({
     clockStart: Date.now(),
     tokens: { get: async () => memory.local ?? null, set: async (t) => void (memory.local = t) },
     label: configured
-      ? `Không kết nối được ${configured} · đang dùng dữ liệu mẫu trên thiết bị`
-      : 'Dữ liệu mẫu chạy trên thiết bị',
+      ? `Không kết nối được ${configured} · đang dùng dữ liệu mẫu trên thiết bị (bản thử nghiệm)`
+      : 'Dữ liệu mẫu chạy trên thiết bị (bản thử nghiệm)',
     userAgent: `ARGOLET ${Platform.OS}`,
   });
 }
