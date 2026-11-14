@@ -2378,9 +2378,11 @@ main.refreshing .list-rows {
   }
   .hero-col:first-child {
     grid-column: 1 / -1;
+    align-items: center;
     padding: 0;
     margin-top: 0;
     border-top: 0;
+    text-align: center;
   }
   .hero-col:nth-child(2) {
     padding-left: 0;
@@ -2392,7 +2394,7 @@ main.refreshing .list-rows {
     font-size: 20px;
   }
   .hero-value.net {
-    font-size: 30px;
+    font-size: 34px;
   }
   .kpi-value {
     font-size: 24px;
@@ -2664,11 +2666,17 @@ main#content {
     margin-top: 16px;
     border-top: 1px solid rgba(213, 232, 231, 0.25);
   }
+  /* The headline figure sits centred above the two below it, a size larger. */
   html[data-text-size='large'] .hero-col:first-child {
     grid-column: 1 / -1;
+    align-items: center;
     padding: 0;
     margin-top: 0;
     border-top: 0;
+    text-align: center;
+  }
+  html[data-text-size='large'] .hero-value.net {
+    font-size: 36px;
   }
   html[data-text-size='large'] .hero-col:nth-child(2) {
     padding-left: 0;

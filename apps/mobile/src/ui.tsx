@@ -179,16 +179,32 @@ export function Hero({
 }) {
   return (
     <LinearGradient colors={G.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.hero}>
-      <Text style={{ color: C.heroMuted, fontSize: 13, fontFamily: font }}>{label}</Text>
-      <Text
-        {...FIT}
-        style={{ color: C.heroStrong, fontSize: 30, fontWeight: '700', marginTop: 6, fontFamily: font }}
-      >
-        {value}
-      </Text>
-      {note && (
-        <Text style={{ color: C.heroMuted, fontSize: 12, marginTop: 6, fontFamily: font }}>{note}</Text>
-      )}
+      {/* The headline figure is centred above the split figures, a size larger. */}
+      <View style={{ alignItems: 'center' }}>
+        <Text style={{ color: C.heroMuted, fontSize: 13, fontFamily: font, textAlign: 'center' }}>
+          {label}
+        </Text>
+        <Text
+          {...FIT}
+          style={{
+            color: C.heroStrong,
+            fontSize: 34,
+            fontWeight: '700',
+            marginTop: 6,
+            fontFamily: font,
+            textAlign: 'center',
+          }}
+        >
+          {value}
+        </Text>
+        {note && (
+          <Text
+            style={{ color: C.heroMuted, fontSize: 12, marginTop: 6, fontFamily: font, textAlign: 'center' }}
+          >
+            {note}
+          </Text>
+        )}
+      </View>
       {children}
     </LinearGradient>
   );
