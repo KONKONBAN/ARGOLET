@@ -33,9 +33,13 @@ test('photograph a document with the in-app camera, check the photo and receive 
   await expect(checks).toContainText('Đã đọc mã QR hóa đơn số 778, 1.320.000 đ');
   await expect(checks.locator('li.warn')).toHaveCount(0);
   await sheet.getByRole('button', { name: 'Chụp trang tiếp' }).click();
+  // On a computer the pages taken are listed beside the camera.
   await expect(camera.getByText('Đã thêm 1 trang')).toBeVisible();
-  await expect(camera.getByRole('button', { name: 'Xong, 1 trang' })).toBeVisible();
-  await shutter.click();
+  await expect(camera.locator('.sd-pages li')).toHaveCount(1);
+  await expect(camera.getByRole('button', { name: 'Hoàn tất (1 trang)' })).toBeEnabled();
+  // The space bar takes the next page.
+  await expect(shutter).toBeEnabled();
+  await page.keyboard.press('Space');
   await sheet.getByRole('button', { name: 'Dùng ảnh này' }).click();
   await expect(camera).toBeHidden();
   await expect(page.locator('.picked-file')).toHaveCount(2);
@@ -65,6 +69,28 @@ test('without camera access the device photo picker is offered instead', async (
   await (await chooser).setFiles(path.join(fixtures, 'phieu-giao-hang-sua.jpg'));
   await expect(page.locator('.picked-file')).toHaveCount(1);
   await expect(page.getByRole('list', { name: 'Kiểm tra ảnh' })).toContainText('Độ phân giải 0,5 MP');
+});
+
+test('on a computer: camera picker, automatic capture switch and finishing with the pages', async ({
+  page,
+}, info) => {
+  const w = watch(page);
+  await login(page);
+  await page.goto('/#/capture?camera=1');
+  const camera = page.getByRole('dialog', { name: 'Chụp chứng từ' });
+  await expect(camera.getByRole('button', { name: 'Chụp', exact: true })).toBeEnabled({ timeout: 15_000 });
+  await expect(camera.getByRole('button', { name: 'Hoàn tất' })).toBeDisabled();
+  await expect(camera.getByText('Bấm phím cách để chụp, phím Esc để đóng.')).toBeVisible();
+  await camera.getByRole('switch', { name: 'Tự động chụp' }).check();
+  const review = camera.getByRole('region', { name: 'Kiểm tra ảnh vừa chụp' });
+  await expect(review).toContainText('Ảnh đạt yêu cầu', { timeout: 15_000 });
+  await review.getByRole('button', { name: 'Chụp trang tiếp' }).click();
+  await expect(camera.locator('.sd-pages li').first()).toContainText('Đạt');
+  await camera.getByRole('switch', { name: 'Tự động chụp' }).uncheck();
+  await camera.getByRole('button', { name: 'Hoàn tất (1 trang)' }).click();
+  await expect(camera).toBeHidden();
+  await expect(page.locator('.picked-file')).toHaveCount(1);
+  await expectClean(w, info);
 });
 
 test('automatic capture takes the picture once the document is steady and sharp', async ({ page }, info) => {
