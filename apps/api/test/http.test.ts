@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { loadConfig } from '../src/config';
@@ -311,5 +314,52 @@ describe('HTTP API', () => {
       last = r.statusCode;
     }
     expect(last).toBe(429);
+  });
+
+  it('counts only API calls towards the allowance of one internet address', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'argolet-web-'));
+    writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>ARGOLET</title>');
+    mkdirSync(path.join(dir, 'assets'));
+    writeFileSync(path.join(dir, 'assets', 'app.js'), 'export {};');
+    const config = {
+      ...loadConfig({ NODE_ENV: 'test', DATABASE_URL: 'pglite:memory', RATE_LIMIT_PER_MINUTE: '5' }),
+      webDist: dir,
+    };
+    expect(config.rateLimitPerMinute).toBe(5);
+    const small = await buildServer({ app: rt.app, config, storeKind: rt.store.kind });
+    try {
+      const office = { remoteAddress: '10.7.7.7' };
+      // The web app's files and the health check never use up the allowance.
+      for (let i = 0; i < 20; i++) {
+        expect((await small.inject({ method: 'GET', url: '/assets/app.js', ...office })).statusCode).toBe(
+          200,
+        );
+        expect((await small.inject({ method: 'GET', url: '/', ...office })).statusCode).toBe(200);
+        expect((await small.inject({ method: 'GET', url: '/healthz', ...office })).statusCode).toBe(200);
+      }
+      const codes: number[] = [];
+      for (let i = 0; i < 7; i++)
+        codes.push((await small.inject({ method: 'GET', url: '/v1/meta', ...office })).statusCode);
+      expect(codes).toEqual([200, 200, 200, 200, 200, 429, 429]);
+      const limited = await small.inject({ method: 'GET', url: '/v1/meta', ...office });
+      expect(limited.json().error.code).toBe('RATE_LIMITED');
+      // Another address keeps its own allowance.
+      expect(
+        (await small.inject({ method: 'GET', url: '/v1/meta', remoteAddress: '10.7.7.8' })).statusCode,
+      ).toBe(200);
+    } finally {
+      await small.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a rate limit that is not a positive whole number', () => {
+    expect(() => loadConfig({ NODE_ENV: 'test', RATE_LIMIT_PER_MINUTE: 'nhanh' })).toThrow(
+      /RATE_LIMIT_PER_MINUTE/,
+    );
+    expect(() => loadConfig({ NODE_ENV: 'test', RATE_LIMIT_PER_MINUTE: '0' })).toThrow(
+      /RATE_LIMIT_PER_MINUTE/,
+    );
+    expect(loadConfig({ NODE_ENV: 'test' }).rateLimitPerMinute).toBe(1200);
   });
 });

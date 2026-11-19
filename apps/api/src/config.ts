@@ -24,6 +24,8 @@ export interface ApiConfig {
   webDist: string | null;
   publicBaseUrl: string;
   trustProxy: boolean;
+  /** API calls allowed per minute from one internet address (an office often shares one). */
+  rateLimitPerMinute: number;
   /** Key sealing partners' credentials (connections); connections are off without it. */
   secretKey: string | null;
   /** Partner API base URLs, for a test stand-in only (production uses the partners' own URLs). */
@@ -79,9 +81,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     webDist,
     publicBaseUrl: env.PUBLIC_BASE_URL ?? `http://localhost:${env.PORT ?? 8080}`,
     trustProxy: bool(env.TRUST_PROXY, production),
+    rateLimitPerMinute: positiveInt(env.RATE_LIMIT_PER_MINUTE, 1200),
     secretKey: env.ARGOLET_SECRET_KEY || null,
     connectorEndpoints: production ? {} : parseEndpoints(env.ARGOLET_CONNECTOR_ENDPOINTS),
   };
+}
+
+function positiveInt(v: string | undefined, dflt: number): number {
+  if (v === undefined || v.trim() === '') return dflt;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`RATE_LIMIT_PER_MINUTE phải là số nguyên dương: "${v}"`);
+  return n;
 }
 
 function parseEndpoints(v: string | undefined): ApiConfig['connectorEndpoints'] {

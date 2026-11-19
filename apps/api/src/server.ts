@@ -99,7 +99,16 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
       allowedHeaders: ['content-type', 'authorization', CSRF_HEADER, 'x-argolet-client', 'x-correlation-id'],
     });
   }
-  await server.register(rateLimit, { global: true, max: 600, timeWindow: '1 minute' });
+  // Only API calls count towards the allowance. The web app's own files (scripts, styles, fonts)
+  // are static and cached, and one page opens dozens of them: counting them would lock out an
+  // office whose staff share one internet address. Sign-in and code endpoints keep their own,
+  // much lower limit below.
+  await server.register(rateLimit, {
+    global: true,
+    max: config.rateLimitPerMinute,
+    timeWindow: '1 minute',
+    allowList: (req) => !req.url.startsWith('/v1/'),
+  });
 
   server.setErrorHandler((err, req, reply) => sendError(reply, err, req));
   // Accept an empty JSON body as {} (e.g. POST /v1/auth/logout).
