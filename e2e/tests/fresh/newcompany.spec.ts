@@ -39,7 +39,7 @@ async function signUp(p: Page, name: string, email: string, password: string) {
   await expect(p.getByRole('heading', { name: 'Xác minh tài khoản' })).toBeVisible();
   const code = (
     (await p
-      .getByText(/mã xác minh:/)
+      .getByText(/Mã xác minh của bạn:/)
       .locator('b')
       .textContent()) ?? ''
   ).trim();
@@ -348,7 +348,7 @@ test('a new company runs the whole product from an empty server', async ({ brows
     const su = page.getByRole('dialog', { name: 'Xác thực bổ sung' });
     const code = (
       (await su
-        .getByText(/mã xác thực:/)
+        .getByText(/Mã xác thực của bạn:/)
         .locator('b')
         .textContent()) ?? ''
     ).trim();

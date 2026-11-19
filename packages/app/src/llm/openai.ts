@@ -1,8 +1,6 @@
 import OpenAI from 'openai';
-import type { LlmClient, LlmRunInput } from '@argolet/app';
-
-/** Overridable per deployment (ARGOLET_OPENAI_MODEL); a high-capability reasoning model by default. */
-const DEFAULT_MODEL = process.env.ARGOLET_OPENAI_MODEL || 'gpt-6.1-sol';
+import type { LlmClient, LlmRunInput } from '../runtime';
+import { DEFAULT_OPENAI_MODEL } from './models';
 
 /**
  * ChatGPT-backed assistant (OpenAI Responses API) behind the same controls as Claude: the tool loop
@@ -18,15 +16,29 @@ export class OpenAiLlmClient implements LlmClient {
   private readonly client: OpenAI;
   private readonly model: string;
 
-  constructor(apiKey: string, opts: { model?: string; fetch?: typeof fetch } = {}) {
-    this.model = opts.model ?? DEFAULT_MODEL;
+  constructor(
+    apiKey: string,
+    opts: {
+      model?: string | undefined;
+      fetch?: typeof fetch | undefined;
+      browser?: boolean | undefined;
+    } = {},
+  ) {
+    this.model = opts.model || DEFAULT_OPENAI_MODEL;
     this.name = `openai:${this.model}`;
     this.client = new OpenAI({
       apiKey,
       timeout: 60_000,
       maxRetries: 2,
+      // The organisation's own key, typed by its administrator on this device: allowed in the browser.
+      ...(opts.browser ? { dangerouslyAllowBrowser: true } : {}),
       ...(opts.fetch ? { fetch: opts.fetch } : {}),
     });
+  }
+
+  /** Checks the key against the model ARGOLET uses, without generating anything. */
+  async check(): Promise<void> {
+    await this.client.models.retrieve(this.model);
   }
 
   async run(input: LlmRunInput): Promise<{

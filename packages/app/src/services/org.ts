@@ -12,7 +12,7 @@ import {
   type RoleBinding,
 } from '@argolet/core';
 import { type AppCore, actor, requireFound, requireText } from '../core';
-import { AppError, type CallContext } from '../runtime';
+import { AppError, type AiProvider, type CallContext } from '../runtime';
 import type { Tx } from '../store';
 import {
   GLOBAL,
@@ -78,6 +78,9 @@ export async function scopeLabel(tx: Tx, tenantId: string, entityId: string): Pr
   const e = await tx.get('entities', tenantId, entityId);
   return e?.name ?? 'Tất cả cơ sở';
 }
+
+const AI_PROVIDERS: readonly AiProvider[] = ['claude', 'openai'];
+const AI_LABEL: Record<AiProvider, string> = { claude: 'Claude (Anthropic)', openai: 'ChatGPT (OpenAI)' };
 
 export class OrgService {
   constructor(private readonly core: AppCore) {}
@@ -474,13 +477,7 @@ export class OrgService {
       return {
         canManage: this.core.can(ws, 'settings.manage'),
         tenant: { name: t.name, orgType: t.orgType, taxCode: t.taxCode, settings: t.settings },
-        ai: {
-          provider: t.settings.ai?.provider ?? 'off',
-          available: Object.entries(this.core.deps.llms).map(([provider, c]) => ({
-            provider,
-            name: c!.name,
-          })),
-        },
+        ai: this.aiView(t),
         entities: await (async () => {
           const all = await tx.list('entities', ws.tenantId);
           const byId = new Map(all.map((e) => [e.id, e]));
@@ -506,6 +503,107 @@ export class OrgService {
           detail: a.detail,
         })),
       };
+    });
+  }
+
+  /** Claude / ChatGPT for this organisation: which can be chosen, whose key, which model. */
+  private aiView(t: TenantRow) {
+    const { llms, aiKeys, secrets } = this.core.deps;
+    const keys = t.settings.ai?.keys ?? {};
+    const canConnect = !!aiKeys && !!secrets;
+    const providers = AI_PROVIDERS.map((provider) => {
+      const own = canConnect ? keys[provider] : undefined;
+      const server = llms[provider];
+      return {
+        provider,
+        label: AI_LABEL[provider],
+        source: own ? ('org' as const) : server ? ('server' as const) : null,
+        model: own ? own.model : server ? server.name.replace(/^[a-z]+:/, '') : null,
+        keyHint: own?.hint ?? null,
+        connectedAt: own?.connectedAt ?? null,
+        connectedBy: own?.connectedBy ?? null,
+      };
+    });
+    return {
+      provider: t.settings.ai?.provider ?? 'off',
+      canConnect,
+      providers,
+      available: providers
+        .filter((x) => x.source)
+        .map((x) => ({ provider: x.provider, name: `${x.provider}:${x.model}` })),
+    };
+  }
+
+  /**
+   * Connects Claude or ChatGPT with the organisation's own API key: the key is checked live with the
+   * provider first, then sealed (server key, or the device's keystore) and never shown again.
+   */
+  async connectAi(call: CallContext, p: { provider: string; apiKey: string }) {
+    const provider = p.provider as AiProvider;
+    if (!AI_PROVIDERS.includes(provider)) throw new AppError('VALIDATION', 'Nhà cung cấp AI không hợp lệ');
+    const key = String(p.apiKey ?? '').trim();
+    const prefix = provider === 'claude' ? 'sk-ant-' : 'sk-';
+    if (!key) throw new AppError('VALIDATION', 'Nhập khóa API', { field: 'apiKey' });
+    if (/\s/.test(key) || key.length < 20 || key.length > 400 || !key.startsWith(prefix))
+      throw new AppError(
+        'VALIDATION',
+        provider === 'claude'
+          ? 'Khóa API của Claude bắt đầu bằng sk-ant-, lấy tại console.anthropic.com'
+          : 'Khóa API của ChatGPT bắt đầu bằng sk-, lấy tại platform.openai.com',
+        { field: 'apiKey' },
+      );
+    const { aiKeys, secrets } = this.core.deps;
+    if (!aiKeys || !secrets)
+      throw new AppError('VALIDATION', 'Bản cài đặt này chưa có kho khóa bảo mật để lưu khóa API');
+    // Permission first, then the live check outside any transaction (it waits on the network).
+    await this.core.query(async (tx) => this.core.requireWorkspace(tx, call, 'settings.manage'));
+    try {
+      await aiKeys.check(provider, key);
+    } catch (e) {
+      throw new AppError('VALIDATION', e instanceof Error ? e.message : 'Không kiểm tra được khóa API', {
+        field: 'apiKey',
+      });
+    }
+    const sealed = await secrets.seal(key);
+    return this.core.command(call, async (tx, em, now) => {
+      const ws = await this.core.requireWorkspace(tx, call, 'settings.manage');
+      const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      const record = {
+        sealed,
+        hint: key.slice(-4),
+        model: aiKeys.model(provider),
+        connectedAt: now,
+        connectedBy: ws.membership.displayName,
+      };
+      await tx.put('tenants', {
+        ...t,
+        settings: {
+          ...t.settings,
+          ai: { provider, keys: { ...(t.settings.ai?.keys ?? {}), [provider]: record } },
+        },
+      });
+      await em.audit(ws.tenantId, actor(ws), 'ai.connect', AI_LABEL[provider], `Khóa đuôi ${record.hint}`);
+      return { ok: true as const, provider, model: record.model, keyHint: record.hint };
+    });
+  }
+
+  /** Removes the organisation's own key; the assistant falls back to the server's provider or rules. */
+  async disconnectAi(call: CallContext, p: { provider: string }) {
+    const provider = p.provider as AiProvider;
+    if (!AI_PROVIDERS.includes(provider)) throw new AppError('VALIDATION', 'Nhà cung cấp AI không hợp lệ');
+    return this.core.command(call, async (tx, em) => {
+      const ws = await this.core.requireWorkspace(tx, call, 'settings.manage');
+      const t = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
+      const keys = { ...(t.settings.ai?.keys ?? {}) };
+      delete keys[provider];
+      const current = t.settings.ai?.provider ?? 'off';
+      const stillUsable = current === provider ? !!this.core.deps.llms[provider] : true;
+      await tx.put('tenants', {
+        ...t,
+        settings: { ...t.settings, ai: { provider: stillUsable ? current : 'off', keys } },
+      });
+      await em.audit(ws.tenantId, actor(ws), 'ai.disconnect', AI_LABEL[provider], 'Đã gỡ khóa API');
+      return { ok: true as const };
     });
   }
 
@@ -540,9 +638,13 @@ export class OrgService {
       if (p.hkd !== undefined) next.settings.hkd = validHkd(p.hkd);
       if (p.aiProvider !== undefined) {
         // Data only ever goes to a provider this server is configured for and the organisation chose.
-        if (p.aiProvider !== 'off' && !this.core.deps.llms[p.aiProvider])
-          throw new AppError('VALIDATION', 'Nhà cung cấp AI này chưa được cấu hình trên máy chủ ARGOLET');
-        next.settings.ai = { provider: p.aiProvider };
+        const own =
+          this.core.deps.aiKeys &&
+          this.core.deps.secrets &&
+          t.settings.ai?.keys?.[p.aiProvider as AiProvider];
+        if (p.aiProvider !== 'off' && !this.core.deps.llms[p.aiProvider] && !own)
+          throw new AppError('VALIDATION', 'Hãy kết nối khóa API của nhà cung cấp này trước');
+        next.settings.ai = { ...(t.settings.ai ?? {}), provider: p.aiProvider };
       }
       if (p.packages) {
         if (p.packages.length === 0 || p.packages.some((x) => !['G1', 'G2', 'G3', 'G4'].includes(x)))

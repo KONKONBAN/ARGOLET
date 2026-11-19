@@ -43,10 +43,33 @@ Quy tắc:
 /** Questions per person in a sliding window, before the provider is called again. */
 const AI_LIMIT = { questions: 20, windowMs: 10 * 60_000 };
 
-/** The provider an organisation chose — and only if this server is configured for it. */
-function chosenLlm(deps: AppCore['deps'], tenant: TenantRow): LlmClient | null {
+/** Name of the provider an organisation chose: its own key first, else the server's; null when off. */
+function chosenLlmName(deps: AppCore['deps'], tenant: TenantRow): string | null {
   const p = tenant.settings.ai?.provider;
-  return p && p !== 'off' ? (deps.llms[p] ?? null) : null;
+  if (!p || p === 'off') return null;
+  const own = tenant.settings.ai?.keys?.[p];
+  if (own && deps.aiKeys && deps.secrets) return `${p}:${own.model}`;
+  return deps.llms[p]?.name ?? null;
+}
+
+/** Clients built from organisations' own keys, rebuilt when the sealed key changes. */
+const ownClients = new WeakMap<AppCore['deps'], Map<string, { sealed: string; client: LlmClient }>>();
+
+/** The provider an organisation chose: with its own key (opened from the key box), else the server's. */
+async function chosenLlm(deps: AppCore['deps'], tenant: TenantRow): Promise<LlmClient | null> {
+  const p = tenant.settings.ai?.provider;
+  if (!p || p === 'off') return null;
+  const own = tenant.settings.ai?.keys?.[p];
+  if (own && deps.aiKeys && deps.secrets) {
+    let cache = ownClients.get(deps);
+    if (!cache) ownClients.set(deps, (cache = new Map()));
+    const hit = cache.get(`${tenant.id}:${p}`);
+    if (hit && hit.sealed === own.sealed) return hit.client;
+    const client = deps.aiKeys.create(p, await deps.secrets.open(own.sealed));
+    cache.set(`${tenant.id}:${p}`, { sealed: own.sealed, client });
+    return client;
+  }
+  return deps.llms[p] ?? null;
 }
 
 export class AssistantService {
@@ -282,7 +305,7 @@ export class AssistantService {
         scopeLabel: `Phạm vi: ${scope === 'Tất cả cơ sở' ? tenant.name : scope}, tháng ${month}`,
         suggestions,
         items: convs.map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt })),
-        engine: chosenLlm(this.core.deps, tenant)?.name ?? 'rules',
+        engine: chosenLlmName(this.core.deps, tenant) ?? 'rules',
       };
     });
   }
@@ -310,7 +333,7 @@ export class AssistantService {
       const outputs: ToolOutput[] = [];
       const gw = this.buildGateway(tx, ws, outputs);
       const tenant = requireFound(await tx.get('tenants', ws.tenantId, ws.tenantId), 'tổ chức');
-      const llm = chosenLlm(this.core.deps, tenant);
+      const llm = await chosenLlm(this.core.deps, tenant);
       let answer: AssistantAnswer;
       let aiCall: string | null = null;
       if (llm) {

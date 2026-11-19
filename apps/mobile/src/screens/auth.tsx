@@ -11,19 +11,11 @@ import {
 } from 'react-native';
 import { Text } from '../textScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Building2,
-  ChevronRight,
-  Landmark,
-  MailCheck,
-  Plus,
-  Server,
-  Store,
-  Upload,
-} from 'lucide-react-native';
+import { Building2, ChevronRight, Landmark, MailCheck, Plus, Store, Upload } from 'lucide-react-native';
 import { ApiError, useBackend, useMutation, useQuery } from '@argolet/client';
 import { IS_PRODUCTION, saveServer, getSavedServer } from '../backend';
 import { useSession } from '../session';
+import { useDeviceMode } from '../deviceMode';
 import { C, font } from '../theme';
 import { Button, Card, Gap, Input, KV, Notice, OtpInput, Row, T, TextSizePicker } from '../ui';
 import type { ScreenProps } from '../App';
@@ -80,7 +72,8 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
   const { backend } = useBackend();
   const { refresh } = useSession();
   const demo = backend.info.demo;
-  // The demo build opens with its account filled in: one tap on "Đăng nhập" is enough.
+  const { switchTo } = useDeviceMode();
+  // The sample company opens with its account filled in: one tap on "Đăng nhập" is enough.
   const [contact, setContact] = useState(demo?.email ?? '');
   const [password, setPassword] = useState(demo?.password ?? '');
   const [remember, setRemember] = useState(true);
@@ -103,14 +96,14 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
     }
   };
   return (
-    <AuthFrame title="Đăng nhập" subtitle="Đăng nhập vào không gian làm việc của bạn.">
-      {demo && (
-        <Notice tone="info">
-          Bản trải nghiệm: đã điền sẵn tài khoản {demo.email}, mật khẩu {demo.password}. Chạm Đăng nhập để
-          vào.
-          {demo.freshAfterSignOut && ' Khi đăng xuất, dữ liệu mẫu trở về như ban đầu để người sau dùng thử.'}
-        </Notice>
-      )}
+    <AuthFrame
+      title="Đăng nhập"
+      subtitle={
+        demo
+          ? 'Dữ liệu mẫu của Minh An Commerce, chạm Đăng nhập để xem.'
+          : 'Đăng nhập vào không gian làm việc của bạn.'
+      }
+    >
       <Input
         label="Email"
         value={contact}
@@ -163,40 +156,20 @@ export function LoginScreen({ navigation }: ScreenProps<'Login'>) {
       <Button title="Đăng nhập" variant="primary" loading={login.loading} onPress={submit} />
       <Gap />
       <Button title="Tạo tài khoản" onPress={() => navigation.navigate('Register')} />
-      {demo && (contact !== demo.email || password !== demo.password) && (
+      {backend.info.mode === 'device' && (
         <Pressable
-          onPress={() => {
-            setContact(demo.email);
-            setPassword(demo.password);
-            setMissing(false);
-          }}
-          style={{
-            marginTop: 18,
-            padding: 12,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderStyle: 'dashed',
-            borderColor: '#B9D8CB',
-            backgroundColor: '#F3F8F6',
-          }}
+          onPress={() => switchTo(demo ? 'own' : 'sample')}
+          style={{ alignSelf: 'center', paddingVertical: 14, paddingHorizontal: 12 }}
           accessibilityRole="button"
         >
-          <Text style={{ fontSize: 12, color: '#2C5B4B', lineHeight: 18 }}>
-            Chạm để điền lại tài khoản trải nghiệm
+          <Text style={{ color: C.action, fontFamily: font, fontSize: 14, fontWeight: '600' }}>
+            {demo ? 'Quay lại dữ liệu của tôi' : 'Dùng thử với dữ liệu mẫu'}
           </Text>
         </Pressable>
       )}
       <Gap h={18} />
       <Text style={[T.small, { marginBottom: 8 }]}>Cỡ chữ</Text>
       <TextSizePicker />
-      <Gap h={12} />
-      <Row
-        icon={<Server size={18} color={C.action} />}
-        title="Máy chủ ARGOLET"
-        subtitle={backend.info.label}
-        onPress={() => navigation.navigate('Server')}
-        chevron
-      />
     </AuthFrame>
   );
 }
@@ -217,7 +190,7 @@ export function ServerScreen() {
       <Text style={T.muted}>
         {IS_PRODUCTION
           ? 'Nhập địa chỉ máy chủ ARGOLET riêng của tổ chức (bắt đầu bằng https://). Để trống để dùng máy chủ mặc định của bản cài đặt.'
-          : 'Nhập địa chỉ máy chủ ARGOLET của tổ chức (ví dụ https://api.argolet.vn). Để trống để dùng dữ liệu mẫu trên thiết bị (bản thử nghiệm).'}
+          : 'Nhập địa chỉ máy chủ ARGOLET của tổ chức (ví dụ https://api.argolet.vn) để nhiều người cùng làm việc. Để trống để dữ liệu lưu ngay trên điện thoại này.'}
       </Text>
       <Gap />
       <Input
@@ -245,7 +218,7 @@ export function ServerScreen() {
       {saved !== null && (
         <Notice tone="info">
           Đã lưu. Đóng và mở lại ứng dụng để áp dụng máy chủ{' '}
-          {saved || (IS_PRODUCTION ? '(mặc định của bản cài đặt)' : '(dữ liệu mẫu)')}.
+          {saved || (IS_PRODUCTION ? '(mặc định của bản cài đặt)' : '(dữ liệu trên điện thoại)')}.
         </Notice>
       )}
     </ScrollView>
@@ -372,7 +345,7 @@ export function VerifyScreen({ route }: ScreenProps<'Verify'>) {
       <Text style={[T.small, { marginTop: 18 }]}>
         Quyền truy cập tổ chức được xác định theo lời mời hoặc ủy quyền.
       </Text>
-      {devCode ? <Notice tone="info">{`Môi trường thử nghiệm, mã xác minh: ${devCode}`}</Notice> : null}
+      {devCode ? <Notice tone="info">{`Mã xác minh của bạn: ${devCode}`}</Notice> : null}
     </AuthFrame>
   );
 }
@@ -440,7 +413,7 @@ export function ResetScreen({ navigation }: ScreenProps<'Reset'>) {
               if (r) setDone(true);
             }}
           />
-          {devCode ? <Notice tone="info">{`Môi trường thử nghiệm, mã đặt lại: ${devCode}`}</Notice> : null}
+          {devCode ? <Notice tone="info">{`Mã đặt lại mật khẩu: ${devCode}`}</Notice> : null}
         </>
       )}
       <Gap />

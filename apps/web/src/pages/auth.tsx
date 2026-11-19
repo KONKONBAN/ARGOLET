@@ -44,13 +44,11 @@ export function LoginPage() {
   return (
     <AuthLayout>
       <h1 className="auth-title">Đăng nhập</h1>
-      <p className="auth-sub">Đăng nhập vào không gian làm việc của bạn.</p>
-      {demo && (
-        <div className="demo-box mb-16">
-          <b>Bản trải nghiệm:</b> đã điền sẵn tài khoản {demo.email}, mật khẩu <b>{demo.password}</b>. Bấm{' '}
-          <b>Đăng nhập</b> để vào.
-        </div>
-      )}
+      <p className="auth-sub">
+        {demo
+          ? 'Dữ liệu mẫu của Minh An Commerce, bấm Đăng nhập để xem.'
+          : 'Đăng nhập vào không gian làm việc của bạn.'}
+      </p>
       <form onSubmit={submit} noValidate>
         <TextInput
           label="Email"
@@ -284,7 +282,7 @@ export function VerifyPage() {
       </p>
       {devCode && (
         <div className="demo-box">
-          Môi trường thử nghiệm chưa gửi email thật, mã xác minh: <b>{devCode}</b>
+          Mã xác minh của bạn: <b>{devCode}</b>
         </div>
       )}
     </AuthLayout>
@@ -376,7 +374,7 @@ export function ResetPage() {
           </div>
           {devCode && (
             <div className="demo-box">
-              Môi trường thử nghiệm, mã đặt lại: <b>{devCode}</b>
+              Mã đặt lại mật khẩu: <b>{devCode}</b>
             </div>
           )}
         </form>

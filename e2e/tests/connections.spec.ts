@@ -17,9 +17,14 @@ test('partner API connections: SePay connected, synced into a document, then up 
   const sepay = page.locator('.conn-tile').filter({ hasText: 'Ngân hàng qua SePay' });
 
   if (info.project.name === 'static') {
-    // The in-browser app keeps no partner keys.
-    await expect(page.getByText('Kết nối đối tác hoạt động khi dùng ARGOLET trên máy chủ.')).toBeVisible();
-    await expect(sepay.getByRole('button', { name: 'Kết nối' })).toBeDisabled();
+    // The in-browser app calls the partner itself; when the browser blocks it, it says so plainly.
+    await sepay.getByRole('button', { name: 'Kết nối' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Kết nối Ngân hàng qua SePay' });
+    await dialog.getByLabel('API Token').fill(TOKEN);
+    await dialog.getByRole('button', { name: 'Kiểm tra & kết nối' }).click();
+    await expect(dialog).toContainText('Trình duyệt không cho trang web gọi thẳng tới');
+    // The browser's own report of the blocked request is expected here; nothing else may fail.
+    w.problems = w.problems.filter((x) => !/net::ERR_|Failed to fetch|CORS/i.test(x));
     await expectClean(w, info);
     return;
   }

@@ -9,8 +9,11 @@ import {
   ScryptHasher,
   seedDemo,
   operations,
+  type AiKeys,
   type CallContext,
+  type HttpFetch,
   type OperationName,
+  type SecretBox,
   type OpParams,
   type OpResult,
 } from '@argolet/app';
@@ -33,6 +36,16 @@ export interface LocalBackendOptions {
    * company, documents, accounts registered on the device) starts again from the initial state.
    */
   freshAfterSignOut?: boolean;
+  /** Load the sample company (default). Off: the organisation's own data only, starting empty. */
+  seed?: boolean;
+  /** Real time instead of the sample data's simulated date (the organisation's own data). */
+  realClock?: boolean;
+  /** Calls to partners' APIs (SePay, KiotViet…) straight from the device. */
+  http?: HttpFetch | null;
+  /** Where partner credentials and AI keys are kept on the device (keychain / keystore). */
+  secrets?: SecretBox | null;
+  /** Claude / ChatGPT with the key the organisation's administrator types in. */
+  aiKeys?: AiKeys | null;
 }
 
 /**
@@ -44,7 +57,7 @@ export async function createLocalBackend(o: LocalBackendOptions): Promise<Backen
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pending: Record<string, Record<string, unknown>> | null = null;
   const build = async (initial: LocalBackendOptions['initial'], clockStart: number) => {
-    const clock = demoClock(clockStart);
+    const clock = o.realClock ? () => new Date() : demoClock(clockStart);
     const store = new MemoryStore(
       initial,
       o.persist
@@ -65,8 +78,11 @@ export async function createLocalBackend(o: LocalBackendOptions): Promise<Backen
       hasher: new ScryptHasher(2 ** 12, 8, 1),
       clock,
       config: { exposeDevCodes: true, publicBaseUrl: o.publicBaseUrl ?? '' },
+      http: o.http ?? null,
+      secrets: o.secrets ?? null,
+      aiKeys: o.aiKeys ?? null,
     });
-    await seedDemo(app);
+    if (o.seed !== false) await seedDemo(app);
     return app;
   };
   let app = await build(o.initial, o.clockStart);
@@ -78,13 +94,16 @@ export async function createLocalBackend(o: LocalBackendOptions): Promise<Backen
     info: {
       mode: 'device',
       label: o.label,
-      demo: {
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-        clock: true,
-        freshAfterSignOut: o.freshAfterSignOut ?? false,
-      },
-      assistant: 'rules',
+      demo:
+        o.seed === false
+          ? null
+          : {
+              email: DEMO_EMAIL,
+              password: DEMO_PASSWORD,
+              clock: !o.realClock,
+              freshAfterSignOut: o.freshAfterSignOut ?? false,
+            },
+      assistant: o.aiKeys ? 'org-key' : 'rules',
     },
     async call<K extends OperationName>(name: K, params?: OpParams<K>): Promise<OpResult<K>> {
       if (rebuilding) await rebuilding;

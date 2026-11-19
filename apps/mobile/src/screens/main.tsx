@@ -15,6 +15,7 @@ import {
   ChartColumn,
   CircleCheck,
   ClipboardCheck,
+  Database,
   Files,
   FileSearch,
   FileText,
@@ -31,6 +32,7 @@ import {
   Plug,
   ScanLine,
   Send,
+  Server,
   Settings,
   ShieldCheck,
   Store,
@@ -69,6 +71,7 @@ import type { ScreenProps } from '../App';
 import { AuthenticityCard } from '../authenticity';
 import { shareFile } from '../share';
 import { DocumentScanner } from '../scanner';
+import { useDeviceMode } from '../deviceMode';
 
 const toneOf = (s: string) =>
   s === 'VALIDATED' ? 'success' : s === 'NEEDS_REVIEW' || s === 'NEEDS_RECON' ? 'warning' : 'neutral';
@@ -462,6 +465,7 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
   const nav = asNav(navigation);
   const { ctx, signOut } = useSession();
   const { backend } = useBackend();
+  const deviceMode = useDeviceMode();
   const groups: { title: string; items: { icon: typeof Files; label: string; to: string }[] }[] = [
     {
       title: 'Nền tảng',
@@ -543,8 +547,24 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
           ))}
         </Card>
       ))}
+      <Card title="Dữ liệu">
+        <Row
+          icon={<Server size={18} color={C.action} />}
+          title="Máy chủ của tổ chức"
+          subtitle={backend.info.mode === 'server' ? 'Đang kết nối máy chủ' : backend.info.label}
+          chevron
+          onPress={() => nav.navigate('Server')}
+        />
+        {backend.info.mode === 'device' && (
+          <Row
+            icon={<Database size={18} color={C.action} />}
+            title={deviceMode.mode === 'sample' ? 'Quay lại dữ liệu của tôi' : 'Dùng thử với dữ liệu mẫu'}
+            chevron
+            onPress={() => deviceMode.switchTo(deviceMode.mode === 'sample' ? 'own' : 'sample')}
+          />
+        )}
+      </Card>
       <Button title="Đăng xuất" icon={<LogOut size={18} color={C.brand} />} onPress={() => void signOut()} />
-      <Text style={[T.small, { textAlign: 'center', marginTop: 14 }]}>{backend.info.label}</Text>
     </Screen>
   );
 }

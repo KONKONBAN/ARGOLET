@@ -4,8 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { LlmRunInput } from '@argolet/app';
-import { ClaudeLlmClient } from '../src/claude';
-import { OpenAiLlmClient } from '../src/openai';
+import { ClaudeLlmClient, OpenAiLlmClient } from '@argolet/app/llm/clients';
 
 function stand(responses: unknown[]) {
   const bodies: Record<string, unknown>[] = [];

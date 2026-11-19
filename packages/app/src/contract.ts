@@ -138,6 +138,14 @@ export const operations = {
   'org.updateSettings': op('PATCH', '/v1/settings', (a, c, p: ParamsOf<Svc['org']['updateSettings']>) =>
     a.org.updateSettings(c, p),
   ),
+  'org.connectAi': op('POST', '/v1/settings/ai/connect', (a, c, p: ParamsOf<Svc['org']['connectAi']>) =>
+    a.org.connectAi(c, p),
+  ),
+  'org.disconnectAi': op(
+    'POST',
+    '/v1/settings/ai/disconnect',
+    (a, c, p: ParamsOf<Svc['org']['disconnectAi']>) => a.org.disconnectAi(c, p),
+  ),
   'org.addEntity': op('POST', '/v1/entities', (a, c, p: ParamsOf<Svc['org']['addEntity']>) =>
     a.org.addEntity(c, p),
   ),

@@ -1,8 +1,8 @@
 import { createArgoletApp, demoClock, seedDemo, type ArgoletApp } from '@argolet/app';
 import type { ApiConfig } from './config';
 import { serverHasher } from './hasher';
-import { ClaudeLlmClient, ClaudeVisionExtractionProvider } from './claude';
-import { OpenAiLlmClient } from './openai';
+import { createAiKeys } from '@argolet/app/llm';
+import { ClaudeVisionExtractionProvider } from './claude';
 import { CombinedExtractionProvider, TesseractOcr } from './ocr';
 import { PgStore, pgDriver, pgliteDriver } from './db';
 import { createMailNotifier } from './mailer';
@@ -25,15 +25,20 @@ export async function createRuntime(
     : await pgDriver(config.databaseUrl);
   const store = new PgStore(driver, () => clock().toISOString());
   await store.migrate(log);
+  const aiKeys = createAiKeys({
+    models: { claude: process.env.ARGOLET_CLAUDE_MODEL, openai: process.env.ARGOLET_OPENAI_MODEL },
+  });
   const app = createArgoletApp({
     store,
     hasher: serverHasher(),
     clock,
     // Each provider is available only with its key; an organisation still has to choose it.
     llms: {
-      ...(config.anthropicApiKey ? { claude: new ClaudeLlmClient(config.anthropicApiKey) } : {}),
-      ...(config.openaiApiKey ? { openai: new OpenAiLlmClient(config.openaiApiKey) } : {}),
+      ...(config.anthropicApiKey ? { claude: aiKeys.create('claude', config.anthropicApiKey) } : {}),
+      ...(config.openaiApiKey ? { openai: aiKeys.create('openai', config.openaiApiKey) } : {}),
     },
+    // An organisation can also connect its own Claude / ChatGPT key, sealed with the server key.
+    aiKeys,
     // Photos and scans are read twice — OCR and the vision model — and checked field by field.
     extraction:
       config.ocr || config.anthropicApiKey

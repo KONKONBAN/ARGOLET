@@ -149,9 +149,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             : 'Chính sách yêu cầu xác thực lại. Nhập mã đã gửi đến email của bạn.'}
         </Text>
         <OtpInput value={code} onChange={setCode} />
-        {step?.devCode ? (
-          <Notice tone="info">{`Môi trường thử nghiệm, mã xác thực: ${step.devCode}`}</Notice>
-        ) : null}
+        {step?.devCode ? <Notice tone="info">{`Mã xác thực của bạn: ${step.devCode}`}</Notice> : null}
         {stepErr ? <Notice tone="danger">{stepErr}</Notice> : null}
         <Gap />
         <Button

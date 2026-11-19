@@ -8,7 +8,8 @@ import { createNativeStackNavigator, type NativeStackScreenProps } from '@react-
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Bell, Building2, Ellipsis, Files, Inbox, LayoutGrid } from 'lucide-react-native';
 import { BackendProvider, type Backend } from '@argolet/client';
-import { createMobileBackend } from './backend';
+import { createMobileBackend, getDeviceMode, setDeviceMode, type DeviceMode } from './backend';
+import { DeviceModeContext } from './deviceMode';
 import { SessionProvider, useSession } from './session';
 import { C, font } from './theme';
 import { Button, Loading, Notice, T } from './ui';
@@ -209,6 +210,7 @@ function Navigator() {
           <Stack.Screen name="CreateOrg" component={A.CreateOrgScreen} options={{ title: '' }} />
           <Stack.Screen name="Invite" component={A.InviteScreen} options={{ title: '' }} />
           <Stack.Screen name="Capture" component={M.CaptureScreen} options={{ title: '' }} />
+          <Stack.Screen name="Server" component={A.ServerScreen} options={{ title: 'Máy chủ của tổ chức' }} />
           <Stack.Screen name="Review" component={M.ReviewScreen} options={{ title: 'Kiểm tra chứng từ' }} />
           <Stack.Screen name="Reconcile" component={M.ReconcileScreen} options={{ title: '' }} />
           <Stack.Screen
@@ -334,12 +336,23 @@ export default function App() {
   const [backend, setBackend] = useState<Backend | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [mode, setMode] = useState<DeviceMode>('own');
   useEffect(() => {
     setError(null);
-    createMobileBackend().then(setBackend, (e: unknown) =>
-      setError(e instanceof Error ? e.message : 'Không khởi động được'),
-    );
+    getDeviceMode()
+      .then((m) => {
+        setMode(m);
+        return createMobileBackend();
+      })
+      .then(setBackend, (e: unknown) => setError(e instanceof Error ? e.message : 'Không khởi động được'));
   }, [attempt]);
+  const switchTo = (next: DeviceMode) => {
+    backend?.flush?.();
+    void setDeviceMode(next).then(() => {
+      setBackend(null);
+      setAttempt((n) => n + 1);
+    });
+  };
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
@@ -369,13 +382,15 @@ export default function App() {
           )}
         </View>
       ) : (
-        <BackendProvider backend={backend}>
-          <NavigationContainer theme={theme}>
-            <SessionProvider>
-              <Navigator />
-            </SessionProvider>
-          </NavigationContainer>
-        </BackendProvider>
+        <DeviceModeContext.Provider value={{ mode, switchTo }}>
+          <BackendProvider backend={backend}>
+            <NavigationContainer theme={theme}>
+              <SessionProvider>
+                <Navigator />
+              </SessionProvider>
+            </NavigationContainer>
+          </BackendProvider>
+        </DeviceModeContext.Provider>
       )}
     </SafeAreaProvider>
   );

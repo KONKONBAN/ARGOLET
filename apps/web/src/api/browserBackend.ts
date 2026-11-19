@@ -1,4 +1,6 @@
 import { createLocalBackend } from '@argolet/client/local';
+import { deviceHttp, keyStoreBox } from '@argolet/client/device';
+import { createAiKeys } from '@argolet/app/llm';
 import type { Backend } from '@argolet/client';
 
 const STORAGE_KEY = 'argolet.demo.v1';
@@ -46,6 +48,29 @@ export async function createBrowserBackend(): Promise<Backend> {
     label: 'Bản chạy trên trình duyệt, dữ liệu mẫu',
     userAgent: navigator.userAgent,
     publicBaseUrl: location.href.split('#')[0],
+    // Partner APIs and Claude / ChatGPT straight from the browser, keys kept for this tab only.
+    http: deviceHttp(window.fetch.bind(window), 'browser'),
+    secrets: keyStoreBox(
+      {
+        get: async (k) => {
+          try {
+            return sessionStorage.getItem(k);
+          } catch {
+            return null;
+          }
+        },
+        set: async (k, v) => {
+          try {
+            if (v === null) sessionStorage.removeItem(k);
+            else sessionStorage.setItem(k, v);
+          } catch {
+            /* storage unavailable: the key cannot be kept */
+          }
+        },
+      },
+      () => crypto.randomUUID(),
+    ),
+    aiKeys: createAiKeys({ browser: true }),
     onReset: async () => {
       safeSet(STORAGE_KEY, null);
       safeSet(CLOCK_KEY, null);

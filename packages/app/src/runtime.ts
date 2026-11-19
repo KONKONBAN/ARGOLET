@@ -86,6 +86,17 @@ export interface LlmClient {
   }>;
 }
 
+/**
+ * Claude / ChatGPT with a key the organisation's administrator types in (kept sealed): checked
+ * against the provider before it is saved, then used for that organisation's assistant only.
+ */
+export interface AiKeys {
+  model(provider: AiProvider): string;
+  create(provider: AiProvider, apiKey: string): LlmClient;
+  /** Resolves when the key works with the model; rejects with a reason a person can act on. */
+  check(provider: AiProvider, apiKey: string): Promise<void>;
+}
+
 export interface LlmRunInput {
   system: string;
   messages: { role: 'user' | 'assistant'; content: string }[];
@@ -141,6 +152,8 @@ export interface AppDeps {
   extraction: ExtractionProvider;
   /** Providers configured on this server (keys stay server-side); an organisation picks one or none. */
   llms: Partial<Record<AiProvider, LlmClient>>;
+  /** Organisations' own keys (absent: only the server's providers can be chosen). */
+  aiKeys: AiKeys | null;
   clock: () => Date;
   config: AppConfig;
   secrets: SecretBox | null;

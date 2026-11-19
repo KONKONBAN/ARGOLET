@@ -142,7 +142,9 @@ class PartnerHttp {
       try {
         res = await this.http(url, { ...init, signal: ctrl.signal });
         body = await res.text();
-      } catch {
+      } catch (e) {
+        // A transport that knows why (e.g. a browser blocking the partner) says so as it is.
+        if (e instanceof AppError) throw e;
         throw new AppError('VALIDATION', `Không kết nối được tới ${this.name} (${new URL(url).host})`);
       } finally {
         clearTimeout(timer);

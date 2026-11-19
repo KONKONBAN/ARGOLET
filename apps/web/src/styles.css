@@ -4055,3 +4055,54 @@ html[data-text-size='large'] .sidebar {
   justify-content: flex-end;
   margin: -4px 0 8px;
 }
+
+/* Claude / ChatGPT connection (administration) */
+.ai-providers {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ai-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+}
+.ai-card.active {
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px rgba(8, 116, 82, 0.1);
+}
+.ai-card header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ai-card header > div {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.ai-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  color: var(--brand);
+  font-weight: 700;
+}
+.ai-key-form {
+  display: grid;
+  gap: 10px;
+}
+.ai-key-form .field {
+  margin: 0;
+}
+.ai-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

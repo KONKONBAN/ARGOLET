@@ -217,7 +217,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         <OtpInput value={code} onChange={setCode} autoFocus />
         {stepUp?.devCode && (
           <div className="demo-box">
-            Môi trường thử nghiệm, mã xác thực: <b>{stepUp.devCode}</b>
+            Mã xác thực của bạn: <b>{stepUp.devCode}</b>
           </div>
         )}
         {stepErr && <div className="field-error mt-8">{stepErr}</div>}

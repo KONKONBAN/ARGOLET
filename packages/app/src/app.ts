@@ -10,6 +10,7 @@ import {
   type Notifier,
   type PasswordHasher,
   type SecretBox,
+  type AiKeys,
 } from './runtime';
 import type { Store } from './store';
 import { AuthService } from './services/auth';
@@ -35,6 +36,7 @@ export interface ArgoletAppOptions {
   notifier?: Notifier;
   extraction?: ExtractionProvider;
   llms?: Partial<Record<AiProvider, LlmClient>>;
+  aiKeys?: AiKeys | null;
   clock?: () => Date;
   config?: Partial<AppConfig>;
   secrets?: SecretBox | null;
@@ -52,6 +54,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
     notifier: opts.notifier ?? { sendCode: async () => undefined },
     extraction: opts.extraction ?? new ManualEntryExtractionProvider(),
     llms: opts.llms ?? {},
+    aiKeys: opts.aiKeys ?? null,
     clock: opts.clock ?? (() => new Date()),
     config: { ...DEFAULT_CONFIG, ...opts.config },
     secrets: opts.secrets ?? null,

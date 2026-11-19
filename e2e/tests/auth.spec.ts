@@ -69,7 +69,7 @@ test.describe('authentication & workspace onboarding', () => {
     const code =
       (
         await page
-          .getByText(/mã xác minh:/)
+          .getByText(/Mã xác minh của bạn:/)
           .locator('b')
           .textContent()
       )?.trim() ?? '';
@@ -109,7 +109,7 @@ test.describe('authentication & workspace onboarding', () => {
     const resetCode =
       (
         await page
-          .getByText(/mã đặt lại:/)
+          .getByText(/Mã đặt lại mật khẩu:/)
           .locator('b')
           .textContent()
       )?.trim() ?? '';

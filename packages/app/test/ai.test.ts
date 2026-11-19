@@ -59,7 +59,7 @@ describe('generative AI providers', () => {
     expect(r.answer.engine).toBe('rules');
     expect(claude.seen).toHaveLength(0);
     expect(openai.seen).toHaveLength(0);
-    expect((await app.org.settings(admin)).ai).toEqual({
+    expect((await app.org.settings(admin)).ai).toMatchObject({
       provider: 'off',
       available: [
         { provider: 'claude', name: 'claude:test-model' },

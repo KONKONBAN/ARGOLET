@@ -94,6 +94,15 @@ export interface LedgerSettings {
   /** Corporate income tax rate set by the accountant ("0.2"); automatic by revenue when absent. */
   citRate?: string | undefined;
 }
+/** An organisation's own AI provider key: sealed value, last four characters, who connected it. */
+export interface AiKeyRecord {
+  sealed: string;
+  hint: string;
+  model: string;
+  connectedAt: string;
+  connectedBy: string;
+}
+
 export interface TenantSettings {
   currency: string;
   timezone: string;
@@ -106,7 +115,13 @@ export interface TenantSettings {
   /** Automatic double-entry books: opening balances, stock counts and the income-tax rate. */
   ledger?: LedgerSettings | undefined;
   /** Generative AI for the assistant: off unless an administrator picks a provider. */
-  ai?: { provider: 'claude' | 'openai' | 'off' } | undefined;
+  ai?:
+    | {
+        provider: 'claude' | 'openai' | 'off';
+        /** The organisation's own keys, sealed (server key or the device's keystore), never shown again. */
+        keys?: Partial<Record<'claude' | 'openai', AiKeyRecord>> | undefined;
+      }
+    | undefined;
   packages: ('G1' | 'G2' | 'G3' | 'G4')[];
   currentPeriod: string;
   dataLocation: string;

@@ -359,6 +359,25 @@ function HkdTaxSettings({
 const AI_NAMES = { claude: 'Claude (Anthropic)', openai: 'ChatGPT (OpenAI)' } as const;
 
 /** Choice of generative AI provider: off by default, only providers configured on the server. */
+type AiView = {
+  provider: string;
+  canConnect: boolean;
+  providers: {
+    provider: 'claude' | 'openai';
+    label: string;
+    source: 'org' | 'server' | null;
+    model: string | null;
+    keyHint: string | null;
+    connectedAt: string | null;
+    connectedBy: string | null;
+  }[];
+};
+
+const AI_KEY_HELP = {
+  claude: { prefix: 'sk-ant-', where: 'console.anthropic.com, mục API Keys' },
+  openai: { prefix: 'sk-', where: 'platform.openai.com, mục API keys' },
+} as const;
+
 function AiSettings({
   open,
   onClose,
@@ -367,76 +386,139 @@ function AiSettings({
 }: {
   open: boolean;
   onClose: () => void;
-  ai: { provider: string; available: { provider: string; name: string }[] };
+  ai: AiView;
   canManage: boolean;
 }) {
   const toast = useToast();
   const update = useMutation('org.updateSettings', { silent: true });
-  const [choice, setChoice] = useState<string | null>(null);
-  const current = choice ?? ai.provider;
-  const options = [
-    {
-      k: 'off',
-      t: 'Tắt Gen AI',
-      s: 'Trợ lý trả lời bằng bộ quy tắc trong ARGOLET; không dữ liệu nào ra ngoài.',
-    },
-    ...(['claude', 'openai'] as const).map((k) => {
-      const a = ai.available.find((x) => x.provider === k);
-      return {
-        k,
-        t: AI_NAMES[k],
-        s: a ? `Mô hình ${a.name.split(':')[1]}` : 'Máy chủ ARGOLET chưa cấu hình khóa của nhà cung cấp này',
-        disabled: !a,
-      };
-    }),
-  ];
+  const connect = useMutation('org.connectAi', { silent: true });
+  const disconnect = useMutation('org.disconnectAi', { silent: true });
+  const [keys, setKeys] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const choose = async (provider: string) => {
+    try {
+      await update.mutate({ aiProvider: provider as 'off' });
+      toast(
+        'success',
+        provider === 'off' ? 'Đã tắt Gen AI' : `Trợ lý dùng ${AI_NAMES[provider as 'claude']}`,
+      );
+    } catch (e) {
+      toast('error', e instanceof Error ? e.message : 'Không lưu được');
+    }
+  };
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Trợ lý AI (Claude / ChatGPT)"
-      width={620}
-      footer={
-        canManage ? (
-          <Button
-            variant="primary"
-            loading={update.loading}
-            disabled={current === ai.provider}
-            onClick={async () => {
-              try {
-                await update.mutate({ aiProvider: current as 'off' });
-                toast(
-                  'success',
-                  current === 'off' ? 'Đã tắt Gen AI' : `Đã bật ${AI_NAMES[current as 'claude']}`,
-                );
-                onClose();
-              } catch (e) {
-                toast('error', e instanceof Error ? e.message : 'Không lưu được');
-              }
-            }}
-          >
-            Lưu
-          </Button>
-        ) : undefined
-      }
-    >
-      <fieldset className="hkd-tax" disabled={!canManage} style={{ marginTop: 0 }}>
-        <legend>Nhà cung cấp cho tổ chức</legend>
-        {options.map((o) => (
-          <label key={o.k} className="radio-row">
-            <input
-              type="radio"
-              name="ai-provider"
-              checked={current === o.k}
-              disabled={'disabled' in o && o.disabled}
-              onChange={() => setChoice(o.k)}
-            />
-            <span>
-              {o.t} <span className="muted small">({o.s})</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+    <Modal open={open} onClose={onClose} title="Trợ lý AI (Claude / ChatGPT)" width={680}>
+      <div className="ai-providers">
+        {ai.providers.map((p) => {
+          const connected = p.source !== null;
+          const active = ai.provider === p.provider;
+          return (
+            <section key={p.provider} className={`ai-card${active ? ' active' : ''}`} aria-label={p.label}>
+              <header>
+                <span className="ai-logo" aria-hidden>
+                  {p.provider === 'claude' ? 'C' : 'G'}
+                </span>
+                <div>
+                  <strong>{p.label}</strong>
+                  <span className="muted small">
+                    {p.source === 'org'
+                      ? `Khóa của tổ chức, đuôi ${p.keyHint}, mô hình ${p.model}`
+                      : p.source === 'server'
+                        ? `Khóa của máy chủ ARGOLET, mô hình ${p.model}`
+                        : 'Chưa kết nối'}
+                  </span>
+                </div>
+                {connected ? (
+                  <Chip tone={active ? 'success' : 'neutral'}>{active ? 'Đang dùng' : 'Đã kết nối'}</Chip>
+                ) : null}
+              </header>
+              {canManage && ai.canConnect && (
+                <form
+                  className="ai-key-form"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setBusy(p.provider);
+                    setErrors((x) => ({ ...x, [p.provider]: '' }));
+                    try {
+                      const r = await connect.mutate({
+                        provider: p.provider,
+                        apiKey: keys[p.provider] ?? '',
+                      });
+                      setKeys((x) => ({ ...x, [p.provider]: '' }));
+                      toast('success', `Đã kết nối ${p.label}, mô hình ${r.model}`);
+                    } catch (err) {
+                      setErrors((x) => ({
+                        ...x,
+                        [p.provider]: err instanceof Error ? err.message : 'Không kết nối được',
+                      }));
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  <label className="field">
+                    <span className="field-label">
+                      {p.source === 'org' ? 'Thay khóa API' : 'Khóa API của tổ chức'}
+                    </span>
+                    <input
+                      className="input"
+                      type="password"
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder={`${AI_KEY_HELP[p.provider].prefix}...`}
+                      value={keys[p.provider] ?? ''}
+                      onChange={(e) => setKeys((x) => ({ ...x, [p.provider]: e.target.value }))}
+                      aria-invalid={!!errors[p.provider]}
+                    />
+                    <span className="field-hint">Lấy khóa tại {AI_KEY_HELP[p.provider].where}.</span>
+                    {errors[p.provider] && (
+                      <span className="field-error" role="alert">
+                        {errors[p.provider]}
+                      </span>
+                    )}
+                  </label>
+                  <div className="ai-key-actions">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      loading={busy === p.provider}
+                      disabled={!(keys[p.provider] ?? '').trim()}
+                    >
+                      Kiểm tra và kết nối
+                    </Button>
+                    {connected && !active && (
+                      <Button onClick={() => void choose(p.provider)}>Dùng {p.label.split(' ')[0]}</Button>
+                    )}
+                    {p.source === 'org' && (
+                      <Button
+                        variant="ghost"
+                        onClick={async () => {
+                          await disconnect.mutate({ provider: p.provider });
+                          toast('success', `Đã gỡ khóa ${p.label}`);
+                        }}
+                      >
+                        Gỡ khóa
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              )}
+              {canManage && !ai.canConnect && connected && !active && (
+                <Button onClick={() => void choose(p.provider)}>Dùng {p.label.split(' ')[0]}</Button>
+              )}
+            </section>
+          );
+        })}
+      </div>
+      {canManage && ai.provider !== 'off' && (
+        <p className="small mt-8">
+          <button className="link-btn" onClick={() => void choose('off')}>
+            Tắt Gen AI
+          </button>{' '}
+          để trợ lý chỉ trả lời bằng bộ quy tắc của ARGOLET, không dữ liệu nào ra ngoài.
+        </p>
+      )}
       <h3 className="card-title">Bảo vệ khi dùng Gen AI</h3>
       <ul className="small" style={{ paddingLeft: 18, lineHeight: 1.7, margin: 0 }}>
         <li>Chỉ gửi tới nhà cung cấp tổ chức đã chọn; không tự chuyển sang nhà cung cấp khác khi lỗi.</li>
@@ -449,7 +531,10 @@ function AiSettings({
           lệnh.
         </li>
         <li>AI chỉ đề xuất; xác nhận, phê duyệt vẫn cần người có quyền.</li>
-        <li>Khóa API nằm trên máy chủ ARGOLET, không gửi về trình duyệt hay ứng dụng.</li>
+        <li>
+          Khóa API được kiểm tra trực tiếp với nhà cung cấp rồi cất trong kho khóa bảo mật (máy chủ ARGOLET
+          hoặc kho khóa của thiết bị), không hiển thị lại, chỉ dùng cho tổ chức này.
+        </li>
         <li>
           OpenAI: không lưu phản hồi (store: false). Nhà cung cấp chỉ nhận mã định danh ẩn danh của người hỏi.
         </li>

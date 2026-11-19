@@ -2282,6 +2282,115 @@ export function MembersScreen() {
 }
 
 // ───────── 35 · Cài đặt & tích hợp ─────────
+/** Claude / ChatGPT for the organisation: key checked live, kept in the phone's keystore or the server. */
+function AiCard({ ai, canManage }: { ai: OpResult<'org.settings'>['ai']; canManage: boolean }) {
+  const connect = useMutation('org.connectAi', { silent: true });
+  const disconnect = useMutation('org.disconnectAi', { silent: true });
+  const choose = useMutation('org.updateSettings', { silent: true });
+  const [editing, setEditing] = useState<'claude' | 'openai' | null>(null);
+  const [key, setKey] = useState('');
+  const where = {
+    claude: 'console.anthropic.com, mục API Keys',
+    openai: 'platform.openai.com, mục API keys',
+  };
+  return (
+    <Card title="Trợ lý AI">
+      {ai.providers.map((p) => {
+        const active = ai.provider === p.provider;
+        return (
+          <Row
+            key={p.provider}
+            title={p.label}
+            subtitle={
+              p.source === 'org'
+                ? `Khóa đuôi ${p.keyHint}, mô hình ${p.model}`
+                : p.source === 'server'
+                  ? `Khóa của máy chủ, mô hình ${p.model}`
+                  : 'Chưa kết nối'
+            }
+            right={
+              active ? (
+                <Chip tone="success">Đang dùng</Chip>
+              ) : canManage && p.source ? (
+                <Button small title="Dùng" onPress={() => void choose.mutate({ aiProvider: p.provider })} />
+              ) : canManage && ai.canConnect ? (
+                <Button
+                  small
+                  title="Kết nối"
+                  onPress={() => {
+                    connect.reset();
+                    setKey('');
+                    setEditing(p.provider);
+                  }}
+                />
+              ) : undefined
+            }
+            onPress={
+              canManage && ai.canConnect
+                ? () => {
+                    connect.reset();
+                    setKey('');
+                    setEditing(p.provider);
+                  }
+                : undefined
+            }
+          />
+        );
+      })}
+      {canManage && ai.provider !== 'off' && (
+        <Button small title="Tắt Gen AI" onPress={() => void choose.mutate({ aiProvider: 'off' })} />
+      )}
+      <Sheet
+        visible={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing === 'openai' ? 'Kết nối ChatGPT' : 'Kết nối Claude'}
+      >
+        <Input
+          label="Khóa API của tổ chức"
+          value={key}
+          onChangeText={setKey}
+          secure
+          autoCapitalize="none"
+          placeholder={editing === 'openai' ? 'sk-...' : 'sk-ant-...'}
+          hint={editing ? `Lấy khóa tại ${where[editing]}.` : undefined}
+          error={connect.error?.message}
+        />
+        <Button
+          title="Kiểm tra và kết nối"
+          variant="primary"
+          loading={connect.loading}
+          disabled={!key.trim()}
+          onPress={async () => {
+            if (!editing) return;
+            const ok = await connect.mutate({ provider: editing, apiKey: key }).catch(() => null);
+            if (ok) {
+              setKey('');
+              setEditing(null);
+            }
+          }}
+        />
+        {editing && ai.providers.find((x) => x.provider === editing)?.source === 'org' && (
+          <>
+            <Gap />
+            <Button
+              title="Gỡ khóa"
+              onPress={async () => {
+                await disconnect.mutate({ provider: editing }).catch(() => null);
+                setEditing(null);
+              }}
+            />
+          </>
+        )}
+        <Text style={[T.small, { marginTop: 12 }]}>
+          Khóa được kiểm tra trực tiếp với nhà cung cấp, cất trong kho khóa bảo mật và không hiển thị lại.
+          Thông tin cá nhân được che trước khi gửi.
+        </Text>
+        <Gap h={24} />
+      </Sheet>
+    </Card>
+  );
+}
+
 export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
   const data = useQuery('org.settings');
   const setInt = useMutation('org.setIntegration');
@@ -2405,6 +2514,7 @@ export function SettingsScreen({ navigation }: ScreenProps<'Settings'>) {
           />
         )}
       />
+      <AiCard ai={d.ai} canManage={d.canManage} />
       <Card title="Quản trị">
         <Row title="Thành viên & phân quyền" chevron onPress={() => navigation.navigate('Members')} />
         <Row title="Bảo mật tài khoản" chevron onPress={() => navigation.navigate('Security')} />
