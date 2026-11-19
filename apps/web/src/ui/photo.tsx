@@ -16,6 +16,8 @@ export interface PhotoQuality {
 }
 
 const MIN_LONG_SIDE = 1000;
+/** A sheet spanning at least this many pixels of the picture stays readable (about 100 dpi on A4). */
+const MIN_SHEET_DETAIL = 800;
 const DARK = 60;
 /** Washed out (glare, overexposure): almost no contrast AND almost no detail. White paper with
  * sparse text has low contrast but plenty of edges, so it is not flagged. */
@@ -96,7 +98,11 @@ export const MIN_PHOTO_SIDE = MIN_LONG_SIDE;
  * Checks a photo of a document before it is sent: enough pixels to read the text, not too dark
  * or washed out, not blurred. Runs entirely in the browser on a downscaled copy.
  */
-export async function analyzePhoto(blob: Blob): Promise<PhotoQuality> {
+export async function analyzePhoto(
+  blob: Blob,
+  /** For a page cut out of a larger picture: the sheet's long side in the original picture. */
+  sourceDetail?: number,
+): Promise<PhotoQuality> {
   const bitmap = await createImageBitmap(blob);
   const { width, height } = bitmap;
   const { brightness, contrast, sharpness } = measureFrame(bitmap, width, height);
@@ -105,7 +111,11 @@ export async function analyzePhoto(blob: Blob): Promise<PhotoQuality> {
   const checks = [
     {
       label: `Độ phân giải ${((width * height) / 1e6).toFixed(1).replace('.', ',')} MP`,
-      ok: Math.max(width, height) >= MIN_LONG_SIDE,
+      // A straightened sheet keeps the detail it had in the picture: judged on that.
+      ok:
+        sourceDetail !== undefined
+          ? sourceDetail >= MIN_SHEET_DETAIL
+          : Math.max(width, height) >= MIN_LONG_SIDE,
       hint: 'Ảnh nhỏ, chữ có thể không đọc được, đưa máy gần hơn hoặc dùng camera sau.',
     },
     {

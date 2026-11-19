@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["ArgoletScannerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.argoletscanner.ArgoletScannerModule"]
+  }
+}

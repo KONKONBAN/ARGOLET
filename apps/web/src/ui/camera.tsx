@@ -4,12 +4,14 @@ import {
   CameraOff,
   CircleAlert,
   CircleCheck,
+  Crop,
   FileImage,
   Images,
   Keyboard,
   Lock,
   QrCode,
   RotateCcw,
+  RotateCw,
   ScanLine,
   Sun,
   Zap,
@@ -28,10 +30,56 @@ import {
   type PhotoQuality,
 } from './photo';
 import { readQrFromImage } from './qr';
+import {
+  applyFilter,
+  detectQuad,
+  fullQuad,
+  quadDetail,
+  rotate,
+  warpQuad,
+  type Quad,
+  type ScanFilter,
+} from './docscan';
 
 const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
 
-type Shot = { file: File; url: string; quality: PhotoQuality; qr: string | null | undefined };
+type Shot = {
+  /** The full camera picture, kept to crop again. */
+  frame: HTMLCanvasElement;
+  frameUrl: string;
+  /** Corners of the sheet (null: the whole picture). */
+  quad: Quad | null;
+  filter: ScanFilter;
+  turns: number;
+  file: File;
+  url: string;
+  quality: PhotoQuality;
+  qr: string | null | undefined;
+};
+
+/** The page as kept: sheet straightened, filter applied, turned. */
+async function buildPage(
+  frame: HTMLCanvasElement,
+  quad: Quad | null,
+  filter: ScanFilter,
+  turns: number,
+  name: string,
+) {
+  const page = rotate(applyFilter(quad ? warpQuad(frame, quad) : frame, filter), turns);
+  const blob = await new Promise<Blob | null>((r) => page.toBlob(r, 'image/jpeg', 0.92));
+  if (!blob) throw new Error('Không tạo được ảnh');
+  return {
+    file: new File([blob], name, { type: 'image/jpeg' }),
+    url: URL.createObjectURL(blob),
+    quality: await analyzePhoto(blob, quad ? quadDetail(quad) : undefined),
+  };
+}
+
+export const FILTERS: { value: ScanFilter; label: string }[] = [
+  { value: 'document', label: 'Tài liệu' },
+  { value: 'original', label: 'Màu gốc' },
+  { value: 'bw', label: 'Đen trắng' },
+];
 type Page = { url: string; name: string; size: number; ok: boolean };
 
 /** What the person sees above the document frame, for each live state. */
@@ -65,6 +113,9 @@ function useDocumentCamera(open: boolean, onCapture: (file: File, quality: Photo
   const [torch, setTorch] = useState<boolean | null>(null);
   const [flash, setFlash] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [liveQuad, setLiveQuad] = useState<Quad | null>(null);
+  /** Corners being moved by hand to crop again (null: not cropping). */
+  const [cropping, setCropping] = useState<Quad | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -133,9 +184,10 @@ function useDocumentCamera(open: boolean, onCapture: (file: File, quality: Photo
     };
   }, [open, deviceId]);
 
+  // A replaced picture is released a moment later, once the new one is on screen.
   useEffect(
     () => () => {
-      if (shot) URL.revokeObjectURL(shot.url);
+      if (shot) window.setTimeout(() => URL.revokeObjectURL(shot.url), 2000);
     },
     [shot],
   );
@@ -147,21 +199,45 @@ function useDocumentCamera(open: boolean, onCapture: (file: File, quality: Photo
     setBusy(true);
     setFlash(true);
     window.setTimeout(() => setFlash(false), 180);
-    const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth;
-    canvas.height = v.videoHeight;
-    canvas.getContext('2d')!.drawImage(v, 0, 0);
-    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.92));
-    if (!blob) return setBusy(false);
-    const file = new File([blob], `chung-tu-${stamp()}-${pages.length + 1}.jpg`, { type: 'image/jpeg' });
-    const quality = await analyzePhoto(blob);
-    setShot({ file, url: URL.createObjectURL(blob), quality, qr: undefined });
-    setSteady(0);
-    setBusy(false);
-    void readQrFromImage(blob)
-      .catch(() => null)
-      .then((qr) => setShot((s) => (s && s.file === file ? { ...s, qr } : s)));
+    const frame = document.createElement('canvas');
+    frame.width = v.videoWidth;
+    frame.height = v.videoHeight;
+    frame.getContext('2d', { willReadFrequently: true })!.drawImage(v, 0, 0);
+    try {
+      // The sheet is found again on the full picture, then straightened and cleaned like a scan.
+      const quad = detectQuad(frame, frame.width, frame.height);
+      const name = `chung-tu-${stamp()}-${pages.length + 1}.jpg`;
+      const built = await buildPage(frame, quad, 'document', 0, name);
+      const frameUrl = frame.toDataURL('image/jpeg', 0.85);
+      setShot({ frame, frameUrl, quad, filter: 'document', turns: 0, ...built, qr: undefined });
+      setSteady(0);
+      // The e-invoice QR is read on the untouched picture.
+      void new Promise<Blob | null>((r) => frame.toBlob(r, 'image/jpeg', 0.92))
+        .then((blob) => (blob ? readQrFromImage(blob) : null))
+        .catch(() => null)
+        .then((qr) => setShot((s) => (s && s.frame === frame ? { ...s, qr } : s)));
+    } finally {
+      setBusy(false);
+    }
   }, [busy, pages.length]);
+
+  /** Changes the filter, the turn or the crop of the picture just taken, one change after another. */
+  const shotRef = useRef<Shot | null>(null);
+  shotRef.current = shot;
+  const edits = useRef<Promise<void>>(Promise.resolve());
+  type Change = Partial<Pick<Shot, 'quad' | 'filter' | 'turns'>>;
+  const edit = useCallback((change: Change | ((s: Shot) => Change)) => {
+    edits.current = edits.current.then(async () => {
+      const s = shotRef.current;
+      if (!s) return;
+      const next = { ...s, ...(typeof change === 'function' ? change(s) : change) };
+      const built = await buildPage(next.frame, next.quad, next.filter, next.turns, s.file.name);
+      const updated = { ...next, ...built };
+      shotRef.current = updated;
+      setShot((cur) => (cur && cur.frame === s.frame ? updated : cur));
+    });
+    return edits.current;
+  }, []);
 
   // Live checks on the viewfinder: light, sharpness, steadiness; automatic capture when asked.
   useEffect(() => {
@@ -175,6 +251,7 @@ function useDocumentCamera(open: boolean, onCapture: (file: File, quality: Photo
         r && r.w === v.videoWidth && r.h === v.videoHeight ? r : { w: v.videoWidth, h: v.videoHeight },
       );
       const stats = measureFrame(v, v.videoWidth, v.videoHeight);
+      setLiveQuad(detectQuad(v, v.videoWidth, v.videoHeight));
       const state = liveState(stats, prev ? frameMotion(prev, stats.grey) : 0);
       prev = stats.grey;
       setLive(state);
@@ -212,6 +289,7 @@ function useDocumentCamera(open: boolean, onCapture: (file: File, quality: Photo
         ok: shot.quality.ok,
       },
     ]);
+    setCropping(null);
     setShot(null);
     return true;
   };
@@ -237,7 +315,15 @@ function useDocumentCamera(open: boolean, onCapture: (file: File, quality: Photo
     error,
     ready,
     shot,
-    retake: () => setShot(null),
+    retake: () => {
+      setCropping(null);
+      setShot(null);
+    },
+    edit,
+    cropping,
+    setCropping,
+    liveQuad,
+    videoSize: resolution,
     pages,
     state,
     isReady,
@@ -326,9 +412,10 @@ export function CameraCapture({
 
 type ViewProps = { cam: Cam; onClose: () => void; onFallback: () => void };
 
-/** The camera picture with the document frame, the live guidance and checks. */
+/** The camera picture with the document frame, the sheet found live, the guidance and checks. */
 function Viewfinder({ cam, compact }: { cam: Cam; compact: boolean }) {
-  const { shot, isReady, ready, state, checks } = cam;
+  const { shot, isReady, ready, state, checks, liveQuad, videoSize } = cam;
+  const fit = compact ? 'xMidYMid slice' : 'xMidYMid meet';
   return (
     <>
       <video
@@ -338,8 +425,22 @@ function Viewfinder({ cam, compact }: { cam: Cam; compact: boolean }) {
         aria-label="Khung camera"
         style={{ visibility: shot ? 'hidden' : 'visible' }}
       />
-      {shot && <img src={shot.url} alt="Ảnh vừa chụp" className="scan-shot" />}
-      {!shot && (
+      {shot && !cam.cropping && <img src={shot.url} alt="Ảnh vừa chụp" className="scan-shot" />}
+      {shot && cam.cropping && <CropEditor cam={cam} />}
+      {!shot && liveQuad && videoSize && (
+        <svg
+          className={`scan-quad${isReady ? ' ready' : ''}`}
+          viewBox={`0 0 ${videoSize.w} ${videoSize.h}`}
+          preserveAspectRatio={fit}
+          aria-hidden
+        >
+          <polygon points={liveQuad.map((p) => `${p.x},${p.y}`).join(' ')} />
+          {liveQuad.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={Math.max(videoSize.w, videoSize.h) * 0.008} />
+          ))}
+        </svg>
+      )}
+      {!shot && !liveQuad && (
         <div className={`scan-frame${isReady ? ' ready' : ''}`} aria-hidden>
           <i className="tl" />
           <i className="tr" />
@@ -373,6 +474,168 @@ function Viewfinder({ cam, compact }: { cam: Cam; compact: boolean }) {
       {cam.flash && <div className="scan-flash" aria-hidden />}
     </>
   );
+}
+
+/** Four corners to drag over the full picture, to crop the sheet by hand. */
+function CropEditor({ cam }: { cam: Cam }) {
+  const shot = cam.shot!;
+  const quad = cam.cropping!;
+  const W = shot.frame.width;
+  const H = shot.frame.height;
+  const svgRef = useRef<SVGSVGElement>(null);
+  const drag = useRef<number | null>(null);
+  const toPicture = (e: React.PointerEvent) => {
+    const svg = svgRef.current!;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const m = svg.getScreenCTM();
+    const p = m ? pt.matrixTransform(m.inverse()) : pt;
+    return { x: Math.max(0, Math.min(W - 1, p.x)), y: Math.max(0, Math.min(H - 1, p.y)) };
+  };
+  const r = Math.max(W, H) * 0.018;
+  const names = ['Góc trên trái', 'Góc trên phải', 'Góc dưới phải', 'Góc dưới trái'];
+  return (
+    <div className="scan-crop">
+      <img src={shot.frameUrl} alt="Ảnh gốc để cắt lại" />
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="xMidYMid meet"
+        onPointerMove={(e) => {
+          if (drag.current === null) return;
+          const next = [...quad] as Quad;
+          next[drag.current] = toPicture(e);
+          cam.setCropping(next);
+        }}
+        onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
+      >
+        <polygon points={quad.map((p) => `${p.x},${p.y}`).join(' ')} />
+        {quad.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={r}
+            role="slider"
+            aria-label={names[i]}
+            aria-valuetext={`${Math.round(p.x)}, ${Math.round(p.y)}`}
+            tabIndex={0}
+            onPointerDown={(e) => {
+              drag.current = i;
+              (e.target as Element).setPointerCapture?.(e.pointerId);
+            }}
+            onKeyDown={(e) => {
+              const step = Math.max(W, H) * 0.01;
+              const d = {
+                ArrowLeft: [-step, 0],
+                ArrowRight: [step, 0],
+                ArrowUp: [0, -step],
+                ArrowDown: [0, step],
+              }[e.key];
+              if (!d) return;
+              e.preventDefault();
+              const next = [...quad] as Quad;
+              next[i] = {
+                x: Math.max(0, Math.min(W - 1, p.x + d[0]!)),
+                y: Math.max(0, Math.min(H - 1, p.y + d[1]!)),
+              };
+              cam.setCropping(next);
+            }}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/** Filter, turn and crop of the picture just taken. */
+function ShotTools({ cam }: { cam: Cam }) {
+  const shot = cam.shot!;
+  if (cam.cropping)
+    return (
+      <div className="scan-tools">
+        <p className="small muted">Kéo bốn góc tới mép tờ chứng từ.</p>
+        <div className="scan-tool-row">
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              const q = cam.cropping;
+              cam.setCropping(null);
+              void cam.edit({ quad: q });
+            }}
+          >
+            Áp dụng
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              cam.setCropping(null);
+              void cam.edit({ quad: null });
+            }}
+          >
+            Dùng toàn ảnh
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => cam.setCropping(null)}>
+            Hủy
+          </Button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="scan-tools">
+      <div className="scan-filters" role="radiogroup" aria-label="Bộ lọc">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            role="radio"
+            aria-checked={shot.filter === f.value}
+            className={shot.filter === f.value ? 'on' : ''}
+            onClick={() => void cam.edit({ filter: f.value })}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <div className="scan-tool-row">
+        <Button
+          size="sm"
+          icon={<RotateCw size={15} />}
+          onClick={() => void cam.edit((s) => ({ turns: s.turns + 1 }))}
+        >
+          Xoay
+        </Button>
+        <Button
+          size="sm"
+          icon={<Crop size={15} />}
+          onClick={() =>
+            cam.setCropping(
+              shot.quad ??
+                detectQuad(shot.frame, shot.frame.width, shot.frame.height) ??
+                insetQuad(shot.frame),
+            )
+          }
+        >
+          Cắt lại
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** A starting crop a little inside the picture's edges, when no sheet was found. */
+function insetQuad(frame: HTMLCanvasElement): Quad {
+  const q = fullQuad(frame.width, frame.height);
+  const dx = frame.width * 0.08;
+  const dy = frame.height * 0.06;
+  return [
+    { x: q[0].x + dx, y: q[0].y + dy },
+    { x: q[1].x - dx, y: q[1].y + dy },
+    { x: q[2].x - dx, y: q[2].y - dy },
+    { x: q[3].x + dx, y: q[3].y - dy },
+  ];
 }
 
 /** The quality checks of the picture just taken, with the e-invoice QR when there is one. */
@@ -529,6 +792,7 @@ function DeskScanner({ cam, onClose, onFallback }: ViewProps) {
                     Trang {pages.length + 1}
                   </span>
                 </div>
+                <ShotTools cam={cam} />
                 <ShotChecks shot={shot} />
                 <div className="sd-review-actions">
                   <Button variant="primary" onClick={() => cam.keep() && onClose()}>
@@ -696,6 +960,7 @@ function PhoneScanner({ cam, onClose, onFallback }: ViewProps) {
             <strong>{shot.quality.ok ? 'Ảnh đạt yêu cầu' : 'Ảnh chưa đạt, nên chụp lại'}</strong>
             <span className={`scan-badge${shot.quality.ok ? ' ok' : ' warn'}`}>Trang {pages.length + 1}</span>
           </div>
+          <ShotTools cam={cam} />
           <ShotChecks shot={shot} />
           <div className="scan-sheet-actions">
             <Button icon={<RotateCcw size={16} />} onClick={cam.retake}>

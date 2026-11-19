@@ -132,7 +132,7 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 | `COOKIE_SECURE`, `TRUST_PROXY` | theo `NODE_ENV`                                                                 | Cookie `Secure`; tin cậy `X-Forwarded-*` từ reverse proxy                                                                                                                                                           |
 | `WEB_DIST`                     | tự dò                                                                           | Thư mục web build mà API phục vụ                                                                                                                                                                                    |
 
-**Trợ lý AI (Gen AI)** mặc định tắt cho mọi tổ chức. Quản trị viên chọn Claude hoặc ChatGPT trong _Cài đặt → Trợ lý AI_ (chỉ các nhà cung cấp có khóa trên máy chủ). Trước khi gửi, ARGOLET thay email, số điện thoại, mã số thuế, CCCD, số tài khoản và tên nhân sự bằng mã ẩn và khôi phục khi hiển thị; dữ liệu chỉ đi tới nhà cung cấp đã chọn; người hỏi được nhận diện bằng mã ẩn danh; nhật ký không lưu nội dung; mỗi người tối đa 20 câu hỏi / 10 phút. Claude dùng Messages API với _adaptive thinking_ và **server-side fallbacks** (`fallbacks: "default"`) trong cùng nhà cung cấp.
+**Trợ lý AI (Gen AI)** mặc định tắt cho mọi tổ chức. Quản trị viên vào _Cài đặt → Trợ lý AI_, dán **khóa API của tổ chức** (Claude: `sk-ant-…` từ console.anthropic.com; ChatGPT: `sk-…` từ platform.openai.com) rồi bấm _Kiểm tra và kết nối_: ARGOLET kiểm tra khóa trực tiếp với nhà cung cấp (Models API, không tốn lượt sinh văn bản), rồi niêm phong khóa (máy chủ: AES-256-GCM bằng `ARGOLET_SECRET_KEY`; điện thoại: iOS Keychain / Android Keystore), không hiển thị lại và có thể gỡ bất cứ lúc nào. Khóa đặt sẵn trên máy chủ (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) vẫn dùng được cho mọi tổ chức. Trước khi gửi, ARGOLET thay email, số điện thoại, mã số thuế, CCCD, số tài khoản và tên nhân sự bằng mã ẩn và khôi phục khi hiển thị; dữ liệu chỉ đi tới nhà cung cấp đã chọn; người hỏi được nhận diện bằng mã ẩn danh; nhật ký không lưu nội dung; mỗi người tối đa 20 câu hỏi / 10 phút. Claude dùng Messages API với _adaptive thinking_ và **server-side fallbacks** (`fallbacks: "default"`) trong cùng nhà cung cấp.
 
 ### 3. Ứng dụng Android / iOS
 
@@ -141,12 +141,14 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 - **Android** — `ARGOLET-android.apk`: tải về điện thoại, mở tệp và cho phép “Cài ứng dụng không rõ nguồn” khi được hỏi;
 - **iOS** — `ARGOLET-ios-simulator.zip`: chạy trên iOS Simulator (Xcode trên máy Mac: giải nén rồi kéo `ARGOLET.app` vào cửa sổ Simulator). Apple không cho cài tệp tự dựng lên iPhone thật: cài trên iPhone cần ký bằng tài khoản Apple Developer và phát hành qua TestFlight / App Store (lệnh EAS bên dưới).
 
-Hai bản dùng thử này chạy được ngay không cần máy chủ (dữ liệu mẫu, có ghi rõ) và có đủ chức năng chụp ảnh chứng từ bằng camera.
+Hai bản này chạy được ngay không cần máy chủ: dữ liệu của tổ chức lưu ngay trên điện thoại (bắt đầu trống, ngày giờ thật), kết nối đối tác (SePay, KiotViet) và trợ lý Claude / ChatGPT gọi thẳng từ điện thoại; khóa nằm trong kho khóa của máy. Muốn xem trước với dữ liệu mẫu, chạm _Dùng thử với dữ liệu mẫu_ ở màn đăng nhập (hoặc _Thêm → Dữ liệu_); _Quay lại dữ liệu của tôi_ để trở về. Nhiều người cùng làm việc thì nối máy chủ của tổ chức ở _Thêm → Dữ liệu → Máy chủ của tổ chức_.
+
+**Chụp chứng từ:** điện thoại dùng trình quét tài liệu của hệ điều hành (iPhone: Apple VisionKit, như ứng dụng Ghi chú; Android: Google ML Kit Document Scanner, như Google Drive, cần Google Play services): tự nhận mép giấy, cắt thẳng, khử bóng, bộ lọc, nhiều trang. Máy không có thì mở màn quét riêng của ARGOLET (thiết kế riêng cho Android và iOS). Trên web: tự dò mép tờ chứng từ ngay khi ngắm, cắt thẳng phối cảnh, bộ lọc _Tài liệu / Màu gốc / Đen trắng_, xoay và cắt lại bằng bốn góc kéo được; đọc mã QR hóa đơn ngay khi chụp.
 
 Ứng dụng React Native dựng bằng Expo / EAS Build thành bản cài đặt native (`.aab` cho Google Play, `.ipa` cho App Store). Có ba hồ sơ dựng (`apps/mobile/eas.json`):
 
 - `production` — bản phát hành: **bắt buộc** `EXPO_PUBLIC_API_URL` dạng `https://` (dựng sẽ dừng nếu thiếu), chỉ làm việc với máy chủ ARGOLET và không bao giờ chuyển sang dữ liệu mẫu; mất kết nối thì báo và cho _Thử lại_;
-- `preview`, `development` — bản thử nghiệm nội bộ: không có máy chủ thì chạy trên thiết bị với dữ liệu mẫu (có ghi rõ); **đăng xuất là dữ liệu mẫu trở về như ban đầu** để máy được chuyển cho người dùng thử tiếp theo.
+- `preview`, `development` — bản cài trực tiếp (APK trên Releases): không có máy chủ thì chạy toàn bộ trên điện thoại với dữ liệu của tổ chức lưu trên máy; dữ liệu mẫu chỉ mở khi người dùng chọn _Dùng thử với dữ liệu mẫu_ và trở về như ban đầu sau khi đăng xuất.
 
 ```bash
 npm i -g eas-cli
