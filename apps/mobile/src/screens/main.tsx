@@ -48,6 +48,7 @@ import { C, font } from '../theme';
 import {
   Button,
   Card,
+  FitSwitch,
   Chip,
   ErrorView,
   Gap,
@@ -528,11 +529,13 @@ export function MoreScreen({ navigation }: { navigation: unknown }) {
   return (
     <Screen>
       <Title title="Thêm" subtitle={`${ctx?.member.displayName ?? ''}, ${ctx?.member.title ?? ''}`} />
-      <Card title="Cỡ chữ">
+      <Card title="Hiển thị">
         <TextSizePicker />
         <Text style={[T.small, { marginTop: 8 }]}>
           Chữ lớn giúp dễ đọc hơn. Cỡ chữ của điện thoại cũng được áp dụng.
         </Text>
+        <View style={{ height: 1, backgroundColor: C.line, marginVertical: 12 }} />
+        <FitSwitch />
       </Card>
       {groups.map((g) => (
         <Card key={g.title} title={g.title}>

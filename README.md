@@ -4,7 +4,9 @@ Nền tảng tiếp nhận chứng từ, đối soát đa nguồn, phê duyệt,
 
 **Mở trực tiếp:** https://konkonban.github.io/ARGOLET/ (máy tính và điện thoại).
 
-**Người lớn tuổi:** nút **Chữ lớn** ở thanh trên cùng (web) và mục **Cỡ chữ** (Thường · Lớn · Rất lớn) ở màn Thêm / Đăng nhập (mobile); bố cục tự sắp xếp lại theo cỡ chữ, app mobile cũng theo cỡ chữ của điện thoại.
+**Người lớn tuổi:** nút **Chữ lớn** ở thanh trên cùng (web) và mục **Cỡ chữ** (Thường, Lớn, Rất lớn) ở màn Thêm / Đăng nhập (mobile); bố cục tự sắp xếp lại theo cỡ chữ, app mobile cũng theo cỡ chữ của điện thoại.
+
+**Tự động căn chỉnh theo màn hình** (bật sẵn, tắt được ở _Bảo mật tài khoản_, mục _Hiển thị trên thiết bị này_, trên web và màn _Thêm_, mục _Hiển thị_, trên điện thoại): web giữ nguyên cỡ chuẩn trên điện thoại và máy tính bảng, thu nhỏ nhẹ trên laptop màn hình thấp (1280 x 720: 90 %, 1366 x 768: 94 %) và phóng to trên màn hình lớn (1920 px: 120 %, 2K: 147 %, 4K: 200 %) để giao diện lấp đầy màn hình; bố cục tự sắp xếp theo chỗ còn lại. App Android / iOS giữ cỡ chữ trên điện thoại nhỏ nhưng thu lề, tăng nhẹ chữ trên điện thoại lớn (đến 108 %) và trên máy tính bảng (112 % đến 130 %, nội dung thành cột giữa màn hình). Cỡ chữ của người dùng và của hệ điều hành vẫn áp dụng thêm.
 
 **Tài khoản trải nghiệm:** `ketoan@minhan.example` · mật khẩu `Argolet@2026` (dữ liệu mẫu "Minh An Commerce", kỳ tháng 10/2026).
 

@@ -22,6 +22,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { useScreenFit } from './fit';
 
 export const TEXT_SIZES = [
   { value: 1, label: 'Thường' },
@@ -93,9 +94,14 @@ function scaled(style: TextProps['style'], k: number, nested: boolean): TextStyl
 
 const Nested = createContext(false);
 
-/** Drop-in for React Native's Text that follows the app's text size. */
+/** The app's text size combined with the fit to this screen (larger on big phones and tablets). */
+function useEffectiveScale(): number {
+  return useTextScale() * useScreenFit().text;
+}
+
+/** Drop-in for React Native's Text that follows the app's text size and the screen. */
 export function Text(props: TextProps & { children?: ReactNode }) {
-  const k = useTextScale();
+  const k = useEffectiveScale();
   const nested = useContext(Nested);
   const extra = scaled(props.style, k, nested);
   return (
@@ -108,9 +114,9 @@ export function Text(props: TextProps & { children?: ReactNode }) {
 /** The instance a TextInput ref receives (focus, blur, clear). */
 export type TextInputHandle = ComponentRef<typeof RNTextInput>;
 
-/** Drop-in for React Native's TextInput that follows the app's text size. */
+/** Drop-in for React Native's TextInput that follows the app's text size and the screen. */
 export function TextInput({ ref, ...props }: TextInputProps & { ref?: Ref<TextInputHandle> }) {
-  const k = useTextScale();
+  const k = useEffectiveScale();
   const extra = scaled(props.style as TextProps['style'], k, false);
   return <RNTextInput ref={ref} {...props} style={extra ? [props.style, extra] : props.style} />;
 }

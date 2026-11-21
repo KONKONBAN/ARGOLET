@@ -42,6 +42,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { C, G, R, font } from './theme';
+import { setFitMode, useScreenFit } from './fit';
 
 /** A note such as "Tại quầy 248,6 triệu, nền tảng 180 triệu" wraps only between its parts. */
 const keepPhrases = (note: string) =>
@@ -75,18 +76,25 @@ export function Screen({
   const insets = useSafeAreaInsets();
   // While data on screen is reloaded after a change, it is dimmed and not tappable.
   const refreshing = useRefreshing();
+  // Margins and, on tablets, a centred column of comfortable width (see fit.tsx).
+  const fit = useScreenFit();
+  const column: ViewStyle = {
+    paddingHorizontal: fit.pad,
+    width: '100%',
+    ...(fit.maxWidth ? { maxWidth: fit.maxWidth + 2 * fit.pad, alignSelf: 'center' } : {}),
+  };
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }} aria-busy={refreshing || undefined}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: footer ? 110 : 32 }}
+          contentContainerStyle={[column, { paddingTop: fit.pad, paddingBottom: footer ? 110 : 32 }]}
           keyboardShouldPersistTaps="handled"
           style={refreshing ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
         >
           {children}
         </ScrollView>
       ) : (
-        <View style={{ flex: 1, padding: 16 }}>{children}</View>
+        <View style={[{ flex: 1 }, column, { paddingVertical: fit.pad }]}>{children}</View>
       )}
       {footer && (
         <View style={[st.footer, { paddingBottom: 12 + (insets.bottom > 0 ? 0 : 0) }]}>{footer}</View>
@@ -764,6 +772,18 @@ const st = StyleSheet.create({
     paddingVertical: 6,
   },
   sizeBtnOn: { backgroundColor: C.action, borderColor: C.action },
+  fitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  track: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#C4D2DA',
+    padding: 3,
+    justifyContent: 'center',
+  },
+  trackOn: { backgroundColor: C.action },
+  knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
+  knobOn: { transform: [{ translateX: 18 }] },
   card: {
     backgroundColor: C.surface,
     borderWidth: 1,
@@ -889,5 +909,37 @@ export function TextSizePicker() {
         );
       })}
     </View>
+  );
+}
+
+/** "Tự động căn chỉnh theo màn hình", with what it does on this screen right now. */
+export function FitSwitch() {
+  const fit = useScreenFit();
+  const on = fit.mode === 'auto';
+  const kind = {
+    'small-phone': 'điện thoại màn hình nhỏ',
+    phone: 'điện thoại',
+    'large-phone': 'điện thoại màn hình lớn',
+    tablet: 'máy tính bảng',
+  }[fit.actual.device];
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel="Tự động căn chỉnh theo màn hình"
+      onPress={() => setFitMode(on ? 'off' : 'auto')}
+      style={st.fitRow}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[T.body, T.strong]}>Tự động căn chỉnh theo màn hình</Text>
+        <Text style={[T.small, { marginTop: 4 }]}>
+          {`Màn hình ${fit.width} x ${fit.height} (${kind}), chữ ${Math.round(fit.text * 100)}%`}
+          {on ? '' : ', đang tắt'}
+        </Text>
+      </View>
+      <View style={[st.track, on ? st.trackOn : null]}>
+        <View style={[st.knob, on ? st.knobOn : null]} />
+      </View>
+    </Pressable>
   );
 }

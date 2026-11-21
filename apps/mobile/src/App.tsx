@@ -11,6 +11,7 @@ import { BackendProvider, type Backend } from '@argolet/client';
 import { createMobileBackend, getDeviceMode, setDeviceMode, type DeviceMode } from './backend';
 import { DeviceModeContext } from './deviceMode';
 import { SessionProvider, useSession } from './session';
+import { useScreenFit } from './fit';
 import { C, font } from './theme';
 import { Button, Loading, Notice, T } from './ui';
 import * as A from './screens/auth';
@@ -72,6 +73,9 @@ const Tab = createBottomTabNavigator<TabParams>();
 function ContextHeader({ onBell }: { onBell: () => void }) {
   const { ctx } = useSession();
   const insets = useSafeAreaInsets();
+  // Lined up with the content column on tablets (fit.tsx).
+  const fit = useScreenFit();
+  const side = fit.maxWidth ? Math.max(fit.pad, (fit.width - fit.maxWidth) / 2) : fit.pad;
   const scope = ctx?.scope.entityId === '*' ? 'Tất cả cơ sở' : (ctx?.scope.label.replace('Cơ sở ', '') ?? '');
   const legal =
     ctx?.entities.find((e) => e.kind === 'LEGAL_ENTITY' && ctx.entities.some((s) => s.parentId === e.id))
@@ -80,7 +84,7 @@ function ContextHeader({ onBell }: { onBell: () => void }) {
     <View
       style={{
         paddingTop: insets.top + 8,
-        paddingHorizontal: 16,
+        paddingHorizontal: side,
         paddingBottom: 8,
         backgroundColor: C.bg,
         flexDirection: 'row',

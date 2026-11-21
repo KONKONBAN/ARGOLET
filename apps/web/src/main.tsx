@@ -5,10 +5,13 @@ import { detectBackend, type Backend } from './api/backend';
 import { BackendProvider } from './api/hooks';
 import { App } from './app/App';
 import logo from './assets/logo.jpg';
+import { applyFit } from './ui/fit';
 import { applyTextSize } from './ui/textSize';
 
-// Older users' larger text, remembered on this device, applies before the first paint.
+// Older users' larger text and the automatic fit to the screen, remembered on this device, apply
+// before the first paint.
 applyTextSize();
+applyFit();
 
 function Boot() {
   const [backend, setBackend] = useState<Backend | null>(null);

@@ -18,18 +18,28 @@ import { useSession } from '../session';
 import { useDeviceMode } from '../deviceMode';
 import { C, font } from '../theme';
 import { Button, Card, Gap, Input, KV, Notice, OtpInput, Row, T, TextSizePicker } from '../ui';
+import { useScreenFit } from '../fit';
 import type { ScreenProps } from '../App';
 
 /** Mobile auth layout: shield banner + logo (Figma Android/iOS 01–08). */
 function AuthFrame({ children, title, subtitle }: { children: ReactNode; title: string; subtitle: string }) {
   const insets = useSafeAreaInsets();
+  // Sign-in forms stay a comfortable width on tablets, centred on the screen (fit.tsx).
+  const fit = useScreenFit();
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: '#fff' }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}
+        contentContainerStyle={{
+          paddingHorizontal: fit.pad,
+          paddingTop: insets.top + 12,
+          paddingBottom: 40,
+          width: '100%',
+          alignSelf: 'center',
+          ...(fit.device === 'tablet' ? { maxWidth: Math.round(520 * fit.text) + 2 * fit.pad } : {}),
+        }}
         keyboardShouldPersistTaps="handled"
       >
         <ImageBackground
@@ -179,6 +189,7 @@ export function ServerScreen() {
   const [url, setUrl] = useState('');
   const [invalid, setInvalid] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const fit = useScreenFit();
   useEffect(() => {
     getSavedServer().then((s) => {
       setSaved(s);
@@ -186,7 +197,14 @@ export function ServerScreen() {
     });
   }, []);
   return (
-    <ScrollView contentContainerStyle={{ padding: 16 }}>
+    <ScrollView
+      contentContainerStyle={{
+        padding: fit.pad,
+        width: '100%',
+        alignSelf: 'center',
+        ...(fit.maxWidth ? { maxWidth: fit.maxWidth + 2 * fit.pad } : {}),
+      }}
+    >
       <Text style={T.muted}>
         {IS_PRODUCTION
           ? 'Nhập địa chỉ máy chủ ARGOLET riêng của tổ chức (bắt đầu bằng https://). Để trống để dùng máy chủ mặc định của bản cài đặt.'

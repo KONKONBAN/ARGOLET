@@ -45,6 +45,8 @@ import {
   useToast,
 } from '../ui/components';
 import { PageFoot, usePeriodLabel } from './overview';
+import { useFit } from '../ui/fit';
+import { useTextSize } from '../ui/textSize';
 
 const ROLE_OPTIONS: [Role, string][] = [
   ['ACCOUNTANT', 'Kế toán'],
@@ -1089,6 +1091,7 @@ export function SecurityPage() {
           />
         )}
       </Card>
+      <DisplayCard />
       <PageFoot />
     </div>
   );
@@ -1215,5 +1218,61 @@ export function ModulesPage() {
 
       <PageFoot />
     </div>
+  );
+}
+
+/**
+ * How the interface is drawn on this device: larger text for older users, and the automatic fit to
+ * the screen (phones and tablets as designed, short laptop screens a little smaller, large monitors
+ * larger). Both are remembered on this device only.
+ */
+function DisplayCard() {
+  const fit = useFit();
+  const [size, setSize] = useTextSize();
+  const pct = Math.round(fit.zoom * 100);
+  return (
+    <Card className="mt-24" title="Hiển thị trên thiết bị này" subtitle="Chỉ áp dụng cho trình duyệt này">
+      <div className="display-settings">
+        <div className="display-row">
+          <div>
+            <div className="strong">Tự động căn chỉnh theo màn hình</div>
+            <p className="muted small mt-4">
+              Điện thoại và máy tính bảng giữ cỡ chuẩn; laptop màn hình thấp thu nhỏ nhẹ để thấy trọn trang;
+              màn hình lớn phóng to để giao diện lấp đầy màn hình.
+            </p>
+            <p className="small mt-8" role="status">
+              Màn hình {fit.width} x {fit.height} px, giao diện đang hiển thị {pct}%
+              {fit.mode === 'off' ? ' (đã tắt tự động)' : ''}
+            </p>
+          </div>
+          <label className="sd-switch">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={fit.mode === 'auto'}
+              onChange={(e) => fit.setMode(e.target.checked ? 'auto' : 'off')}
+            />
+            <span className="sd-switch-track" aria-hidden />
+            <span className="sr-only">Tự động căn chỉnh theo màn hình</span>
+          </label>
+        </div>
+        <div className="display-row">
+          <div>
+            <div className="strong">Chữ lớn</div>
+            <p className="muted small mt-4">Phóng to chữ, nút và bảng thêm 20% cho dễ đọc.</p>
+          </div>
+          <label className="sd-switch">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={size === 'large'}
+              onChange={(e) => setSize(e.target.checked ? 'large' : 'normal')}
+            />
+            <span className="sd-switch-track" aria-hidden />
+            <span className="sr-only">Chữ lớn</span>
+          </label>
+        </div>
+      </div>
+    </Card>
   );
 }

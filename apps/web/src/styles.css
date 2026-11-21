@@ -49,6 +49,23 @@ body,
 #root {
   height: 100%;
 }
+/*
+ * Automatic fit to the screen (ui/fit.ts): the page is drawn at --fit (1 on phones and tablets,
+ * a little less on short laptop screens, more on large monitors). Viewport sizes inside the page
+ * use --vw / --vh, the viewport measured in the page's own pixels, and --tz, the extra zoom of
+ * the larger text, so full-height panels stay exactly one screen tall in every browser.
+ */
+html {
+  zoom: var(--fit, 1);
+}
+html[data-text-size='large'] {
+  --tz: 1.2;
+}
+@media print {
+  html {
+    zoom: 1;
+  }
+}
 body {
   margin: 0;
   font-family: var(--font);
@@ -464,6 +481,9 @@ img {
 .strong {
   font-weight: 700;
 }
+.mt-4 {
+  margin-top: 4px;
+}
 .mt-8 {
   margin-top: 8px;
 }
@@ -678,7 +698,7 @@ img {
 }
 .scan-frame {
   position: relative;
-  height: min(78%, calc((100vw - 48px) * 1.414));
+  height: min(78%, calc((var(--vw, 100vw) / var(--tz, 1) - 48px) * 1.414));
   aspect-ratio: 1 / 1.414;
   max-width: calc(100% - 48px);
   border-radius: 18px;
@@ -1250,6 +1270,7 @@ button.scan-side:focus-visible {
 .sd-switch input {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
   margin: 0;
@@ -1515,6 +1536,10 @@ button.scan-side:focus-visible {
 .page {
   padding: 24px 40px 20px 36px;
   max-width: 1240px;
+}
+/* Fitted to a large monitor the page may use a little more of the width it was designed for. */
+html[data-fit='auto'] .page {
+  max-width: 1360px;
 }
 .page-head {
   display: flex;
@@ -2163,6 +2188,22 @@ table.table {
     white-space: normal;
   }
 }
+/* Phones: tighter cells so more periods fit beside the pinned indicator column. */
+@container content (max-width: 480px) {
+  .report-table td,
+  .report-table thead th,
+  .report-table tbody th {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .report-table tbody th {
+    min-width: 124px;
+    max-width: 140px;
+  }
+  .report-table .sub-row th {
+    padding-left: 16px;
+  }
+}
 .table-foot {
   font-size: 12px;
   color: var(--muted);
@@ -2602,7 +2643,7 @@ main.refreshing .list-rows {
   background: #fff;
   border-radius: 14px;
   width: min(520px, 100%);
-  max-height: calc(100vh - 32px);
+  max-height: calc(var(--vh, 100vh) / var(--tz, 1) - 32px);
   overflow: auto;
   box-shadow: var(--shadow-pop);
 }
@@ -2636,7 +2677,7 @@ main.refreshing .list-rows {
   flex-direction: column;
   gap: 10px;
   z-index: 60;
-  max-width: min(420px, calc(100vw - 32px));
+  max-width: min(420px, calc(var(--vw, 100vw) / var(--tz, 1) - 32px));
 }
 .toast {
   background: #102a3c;
@@ -2706,7 +2747,7 @@ main.refreshing .list-rows {
   }
 }
 .center-screen {
-  min-height: 100vh;
+  min-height: var(--vh, 100vh);
   display: grid;
   place-items: center;
 }
@@ -2715,7 +2756,7 @@ main.refreshing .list-rows {
 .auth {
   display: grid;
   grid-template-columns: minmax(0, 704fr) minmax(0, 736fr);
-  min-height: 100vh;
+  min-height: var(--vh, 100vh);
   background: #fff;
 }
 .auth-art {
@@ -2876,7 +2917,7 @@ main.refreshing .list-rows {
 .shell {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: var(--vh, 100vh);
   /* The sidebar is sticky (one screen tall); its column keeps the sidebar colour down long pages. */
   background: linear-gradient(90deg, #0b3a47 var(--sidebar-w), var(--bg) var(--sidebar-w));
 }
@@ -2885,7 +2926,7 @@ main.refreshing .list-rows {
   color: var(--nav-text);
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: var(--vh, 100vh);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -3083,7 +3124,7 @@ main.refreshing .list-rows {
 }
 .top-search {
   margin-left: auto;
-  width: min(292px, 30vw);
+  width: min(292px, calc(var(--vw, 100vw) / var(--tz, 1) * 0.3));
   height: 40px;
 }
 .menu-btn {
@@ -3851,7 +3892,7 @@ main#content {
 }
 html[data-text-size='large'] .sidebar {
   zoom: 1.1;
-  height: calc(100vh / 1.1);
+  height: calc(var(--vh, 100vh) / 1.1);
 }
 @media (max-width: 760px) {
   .text-size-label {
@@ -4203,4 +4244,30 @@ html[data-text-size='large'] .sidebar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ───────── display settings (account page) ───────── */
+.display-settings {
+  display: grid;
+  gap: 0;
+}
+.display-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.display-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.display-row > div {
+  min-width: 0;
+  max-width: 640px;
+}
+.display-row .sd-switch {
+  flex: none;
+  margin-top: 2px;
 }
