@@ -301,6 +301,54 @@ describe('HTTP API', () => {
     expect(close.json().error.code).toBe('STEP_UP_REQUIRED');
   });
 
+  it('locks internal topics and learns from corrections over HTTP', async () => {
+    const cookie = await webLogin();
+    const locked = await server.inject({
+      method: 'POST',
+      url: '/v1/settings/ai/locked',
+      headers: { ...H, cookie },
+      payload: { topics: [{ name: 'Lương nhân sự', keywords: 'lương, bảng lương' }] },
+    });
+    expect(locked.statusCode).toBe(200);
+    const ask = await server.inject({
+      method: 'POST',
+      url: '/v1/assistant/ask',
+      headers: { ...H, cookie },
+      payload: { question: 'Bảng lương tháng này?' },
+    });
+    expect(ask.json().answer).toMatchObject({ locked: true });
+    const term = await server.inject({
+      method: 'POST',
+      url: '/v1/assistant/ask',
+      headers: { ...H, cookie },
+      payload: { question: 'Ký hiệu hóa đơn là gì?' },
+    });
+    const { conversationId, answer } = term.json();
+    expect(answer.sources[0].title).toBe('Ký hiệu hóa đơn');
+    const fb = await server.inject({
+      method: 'POST',
+      url: '/v1/assistant/feedback',
+      headers: { ...H, cookie },
+      payload: {
+        conversationId,
+        index: 1,
+        helpful: false,
+        correction: 'Công ty dùng ký hiệu 1C26TMA cho cửa hàng Quận 7.',
+      },
+    });
+    expect(fb.json()).toEqual({ learning: true });
+    const list = await server.inject({ method: 'GET', url: '/v1/knowledge', headers: { ...H, cookie } });
+    expect(list.json().pending).toBe(1);
+    expect(list.json().locked[0].keywords).toEqual(['lương', 'bảng lương']);
+    // Leave the shared server without locked topics for the other tests.
+    await server.inject({
+      method: 'POST',
+      url: '/v1/settings/ai/locked',
+      headers: { ...H, cookie },
+      payload: { topics: [] },
+    });
+  });
+
   it('rate-limits brute force on authentication endpoints', async () => {
     let last = 0;
     for (let i = 0; i < 35; i++) {

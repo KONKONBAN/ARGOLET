@@ -13,6 +13,7 @@ const ROUTES: [string, string | RegExp][] = [
   ['close', /Chốt kỳ/],
   ['decision-pack', /Decision Pack|hồ sơ quyết định/i],
   ['evidence', /Bằng chứng/],
+  ['assistant-knowledge', 'Kiến thức của trợ lý'],
   ['assistant', /Trợ lý/],
   ['daily-close', /Chốt ca/],
   ['inventory', /Kho/],

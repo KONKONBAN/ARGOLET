@@ -16,6 +16,8 @@ export * from './ocrfields';
 export * from './restore';
 export * from './invoicemath';
 export * from './reading';
+export * from './knowledge';
+export * from './glossary';
 export * from './einvoice';
 export * from './imagemeta';
 export * from './invoiceqr';

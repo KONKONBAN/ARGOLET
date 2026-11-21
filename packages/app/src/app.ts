@@ -25,6 +25,7 @@ import { FinanceService } from './services/finance';
 import { LedgerService } from './services/ledger';
 import { ModuleService } from './services/modules';
 import { AssistantService } from './services/assistant';
+import { KnowledgeService } from './services/knowledge';
 import { ConnectionService } from './services/connections';
 import { onMatchResolvedValidateDocuments } from './services/consumers';
 import { ManualEntryExtractionProvider } from './extraction';
@@ -75,6 +76,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
   const ledger = new LedgerService(core);
   const modules = new ModuleService(core);
   const assistant = new AssistantService(core);
+  const knowledge = new KnowledgeService(core);
   const connections = new ConnectionService(core, documents);
 
   // Event consumers (idempotent via inbox, processed in outbox commit order).
@@ -103,6 +105,7 @@ export function createArgoletApp(opts: ArgoletAppOptions) {
     ledger,
     modules,
     assistant,
+    knowledge,
     connections,
   };
 }

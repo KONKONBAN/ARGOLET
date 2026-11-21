@@ -483,6 +483,23 @@ export const TABLES: { [K in CollectionName]: TableDef<K> } = {
     scope: 'tenant',
     columns: { userId: text(), title: text(), messages: json() },
   },
+  knowledge: {
+    table: 'assistant_knowledge',
+    scope: 'tenant',
+    columns: {
+      scope: text(),
+      userId: text(N),
+      kind: text(),
+      title: text(),
+      content: text(),
+      source: text(),
+      status: text(),
+      createdBy: text(),
+      createdByName: text(),
+      reviewedBy: text(N),
+      reviewedAt: ts(N),
+    },
+  },
   notifications: {
     table: 'notifications',
     scope: 'tenant',

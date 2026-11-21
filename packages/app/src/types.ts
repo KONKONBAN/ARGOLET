@@ -122,9 +122,19 @@ export interface TenantSettings {
         keys?: Partial<Record<'claude' | 'openai', AiKeyRecord>> | undefined;
       }
     | undefined;
+  /**
+   * Internal subjects the assistant must never answer about (salaries, passwords...), declared by
+   * an administrator. Enforced whether or not an AI provider is connected.
+   */
+  lockedTopics?: LockedTopicSetting[] | undefined;
   packages: ('G1' | 'G2' | 'G3' | 'G4')[];
   currentPeriod: string;
   dataLocation: string;
+}
+export interface LockedTopicSetting {
+  id: string;
+  name: string;
+  keywords: string[];
 }
 export interface TenantRow extends BaseRow {
   name: string;
@@ -438,6 +448,27 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   answer?: AssistantAnswer | undefined;
+  /** The asker's verdict on an answer; a correction becomes knowledge once an administrator approves it. */
+  feedback?: { helpful: boolean; correction?: string | undefined; at: string } | undefined;
+}
+/**
+ * What the assistant has learnt: terms and rules of the organisation, corrected answers, imported
+ * handbook pages (scope ORG, used for everyone once ACTIVE), and one person's preferences (scope
+ * USER, used only in that person's conversations).
+ */
+export interface KnowledgeRow extends BaseRow {
+  scope: 'ORG' | 'USER';
+  userId: string | null;
+  kind: 'TERM' | 'RULE' | 'FAQ' | 'DOCUMENT' | 'PREFERENCE';
+  title: string;
+  content: string;
+  /** Typed by an administrator, learnt from a correction or a conversation, or imported from a file. */
+  source: 'ADMIN' | 'FEEDBACK' | 'CONVERSATION' | 'IMPORT';
+  status: 'ACTIVE' | 'PENDING' | 'REJECTED';
+  createdBy: string;
+  createdByName: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
 }
 export interface AssistantAnswer {
   headline: string;
@@ -448,6 +479,12 @@ export interface AssistantAnswer {
   note: string;
   proposal?: { toolName: string; args: Record<string, unknown>; impact: string } | undefined;
   engine: 'claude' | 'openai' | 'rules';
+  /** Knowledge the answer drew on (organisation knowledge, the ARGOLET glossary). */
+  sources?: { id: string; title: string }[] | undefined;
+  /** Refused because the question touches an internal topic locked by the organisation. */
+  locked?: boolean | undefined;
+  /** What the assistant noted down during this answer (a preference, or a fact awaiting approval). */
+  remembered?: string | undefined;
 }
 export interface NotificationRow extends BaseRow {
   userId: string | null;
@@ -677,6 +714,7 @@ export interface Collections {
   calcRuns: CalcRunRow;
   financeProjects: FinanceProjectRow;
   conversations: ConversationRow;
+  knowledge: KnowledgeRow;
   notifications: NotificationRow;
   audit: AuditRow;
   outbox: OutboxRow;
@@ -728,6 +766,7 @@ export const COLLECTIONS: CollectionName[] = [
   'calcRuns',
   'financeProjects',
   'conversations',
+  'knowledge',
   'notifications',
   'audit',
   'outbox',

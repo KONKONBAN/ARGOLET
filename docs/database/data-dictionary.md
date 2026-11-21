@@ -1,6 +1,6 @@
 # Từ điển dữ liệu ARGOLET
 
-> Sinh tự động từ lược đồ `argolet` (phiên bản 2) bằng `pnpm --filter @argolet/api db:docs`. Không sửa tay.
+> Sinh tự động từ lược đồ `argolet` (phiên bản 3) bằng `pnpm --filter @argolet/api db:docs`. Không sửa tay.
 
 ## Kiểu miền (domain)
 
@@ -22,6 +22,7 @@
 | [`approvals`](#approvals) | Yêu cầu phê duyệt (người lập ≠ người duyệt) gắn với đúng phiên bản và digest của đối tượng; dòng thời gian xử lý |
 | [`assets`](#assets) | G3 · Tài sản vận hành và chỉ số đo lường (đường cơ sở / kỳ báo cáo), lịch bảo trì |
 | [`assistant_conversations`](#assistant_conversations) | Hội thoại với trợ lý ARGOLET: câu hỏi, trả lời kèm trích dẫn nguồn và đề xuất hành động |
+| [`assistant_knowledge`](#assistant_knowledge) | Kiến thức trợ lý học được: thuật ngữ, quy định, câu trả lời được sửa (quản trị viên duyệt trước khi dùng), tài liệu nhập và sở thích riêng của từng người |
 | [`audit_log`](#audit_log) | Nhật ký kiểm toán: ai làm gì, trên đối tượng nào, khi nào (bất biến; giữ lại cả khi người dùng bị xoá) |
 | [`business_record_history`](#business_record_history) | Các phiên bản cũ của bản ghi nghiệp vụ (bất biến) |
 | [`business_records`](#business_records) | Bản ghi nghiệp vụ hiện hành (đơn hàng, giao dịch ngân hàng, tiền mặt, chi phí, doanh thu) sinh ra từ chứng từ đã xác nhận |
@@ -291,6 +292,63 @@ Chỉ mục:
 
 - `assistant_conversations_user_idx`: `argolet.assistant_conversations USING btree (tenant_id, user_id)`
 - `assistant_conversations_user_ref_idx`: `argolet.assistant_conversations USING btree (user_id)`
+
+### assistant_knowledge
+
+Kiến thức trợ lý học được: thuật ngữ, quy định, câu trả lời được sửa (quản trị viên duyệt trước khi dùng), tài liệu nhập và sở thích riêng của từng người
+
+| Cột | Kiểu | Bắt buộc |
+| --- | --- | --- |
+| `tenant_id` | text | có |
+| `id` | text | có |
+| `scope` | text | có |
+| `user_id` | text |  |
+| `kind` | text | có |
+| `title` | text | có |
+| `content` | text | có |
+| `source` | text | có |
+| `status` | text | có |
+| `created_by` | text | có |
+| `created_by_name` | text | có |
+| `reviewed_by` | text |  |
+| `reviewed_at` | timestamp with time zone |  |
+| `rev` | integer | có |
+| `created_at` | timestamp with time zone | có |
+| `updated_at` | timestamp with time zone | có |
+
+| Ràng buộc | Loại | Định nghĩa |
+| --- | --- | --- |
+| `assistant_knowledge_pkey` | Khoá chính | `PRIMARY KEY (tenant_id, id)` |
+| `assistant_knowledge_tenant_fk` | Khoá ngoại | `FOREIGN KEY (tenant_id) REFERENCES argolet.tenants(id) DEFERRABLE INITIALLY DEFERRED` |
+| `assistant_knowledge_user_fk` | Khoá ngoại | `FOREIGN KEY (user_id) REFERENCES argolet.users(id) DEFERRABLE INITIALLY DEFERRED` |
+| `assistant_knowledge_check` | Kiểm tra | `CHECK (((scope = 'USER'::text) = (user_id IS NOT NULL)))` |
+| `assistant_knowledge_check1` | Kiểm tra | `CHECK (((reviewed_by IS NULL) = (reviewed_at IS NULL)))` |
+| `assistant_knowledge_content_check` | Kiểm tra | `CHECK (((btrim(content) <> ''::text) AND (length(content) <= 8000)))` |
+| `assistant_knowledge_content_not_null` | n | `NOT NULL content` |
+| `assistant_knowledge_created_at_not_null` | n | `NOT NULL created_at` |
+| `assistant_knowledge_created_by_name_not_null` | n | `NOT NULL created_by_name` |
+| `assistant_knowledge_created_by_not_null` | n | `NOT NULL created_by` |
+| `assistant_knowledge_id_not_null` | n | `NOT NULL id` |
+| `assistant_knowledge_kind_check` | Kiểm tra | `CHECK ((kind = ANY (ARRAY['TERM'::text, 'RULE'::text, 'FAQ'::text, 'DOCUMENT'::text, 'PREFERENCE'::text])))` |
+| `assistant_knowledge_kind_not_null` | n | `NOT NULL kind` |
+| `assistant_knowledge_rev_check` | Kiểm tra | `CHECK ((rev >= 1))` |
+| `assistant_knowledge_rev_not_null` | n | `NOT NULL rev` |
+| `assistant_knowledge_scope_check` | Kiểm tra | `CHECK ((scope = ANY (ARRAY['ORG'::text, 'USER'::text])))` |
+| `assistant_knowledge_scope_not_null` | n | `NOT NULL scope` |
+| `assistant_knowledge_source_check` | Kiểm tra | `CHECK ((source = ANY (ARRAY['ADMIN'::text, 'FEEDBACK'::text, 'CONVERSATION'::text, 'IMPORT'::text])))` |
+| `assistant_knowledge_source_not_null` | n | `NOT NULL source` |
+| `assistant_knowledge_status_check` | Kiểm tra | `CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'PENDING'::text, 'REJECTED'::text])))` |
+| `assistant_knowledge_status_not_null` | n | `NOT NULL status` |
+| `assistant_knowledge_tenant_id_not_null` | n | `NOT NULL tenant_id` |
+| `assistant_knowledge_title_check` | Kiểm tra | `CHECK (((btrim(title) <> ''::text) AND (length(title) <= 200)))` |
+| `assistant_knowledge_title_not_null` | n | `NOT NULL title` |
+| `assistant_knowledge_updated_at_not_null` | n | `NOT NULL updated_at` |
+
+Chỉ mục:
+
+- `assistant_knowledge_status_idx`: `argolet.assistant_knowledge USING btree (tenant_id, scope, status)`
+- `assistant_knowledge_user_idx`: `argolet.assistant_knowledge USING btree (tenant_id, user_id)`
+- `assistant_knowledge_user_ref_idx`: `argolet.assistant_knowledge USING btree (user_id)`
 
 ### audit_log
 

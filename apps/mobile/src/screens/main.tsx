@@ -69,6 +69,7 @@ import {
   TextSizePicker,
 } from '../ui';
 import type { ScreenProps } from '../App';
+import type { ChatMessage } from '@argolet/app';
 import { AuthenticityCard } from '../authenticity';
 import { shareFile } from '../share';
 import { DocumentScanner } from '../scanner';
@@ -1664,7 +1665,7 @@ export function AssistantScreen({ navigation }: ScreenProps<'Assistant'>) {
           <TextInput
             value={q}
             onChangeText={setQ}
-            placeholder="Hỏi về dữ liệu hoặc công việc..."
+            placeholder="Nhắn cho trợ lý..."
             placeholderTextColor="#8EA2AE"
             style={{
               flex: 1,
@@ -1761,11 +1762,118 @@ export function AssistantScreen({ navigation }: ScreenProps<'Assistant'>) {
                 />
               </View>
             ) : null}
+            {m.answer?.sources?.length ? (
+              <Text style={[T.small, { marginTop: 10 }]}>
+                Theo: {m.answer.sources.map((x) => x.title).join(', ')}
+              </Text>
+            ) : null}
+            {m.answer?.remembered ? (
+              <Text style={[T.small, { marginTop: 8, color: C.action }]}>{m.answer.remembered}</Text>
+            ) : null}
             {m.answer?.note ? <Text style={[T.small, { marginTop: 10 }]}>{m.answer.note}</Text> : null}
+            {active && m.answer && !m.answer.locked ? (
+              <AnswerFeedback conversationId={active} index={i} given={m.feedback} />
+            ) : null}
           </Card>
         ),
       )}
     </Screen>
+  );
+}
+
+/** "Hữu ích" / "Chưa đúng" under an answer; a correction is learnt once an administrator approves it. */
+function AnswerFeedback({
+  conversationId,
+  index,
+  given,
+}: {
+  conversationId: string;
+  index: number;
+  given: ChatMessage['feedback'];
+}) {
+  const send = useMutation('assistant.feedback', { silent: true });
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [done, setDone] = useState<string | null>(null);
+  const verdict = given ? (given.helpful ? 'yes' : 'no') : null;
+  const submit = async (helpful: boolean, correction?: string) => {
+    const r = await send
+      .mutate({ conversationId, index, helpful, correction: correction ?? null })
+      .catch((e: unknown) => {
+        setDone(e instanceof Error ? e.message : 'Không gửi được đánh giá');
+        return null;
+      });
+    if (!r) return;
+    setOpen(false);
+    setDone(
+      r.learning
+        ? 'Cảm ơn bạn. Câu trả lời đúng đã được gửi quản trị viên duyệt.'
+        : 'Cảm ơn bạn đã đánh giá.',
+    );
+  };
+  const pill = (on: boolean) => ({
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: on ? C.action : C.line,
+    backgroundColor: on ? '#EAF5EF' : '#fff',
+    justifyContent: 'center' as const,
+  });
+  return (
+    <View style={{ marginTop: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 8 }} accessibilityLabel="Đánh giá câu trả lời">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: verdict === 'yes' }}
+          onPress={() => void submit(true)}
+          style={pill(verdict === 'yes')}
+        >
+          <Text style={{ fontSize: 13, color: verdict === 'yes' ? C.action : C.muted }}>Hữu ích</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: verdict === 'no', expanded: open }}
+          onPress={() => setOpen((o) => !o)}
+          style={pill(verdict === 'no' || open)}
+        >
+          <Text style={{ fontSize: 13, color: verdict === 'no' || open ? C.action : C.muted }}>
+            Chưa đúng
+          </Text>
+        </Pressable>
+      </View>
+      {open ? (
+        <View style={{ marginTop: 10, gap: 8 }}>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            multiline
+            maxLength={2000}
+            placeholder="Câu trả lời đúng là gì? Trợ lý học sau khi quản trị viên duyệt."
+            placeholderTextColor="#8EA2AE"
+            accessibilityLabel="Câu trả lời đúng"
+            style={{
+              minHeight: 80,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: C.line,
+              backgroundColor: '#fff',
+              padding: 10,
+              fontFamily: font,
+              textAlignVertical: 'top',
+            }}
+          />
+          <Button
+            title={text.trim() ? 'Gửi để trợ lý học' : 'Gửi đánh giá'}
+            variant="primary"
+            small
+            loading={send.loading}
+            onPress={() => void submit(false, text.trim() || undefined)}
+          />
+        </View>
+      ) : null}
+      {done ? <Text style={[T.small, { marginTop: 8 }]}>{done}</Text> : null}
+    </View>
   );
 }
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
+  BookOpen,
   Boxes,
   Building2,
   ChartColumn,
@@ -593,6 +594,12 @@ export function SettingsPage() {
       title: 'Thành viên & phân quyền',
       desc: 'Vai trò, phạm vi và hạn mức',
       act: () => navigate('/members'),
+    },
+    {
+      icon: BookOpen,
+      title: 'Kiến thức của trợ lý',
+      desc: 'Học hỏi, ghi nhớ và thông tin nội bộ bị khóa',
+      act: () => navigate('/assistant-knowledge'),
     },
     {
       icon: Plug,

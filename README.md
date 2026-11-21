@@ -137,6 +137,14 @@ Image chạy bằng người dùng không phải root, phục vụ cả API lẫ
 
 **Trợ lý AI (Gen AI)** mặc định tắt cho mọi tổ chức. Quản trị viên vào _Cài đặt → Trợ lý AI_, dán **khóa API của tổ chức** (Claude: `sk-ant-…` từ console.anthropic.com; ChatGPT: `sk-…` từ platform.openai.com) rồi bấm _Kiểm tra và kết nối_: ARGOLET kiểm tra khóa trực tiếp với nhà cung cấp (Models API, không tốn lượt sinh văn bản), rồi niêm phong khóa (máy chủ: AES-256-GCM bằng `ARGOLET_SECRET_KEY`; điện thoại: iOS Keychain / Android Keystore), không hiển thị lại và có thể gỡ bất cứ lúc nào. Khóa đặt sẵn trên máy chủ (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) vẫn dùng được cho mọi tổ chức. Trước khi gửi, ARGOLET thay email, số điện thoại, mã số thuế, CCCD, số tài khoản và tên nhân sự bằng mã ẩn và khôi phục khi hiển thị; dữ liệu chỉ đi tới nhà cung cấp đã chọn; người hỏi được nhận diện bằng mã ẩn danh; nhật ký không lưu nội dung; mỗi người tối đa 20 câu hỏi / 10 phút. Claude dùng Messages API với _adaptive thinking_ và **server-side fallbacks** (`fallbacks: "default"`) trong cùng nhà cung cấp.
 
+**Trò chuyện, tự học có kiểm soát và thông tin nội bộ bị khóa.** Trợ lý trò chuyện tự nhiên theo ngữ cảnh cả cuộc hội thoại, giải thích nghiệp vụ kế toán, thuế và soạn thảo; số liệu doanh nghiệp vẫn chỉ lấy từ công cụ tra dữ liệu. Trang _Kiến thức của trợ lý_ (từ trang Trợ lý hoặc Cài đặt):
+
+- **Kiến thức của tổ chức**: quản trị viên thêm quy định nội bộ, thuật ngữ, hỏi đáp hoặc nhập tài liệu văn bản (.txt, .md) tổ chức có quyền sử dụng; trợ lý tra ở đây và trong từ điển nghiệp vụ ARGOLET (thuật ngữ kế toán, thuế viết riêng cho ARGOLET) trước khi trả lời, kể cả khi chưa kết nối Claude/ChatGPT.
+- **Tự học**: người dùng bấm _Chưa đúng_ dưới câu trả lời và ghi câu trả lời đúng; điều trợ lý học được (cả quy ước người dùng nhờ ghi nhớ trong trò chuyện) chỉ được dùng sau khi quản trị viên duyệt. Sở thích riêng (cách xưng hô, cách trình bày) lưu ngay, chỉ dùng cho người đó.
+- **Thông tin nội bộ bị khóa**: quản trị viên khai báo chủ đề và từ khóa (gợi ý sẵn: lương thưởng, mật khẩu và khóa truy cập, hợp đồng, kế hoạch chưa công bố). Câu hỏi chạm chủ đề bị từ chối trước khi gửi tới bất kỳ nhà cung cấp AI nào; dữ liệu, kiến thức và lịch sử chạm chủ đề không được gửi đi; câu trả lời nhắc tới chủ đề bị thay bằng lời từ chối; mỗi lần chặn được ghi nhật ký (chỉ ghi tên chủ đề).
+
+ARGOLET không huấn luyện lại mô hình AI: trợ lý dùng chính Claude hoặc ChatGPT qua khóa của tổ chức, cộng với kiến thức và giới hạn của tổ chức ở trên. Không nạp sách, từ điển có bản quyền khi chưa có giấy phép của đơn vị giữ bản quyền.
+
 ### 3. Ứng dụng Android / iOS
 
 **Tải bản dùng thử:** mỗi lần mã nguồn mobile thay đổi, GitHub Actions (`.github/workflows/mobile.yml`) tự dựng và đăng lên trang Releases, mục [ARGOLET · ứng dụng di động (bản mới nhất)](https://github.com/KONKONBAN/ARGOLET/releases/tag/mobile-latest):

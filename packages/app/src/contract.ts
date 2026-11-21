@@ -485,6 +485,35 @@ export const operations = {
     '/v1/assistant/proposals',
     (a, c, p: ParamsOf<Svc['assistant']['submitProposal']>) => a.assistant.submitProposal(c, p),
   ),
+  'assistant.feedback': op(
+    'POST',
+    '/v1/assistant/feedback',
+    (a, c, p: ParamsOf<Svc['assistant']['feedback']>) => a.assistant.feedback(c, p),
+  ),
+  'knowledge.list': op('GET', '/v1/knowledge', (a, c) => a.knowledge.list(c)),
+  'knowledge.save': op('POST', '/v1/knowledge', (a, c, p: ParamsOf<Svc['knowledge']['save']>) =>
+    a.knowledge.save(c, p),
+  ),
+  'knowledge.review': op(
+    'POST',
+    '/v1/knowledge/:id/review',
+    (a, c, p: ParamsOf<Svc['knowledge']['review']>) => a.knowledge.review(c, p),
+  ),
+  'knowledge.remove': op(
+    'POST',
+    '/v1/knowledge/:id/remove',
+    (a, c, p: ParamsOf<Svc['knowledge']['remove']>) => a.knowledge.remove(c, p),
+  ),
+  'knowledge.import': op(
+    'POST',
+    '/v1/knowledge/import',
+    (a, c, p: ParamsOf<Svc['knowledge']['importText']>) => a.knowledge.importText(c, p),
+  ),
+  'knowledge.saveLockedTopics': op(
+    'POST',
+    '/v1/settings/ai/locked',
+    (a, c, p: ParamsOf<Svc['knowledge']['saveLockedTopics']>) => a.knowledge.saveLockedTopics(c, p),
+  ),
 } as const;
 
 export type Operations = typeof operations;

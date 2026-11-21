@@ -41,6 +41,7 @@ const VerificationPage = lazy(() =>
   import('../pages/evidence').then((m) => ({ default: m.VerificationPage })),
 );
 const AssistantPage = lazy(() => import('../pages/assistant').then((m) => ({ default: m.AssistantPage })));
+const KnowledgePage = lazy(() => import('../pages/knowledge').then((m) => ({ default: m.KnowledgePage })));
 const DailyClosePage = lazy(() => import('../pages/g1').then((m) => ({ default: m.DailyClosePage })));
 const InventoryPage = lazy(() => import('../pages/g1').then((m) => ({ default: m.InventoryPage })));
 const PurchasingPage = lazy(() => import('../pages/g1').then((m) => ({ default: m.PurchasingPage })));
@@ -109,6 +110,7 @@ const appRoutes: [string, ReactNode][] = [
   ['evidence/:id', <EvidencePage />],
   ['verification/:id', <VerificationPage />],
   ['assistant', <AssistantPage />],
+  ['assistant-knowledge', <KnowledgePage />],
   ['daily-close', <DailyClosePage />],
   ['inventory', <InventoryPage />],
   ['purchasing', <PurchasingPage />],
