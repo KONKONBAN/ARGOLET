@@ -1,11 +1,9 @@
 /**
- * Two independent readings of a photo or scan, checked against each other:
- *  - OCR (character recognition, Vietnamese model) gives the exact text printed and where it is;
- *  - a VLM (vision-language model) understands the layout and picks the right fields.
- * A field both agree on is trusted; a field the VLM read that the OCR text does not contain, or a
- * field the two read differently, goes to a person with both readings shown. Nothing is guessed.
+ * Reading the fields of a Vietnamese document out of OCR text (character recognition gives the
+ * characters and where they are, not which is the total): amounts and dates in local formats, and
+ * the fields found next to their usual labels. Reconciliation with other readings: core/reading.
  */
-import type { DocumentFields, ExtractionField, ExtractionResult } from './documents';
+import type { DocumentFields } from './documents';
 
 export interface OcrWord {
   text: string;
@@ -135,121 +133,4 @@ export function fieldsFromOcrText(
   const sumLines = out.lines.reduce((t, l) => t + BigInt(l.amount), 0n);
   if (!out.total || sumLines !== BigInt(out.total)) out.lines = [];
   return out;
-}
-
-/** Mean word confidence below which an OCR reading is ignored. */
-export const MIN_OCR_CONFIDENCE = 0.6;
-
-const NAMES: (keyof DocumentFields)[] = [
-  'supplier',
-  'documentNo',
-  'documentDate',
-  'total',
-  'taxCode',
-  'series',
-];
-
-function normal(name: keyof DocumentFields, v: string): string {
-  if (!v) return '';
-  if (name === 'total' || name === 'taxCode') return digitsOf(v).replace(/^0+(?=\d)/, '');
-  if (name === 'documentNo' || name === 'series')
-    return v
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
-      .replace(/^0+(?=\d)/, '');
-  if (name === 'supplier')
-    return fold(v)
-      .replace(/[^a-z0-9 ]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  return v;
-}
-
-/** Whether a value the VLM read is actually printed in the OCR text. */
-function printed(name: keyof DocumentFields, value: string, ocr: OcrReading): boolean {
-  const v = normal(name, value);
-  if (!v) return false;
-  if (name === 'total') return ocr.text.split(/\r?\n/).some((l) => amountsIn(l).includes(v));
-  if (name === 'documentDate') return datesIn(ocr.text).includes(v);
-  if (name === 'supplier') {
-    const words = v
-      .split(' ')
-      .filter((w) => w.length > 1 && !['cong', 'ty', 'tnhh', 'cp', 'co', 'phan'].includes(w));
-    if (!words.length) return false;
-    const text = normal('supplier', ocr.text);
-    return words.filter((w) => text.includes(w)).length / words.length >= 0.6;
-  }
-  const compact = ocr.text.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return compact.includes(v);
-}
-
-/** Box of the OCR word(s) holding a value, for highlighting it on the original. */
-function boxOf(
-  name: keyof DocumentFields,
-  value: string,
-  ocr: OcrReading,
-): [number, number, number, number] | undefined {
-  const v = normal(name, value);
-  if (!v || name === 'supplier') return undefined;
-  const w = ocr.words.find((x) =>
-    name === 'total'
-      ? digitsOf(x.text) === v
-      : x.text
-          .toUpperCase()
-          .replace(/[^A-Z0-9]/g, '')
-          .includes(v),
-  );
-  return w?.bbox;
-}
-
-/**
- * Merges an OCR reading and a VLM extraction (either may be missing). Agreement raises the
- * confidence; a VLM value the OCR text does not contain, or two different readings, lower it below
- * the review threshold and are reported as disagreements for the reviewer.
- */
-export function reconcileReadings(p: {
-  ocr: OcrReading | null;
-  vlm: ExtractionResult | null;
-}): ExtractionResult & { disagreements: ExtractionDisagreement[] } {
-  const { vlm } = p;
-  // A blurred, skewed or dark photo gives OCR text that cannot be trusted: it is not used at all.
-  const ocr = p.ocr && p.ocr.confidence >= MIN_OCR_CONFIDENCE ? p.ocr : null;
-  const fromOcr = ocr ? fieldsFromOcrText(ocr.text) : null;
-  const disagreements: ExtractionDisagreement[] = [];
-  const fields: ExtractionField[] = [];
-  const ocrConfidence = ocr ? Math.min(0.7, ocr.confidence) : 0;
-  for (const name of NAMES) {
-    const v = vlm?.fields.find((f) => f.name === name);
-    const o = fromOcr?.[name];
-    const ov = typeof o === 'string' ? o : '';
-    if (v?.value) {
-      if (!ocr) {
-        fields.push(v);
-        continue;
-      }
-      const same = ov && normal(name, ov) === normal(name, v.value);
-      const confirmed = same || printed(name, v.value, ocr);
-      const bbox = boxOf(name, v.value, ocr) ?? v.bbox;
-      if (confirmed) {
-        fields.push({
-          ...v,
-          confidence: Math.max(v.confidence, same ? 0.98 : 0.95),
-          ...(bbox ? { bbox } : {}),
-        });
-      } else {
-        fields.push({ ...v, confidence: Math.min(v.confidence, 0.5), ...(bbox ? { bbox } : {}) });
-        if (ov) disagreements.push({ field: name, ocr: ov, vlm: v.value });
-      }
-    } else if (ov) {
-      const bbox = ocr ? boxOf(name, ov, ocr) : undefined;
-      fields.push({ name, value: ov, confidence: ocrConfidence, page: 1, ...(bbox ? { bbox } : {}) });
-    }
-  }
-  const engines = [p.ocr?.engine, vlm?.modelVersion].filter(Boolean).join(' + ');
-  return {
-    modelVersion: engines || 'manual-entry',
-    fields,
-    lines: vlm?.lines.length ? vlm.lines : (fromOcr?.lines ?? []),
-    disagreements,
-  };
 }

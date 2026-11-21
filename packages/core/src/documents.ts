@@ -386,6 +386,42 @@ export interface ExtractionResult {
   lines: { description: string; amount: string }[];
   /** Fields the OCR and the VLM read differently (both values shown to the reviewer). */
   disagreements?: { field: keyof DocumentFields; ocr: string; vlm: string }[];
+  /**
+   * Figures of a VAT invoice. From a vision model: as read (never computed). After reconciliation:
+   * solved so that subtotal + VAT = total, with the figures only the equations gave listed in `derived`.
+   */
+  amounts?: InvoiceAmounts | undefined;
+  /** What the reviewer should know about how the figures were read (plain Vietnamese sentences). */
+  notes?: string[] | undefined;
+  /** How the photo was restored before reading (see core/restore). */
+  restoration?: RestorationReport | undefined;
+}
+
+export interface InvoiceAmounts {
+  subtotal?: string | undefined;
+  vatAmount?: string | undefined;
+  /** Percent (0, 5, 8, 10); absent when several rates are mixed or none is printed. */
+  vatRate?: number | undefined;
+  total?: string | undefined;
+  /** Amount written in words, as printed ("Một triệu sáu trăm năm mươi nghìn đồng"). */
+  words?: string | undefined;
+  /** subtotal + VAT = total and VAT = subtotal x rate hold. */
+  consistent?: boolean | undefined;
+  derived?: ('total' | 'subtotal' | 'vatAmount')[] | undefined;
+}
+
+export interface RestorationReport {
+  skew: number;
+  warp: number;
+  scale: number;
+  contrast: number;
+}
+
+/** A restored copy of the page offered to a vision model alongside the original. */
+export interface ImageView {
+  label: string;
+  bytes: Uint8Array;
+  mime: string;
 }
 
 export interface ExtractionProvider {
@@ -395,5 +431,9 @@ export interface ExtractionProvider {
     mime: string;
     filename: string;
     hints?: Partial<DocumentFields>;
+    /** Restored copies of an image (flattened, contrast restored), for vision models. */
+    views?: ImageView[] | undefined;
+    /** A vision model to use for this document instead of the default (the organisation's own key). */
+    vlm?: ExtractionProvider | null | undefined;
   }): Promise<ExtractionResult>;
 }
